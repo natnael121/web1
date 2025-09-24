@@ -35,6 +35,7 @@ const ShopList: React.FC = () => {
         shopsData.push({
           id: doc.id,
           ...doc.data(),
+          rating: typeof doc.data().rating === 'number' ? doc.data().rating : 0,
           createdAt: doc.data().createdAt?.toDate() || new Date(),
           updatedAt: doc.data().updatedAt?.toDate() || new Date()
         } as Shop)
