@@ -21,6 +21,14 @@ const ShopList: React.FC = () => {
   const fetchShops = async () => {
     try {
       setLoading(true)
+      
+      // Check if Firebase is configured
+      if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
+        console.warn('Firebase not configured')
+        setShops([])
+        return
+      }
+      
       const shopsRef = collection(db, 'shops')
       let q = query(shopsRef, where('isActive', '==', true))
       
@@ -42,6 +50,7 @@ const ShopList: React.FC = () => {
       })
 
       setShops(shopsData)
+      console.log(`Fetched ${shopsData.length} shops from Firebase`)
     } catch (error) {
       console.error('Error fetching shops:', error)
       // Show error using Telegram's popup if available
