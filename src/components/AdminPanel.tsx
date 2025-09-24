@@ -13,28 +13,19 @@ import {
 } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
-import { Shop, Product, Category, Department } from '../types'
-import { 
-  Store, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  Package, 
-  DollarSign,
-  Image,
-  FileText,
-  Star,
-  MapPin,
-  Phone,
-  Clock,
-  Users,
-  BarChart3,
-  Bell,
-  ShoppingCart,
-  Tag
-} from 'lucide-react'
+import { Shop, Product, Category, Department, UserData } from '../types'
+import { Store, Plus, Package, Tag, Users, BarChart3 } from 'lucide-react'
+
+// Import the new components
+import ShopCard from './admin/ShopCard'
+import ShopEditModal from './admin/ShopEditModal'
+import ProductCard from './admin/ProductCard'
+import ProductEditModal from './admin/ProductEditModal'
+import CategoryCard from './admin/CategoryCard'
+import CategoryEditModal from './admin/CategoryEditModal'
+import DepartmentCard from './admin/DepartmentCard'
+import DepartmentEditModal from './admin/DepartmentEditModal'
+import AnalyticsTab from './admin/AnalyticsTab'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
@@ -56,6 +47,7 @@ const AdminPanel: React.FC = () => {
   const [showAddDepartment, setShowAddDepartment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
 
   useEffect(() => {
     if (user?.id) {
@@ -77,7 +69,7 @@ const AdminPanel: React.FC = () => {
 
       // Get user document from Firebase using Telegram ID
       const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', user.id.toString()))
+      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
       const userSnapshot = await getDocs(userQuery)
 
       if (userSnapshot.empty) {
@@ -87,7 +79,8 @@ const AdminPanel: React.FC = () => {
       }
 
       const userDoc = userSnapshot.docs[0]
-      const userData = userDoc.data()
+      const userData = userDoc.data() as UserData
+      setUserData(userData)
 
       // Check if user has shop_owner role
       if (userData.role !== 'shop_owner' && userData.role !== 'admin') {
@@ -286,6 +279,7 @@ const AdminPanel: React.FC = () => {
       const shopRef = doc(db, 'shops', updatedShop.id)
       await updateDoc(shopRef, {
         name: updatedShop.name,
+        slug: updatedShop.slug,
         description: updatedShop.description,
         logo: updatedShop.logo,
         isActive: updatedShop.isActive,
@@ -323,7 +317,7 @@ const AdminPanel: React.FC = () => {
         updatedAt: new Date()
       }
       
-      setProducts(prev => [...prev, product])
+      setProducts(prev => [product, ...prev])
       setShowAddProduct(false)
       
       // Update shop stats
@@ -347,10 +341,14 @@ const AdminPanel: React.FC = () => {
         category: updatedProduct.category,
         subcategory: updatedProduct.subcategory,
         images: updatedProduct.images,
+        sku: updatedProduct.sku,
         isActive: updatedProduct.isActive,
         lowStockAlert: updatedProduct.lowStockAlert,
         tags: updatedProduct.tags,
         featured: updatedProduct.featured,
+        costPrice: updatedProduct.costPrice,
+        weight: updatedProduct.weight,
+        dimensions: updatedProduct.dimensions,
         updatedAt: new Date()
       })
       
@@ -365,6 +363,8 @@ const AdminPanel: React.FC = () => {
   }
 
   const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return
+    
     try {
       await deleteDoc(doc(db, 'products', productId))
       setProducts(prev => prev.filter(product => product.id !== productId))
@@ -403,6 +403,41 @@ const AdminPanel: React.FC = () => {
     }
   }
 
+  const handleUpdateCategory = async (updatedCategory: Category) => {
+    try {
+      const categoryRef = doc(db, 'categories', updatedCategory.id)
+      await updateDoc(categoryRef, {
+        name: updatedCategory.name,
+        description: updatedCategory.description,
+        color: updatedCategory.color,
+        icon: updatedCategory.icon,
+        order: updatedCategory.order,
+        isActive: updatedCategory.isActive,
+        updatedAt: new Date()
+      })
+      
+      setCategories(prev => prev.map(category => 
+        category.id === updatedCategory.id ? updatedCategory : category
+      ))
+      setEditingCategory(null)
+    } catch (error) {
+      console.error('Error updating category:', error)
+      setError('Failed to update category. Please try again.')
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('Are you sure you want to delete this category?')) return
+    
+    try {
+      await deleteDoc(doc(db, 'categories', categoryId))
+      setCategories(prev => prev.filter(category => category.id !== categoryId))
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      setError('Failed to delete category. Please try again.')
+    }
+  }
+
   const handleAddDepartment = async (newDepartment: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const departmentsRef = collection(db, 'departments')
@@ -424,6 +459,43 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error adding department:', error)
       setError('Failed to add department. Please try again.')
+    }
+  }
+
+  const handleUpdateDepartment = async (updatedDepartment: Department) => {
+    try {
+      const departmentRef = doc(db, 'departments', updatedDepartment.id)
+      await updateDoc(departmentRef, {
+        name: updatedDepartment.name,
+        telegramChatId: updatedDepartment.telegramChatId,
+        adminChatId: updatedDepartment.adminChatId,
+        role: updatedDepartment.role,
+        order: updatedDepartment.order,
+        icon: updatedDepartment.icon,
+        isActive: updatedDepartment.isActive,
+        notificationTypes: updatedDepartment.notificationTypes,
+        updatedAt: new Date()
+      })
+      
+      setDepartments(prev => prev.map(department => 
+        department.id === updatedDepartment.id ? updatedDepartment : department
+      ))
+      setEditingDepartment(null)
+    } catch (error) {
+      console.error('Error updating department:', error)
+      setError('Failed to update department. Please try again.')
+    }
+  }
+
+  const handleDeleteDepartment = async (departmentId: string) => {
+    if (!confirm('Are you sure you want to delete this department?')) return
+    
+    try {
+      await deleteDoc(doc(db, 'departments', departmentId))
+      setDepartments(prev => prev.filter(department => department.id !== departmentId))
+    } catch (error) {
+      console.error('Error deleting department:', error)
+      setError('Failed to delete department. Please try again.')
     }
   }
 
@@ -497,51 +569,12 @@ const AdminPanel: React.FC = () => {
         <h2 className="text-lg font-semibold text-telegram-text">Your Shops</h2>
         
         {ownedShops.map((shop) => (
-          <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3">
-                  {shop.logo && (
-                    <img src={shop.logo} alt={shop.name} className="w-12 h-12 rounded-lg object-cover" />
-                  )}
-                  <div>
-                    <h3 className="font-semibold text-telegram-text">{shop.name}</h3>
-                    <p className="text-sm text-telegram-hint mt-1">{shop.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4 mt-2 text-xs text-telegram-hint">
-                  <span className="flex items-center">
-                    <Package className="w-3 h-3 mr-1" />
-                    {shop.stats?.totalProducts || 0} products
-                  </span>
-                  <span className="flex items-center">
-                    <ShoppingCart className="w-3 h-3 mr-1" />
-                    {shop.stats?.totalOrders || 0} orders
-                  </span>
-                  <span className={`px-2 py-1 rounded-full ${
-                    shop.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {shop.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setEditingShop(shop)}
-                  className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleShopSelect(shop)}
-                  className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <ShopCard
+            key={shop.id}
+            shop={shop}
+            onEdit={setEditingShop}
+            onSelect={handleShopSelect}
+          />
         ))}
       </div>
 
@@ -558,7 +591,7 @@ const AdminPanel: React.FC = () => {
               <div className="text-right">
                 <div className="text-sm text-telegram-hint">Total Revenue</div>
                 <div className="text-2xl font-bold text-telegram-button">
-                  ${stats?.totalRevenue?.toFixed(2) || '0.00'}
+                  {selectedShop.settings?.currency === 'ETB' ? 'Br' : '$'}{stats?.totalRevenue?.toFixed(2) || '0.00'}
                 </div>
               </div>
             </div>
@@ -601,53 +634,14 @@ const AdminPanel: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 {products.map((product) => (
-                  <div key={product.id} className="bg-telegram-secondary-bg rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          {product.images[0] && (
-                            <img src={product.images[0]} alt={product.name} className="w-16 h-16 rounded-lg object-cover" />
-                          )}
-                          <div>
-                            <h4 className="font-medium text-telegram-text">{product.name}</h4>
-                            <p className="text-sm text-telegram-hint mt-1 line-clamp-2">{product.description}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-lg font-bold text-telegram-button">
-                            ${product.price.toFixed(2)}
-                          </span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            product.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            Stock: {product.stock}
-                          </span>
-                          {product.featured && (
-                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                              Featured
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => setEditingProduct(product)}
-                          className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className="p-2 text-red-500 hover:bg-red-500 hover:text-white rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onEdit={setEditingProduct}
+                    onDelete={handleDeleteProduct}
+                  />
                 ))}
               </div>
             </div>
@@ -669,20 +663,12 @@ const AdminPanel: React.FC = () => {
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {categories.map((category) => (
-                  <div key={category.id} className="bg-telegram-secondary-bg rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
-                      <div 
-                        className="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
-                        style={{ backgroundColor: category.color + '20', color: category.color }}
-                      >
-                        {category.icon}
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-telegram-text">{category.name}</h4>
-                        <p className="text-sm text-telegram-hint">{category.productCount} products</p>
-                      </div>
-                    </div>
-                  </div>
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    onEdit={setEditingCategory}
+                    onDelete={handleDeleteCategory}
+                  />
                 ))}
               </div>
             </div>
@@ -704,22 +690,12 @@ const AdminPanel: React.FC = () => {
 
               <div className="grid gap-4 md:grid-cols-2">
                 {departments.map((department) => (
-                  <div key={department.id} className="bg-telegram-secondary-bg rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-2xl">{department.icon}</div>
-                        <div>
-                          <h4 className="font-medium text-telegram-text">{department.name}</h4>
-                          <p className="text-sm text-telegram-hint capitalize">{department.role}</p>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        department.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {department.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
+                  <DepartmentCard
+                    key={department.id}
+                    department={department}
+                    onEdit={setEditingDepartment}
+                    onDelete={handleDeleteDepartment}
+                  />
                 ))}
               </div>
             </div>
@@ -727,51 +703,7 @@ const AdminPanel: React.FC = () => {
 
           {/* Analytics Tab */}
           {activeTab === 'analytics' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-telegram-text">Shop Analytics</h3>
-              
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="bg-telegram-secondary-bg rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <Package className="w-8 h-8 text-blue-500" />
-                    <div>
-                      <div className="text-2xl font-bold text-telegram-text">{stats?.totalProducts || 0}</div>
-                      <div className="text-sm text-telegram-hint">Total Products</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-telegram-secondary-bg rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <ShoppingCart className="w-8 h-8 text-green-500" />
-                    <div>
-                      <div className="text-2xl font-bold text-telegram-text">{stats?.totalOrders || 0}</div>
-                      <div className="text-sm text-telegram-hint">Total Orders</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-telegram-secondary-bg rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <DollarSign className="w-8 h-8 text-yellow-500" />
-                    <div>
-                      <div className="text-2xl font-bold text-telegram-text">${stats?.totalRevenue?.toFixed(2) || '0.00'}</div>
-                      <div className="text-sm text-telegram-hint">Total Revenue</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-telegram-secondary-bg rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <Users className="w-8 h-8 text-purple-500" />
-                    <div>
-                      <div className="text-2xl font-bold text-telegram-text">{stats?.totalCustomers || 0}</div>
-                      <div className="text-sm text-telegram-hint">Total Customers</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <AnalyticsTab shop={selectedShop} stats={stats} />
           )}
         </div>
       )}
@@ -804,393 +736,45 @@ const AdminPanel: React.FC = () => {
         />
       )}
 
-      {showAddCategory && selectedShop && (
+      {showAddCategory && selectedShop && userData && (
         <CategoryEditModal
-          userId={user?.id?.toString() || ''}
+          userId={userData.uid}
           shopId={selectedShop.id}
           onSave={handleAddCategory}
           onCancel={() => setShowAddCategory(false)}
         />
       )}
 
-      {showAddDepartment && selectedShop && (
+      {editingCategory && (
+        <CategoryEditModal
+          category={editingCategory}
+          userId={editingCategory.userId}
+          shopId={editingCategory.shopId}
+          onSave={handleUpdateCategory}
+          onCancel={() => setEditingCategory(null)}
+        />
+      )}
+
+      {showAddDepartment && selectedShop && userData && (
         <DepartmentEditModal
-          userId={user?.id?.toString() || ''}
+          userId={userData.uid}
           shopId={selectedShop.id}
           onSave={handleAddDepartment}
           onCancel={() => setShowAddDepartment(false)}
         />
       )}
+
+      {editingDepartment && (
+        <DepartmentEditModal
+          department={editingDepartment}
+          userId={editingDepartment.userId}
+          shopId={editingDepartment.shopId || ''}
+          onSave={handleUpdateDepartment}
+          onCancel={() => setEditingDepartment(null)}
+        />
+      )}
     </div>
   )
 }
-
-// Updated ShopEditModal to match new schema
-interface ShopEditModalProps {
-  shop: Shop
-  onSave: (shop: Shop) => void
-  onCancel: () => void
-}
-
-const ShopEditModal: React.FC<ShopEditModalProps> = ({ shop, onSave, onCancel }) => {
-  const [formData, setFormData] = useState(shop)
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-telegram-bg rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-telegram-text">Edit Shop</h3>
-          <button onClick={onCancel} className="text-telegram-hint">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                <Store className="w-4 h-4 inline mr-1" />
-                Shop Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                Slug
-              </label>
-              <input
-                type="text"
-                value={formData.slug}
-                onChange={(e) => setFormData({...formData, slug: e.target.value})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-telegram-text mb-1">
-              <FileText className="w-4 h-4 inline mr-1" />
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-telegram-text mb-1">
-              <Image className="w-4 h-4 inline mr-1" />
-              Logo URL
-            </label>
-            <input
-              type="url"
-              value={formData.logo}
-              onChange={(e) => setFormData({...formData, logo: e.target.value})}
-              className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-            />
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isActive"
-              checked={formData.isActive}
-              onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-              className="mr-2"
-            />
-            <label htmlFor="isActive" className="text-sm text-telegram-text">
-              Shop is active
-            </label>
-          </div>
-
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="submit"
-              className="flex-1 bg-telegram-button text-telegram-button-text py-3 rounded-lg flex items-center justify-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Changes</span>
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-6 py-3 border border-telegram-hint text-telegram-hint rounded-lg"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// Updated ProductEditModal to match new schema
-interface ProductEditModalProps {
-  product?: Product
-  shopId: string
-  categories: Category[]
-  onSave: (product: any) => void
-  onCancel: () => void
-}
-
-const ProductEditModal: React.FC<ProductEditModalProps> = ({ product, shopId, categories, onSave, onCancel }) => {
-  const [formData, setFormData] = useState({
-    name: product?.name || '',
-    description: product?.description || '',
-    price: product?.price || 0,
-    stock: product?.stock || 0,
-    category: product?.category || '',
-    subcategory: product?.subcategory || '',
-    images: product?.images || [''],
-    sku: product?.sku || '',
-    isActive: product?.isActive ?? true,
-    lowStockAlert: product?.lowStockAlert || 5,
-    tags: product?.tags || [],
-    featured: product?.featured || false,
-    costPrice: product?.costPrice || 0,
-    weight: product?.weight || 0,
-    shopId: shopId
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (product) {
-      onSave({ ...product, ...formData })
-    } else {
-      onSave(formData)
-    }
-  }
-
-  const addImageField = () => {
-    setFormData({...formData, images: [...formData.images, '']})
-  }
-
-  const updateImage = (index: number, value: string) => {
-    const newImages = [...formData.images]
-    newImages[index] = value
-    setFormData({...formData, images: newImages})
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-telegram-bg rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-telegram-text">
-            {product ? 'Edit Product' : 'Add Product'}
-          </h3>
-          <button onClick={onCancel} className="text-telegram-hint">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                <Package className="w-4 h-4 inline mr-1" />
-                Product Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                SKU
-              </label>
-              <input
-                type="text"
-                value={formData.sku}
-                onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-telegram-text mb-1">
-              <FileText className="w-4 h-4 inline mr-1" />
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-              rows={3}
-            />
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                <DollarSign className="w-4 h-4 inline mr-1" />
-                Price
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value)})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                Cost Price
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.costPrice}
-                onChange={(e) => setFormData({...formData, costPrice: parseFloat(e.target.value)})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">
-                Stock
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.stock}
-                onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value)})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">Category</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-              >
-                <option value="">Select Category</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-telegram-text mb-1">Low Stock Alert</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.lowStockAlert}
-                onChange={(e) => setFormData({...formData, lowStockAlert: parseInt(e.target.value)})}
-                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-telegram-text mb-1">
-              <Image className="w-4 h-4 inline mr-1" />
-              Image URLs
-            </label>
-            <div className="space-y-2">
-              {formData.images.map((image, index) => (
-                <input
-                  key={index}
-                  type="url"
-                  value={image}
-                  onChange={(e) => updateImage(index, e.target.value)}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                  placeholder={`Image URL ${index + 1}`}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={addImageField}
-                className="text-telegram-button text-sm flex items-center space-x-1"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add another image</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                className="mr-2"
-              />
-              <label htmlFor="isActive" className="text-sm text-telegram-text">
-                Active
-              </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="featured"
-                checked={formData.featured}
-                onChange={(e) => setFormData({...formData, featured: e.target.checked})}
-                className="mr-2"
-              />
-              <label htmlFor="featured" className="text-sm text-telegram-text">
-                Featured
-              </label>
-            </div>
-          </div>
-
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="submit"
-              className="flex-1 bg-telegram-button text-telegram-button-text py-3 rounded-lg flex items-center justify-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>{product ? 'Update' : 'Add'} Product</span>
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-6 py-3 border border-telegram-hint text-telegram-hint rounded-lg"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// Add CategoryEditModal and DepartmentEditModal components similarly...
 
 export default AdminPanel
