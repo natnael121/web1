@@ -68,67 +68,54 @@ const AdminPanel: React.FC = () => {
       }
 
       // Get user document from Firebase using Telegram ID
-      const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
+const usersRef = collection(db, 'users')
+const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+const userSnapshot = await getDocs(userQuery)
 
-      if (userSnapshot.empty) {
-        setIsOwner(false)
-        setError('User not found in database')
-        return
-      }
+if (userSnapshot.empty) {
+  setIsOwner(false)
+  setError('User not found in database')
+  return
+}
 
-      const userDoc = userSnapshot.docs[0]
-      const userData = userDoc.data() as UserData
-      setUserData(userData)
+const userDoc = userSnapshot.docs[0]
+const userData = userDoc.data() as UserData
+setUserData(userData)
 
-      // Check if user has shop_owner role
-      if (userData.role !== 'shop_owner' && userData.role !== 'admin') {
-        setIsOwner(false)
-        setError('You do not have owner permissions')
-        return
-      }
+// Allow ALL users to access the admin panel regardless of role
+setIsOwner(true)
 
-      setIsOwner(true)
-      
-      // Find shops owned by this user
-      const shopsRef = collection(db, 'shops')
-      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
-      const shopsSnapshot = await getDocs(ownerQuery)
-      
-      const shopsList: Shop[] = []
-      shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive !== false,
-          businessInfo: data.businessInfo || {},
-          settings: data.settings || {
-            currency: 'USD',
-            taxRate: 0,
-            businessHours: { open: '09:00', close: '18:00', days: [] },
-            orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
-          },
-          stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        shopsList.push(shop)
-      })
+// Find shops owned by this user (if any)
+const shopsRef = collection(db, 'shops')
+const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
+const shopsSnapshot = await getDocs(ownerQuery)
 
-      setOwnedShops(shopsList)
-    } catch (error) {
-      console.error('Error checking owner role:', error)
-      setError('Failed to verify permissions. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+const shopsList: Shop[] = []
+shopsSnapshot.forEach((doc) => {
+  const data = doc.data()
+  const shop: Shop = {
+    id: doc.id,
+    ownerId: data.ownerId,
+    name: data.name,
+    slug: data.slug,
+    description: data.description,
+    logo: data.logo,
+    isActive: data.isActive !== false,
+    businessInfo: data.businessInfo || {},
+    settings: data.settings || {
+      currency: 'USD',
+      taxRate: 0,
+      businessHours: { open: '09:00', close: '18:00', days: [] },
+      orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
+    },
+    stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
+    createdAt: data.createdAt?.toDate() || new Date(),
+    updatedAt: data.updatedAt?.toDate() || new Date()
   }
+  shopsList.push(shop)
+})
+
+setOwnedShops(shopsList)
 
   const fetchShopData = async (shopId: string) => {
     await Promise.all([
