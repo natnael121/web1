@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
-import { useWebApp, useInitData } from '@telegram-apps/sdk/react'
+import { useWebApp, useInitData } from '@telegram-apps/sdk-react'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'

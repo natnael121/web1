@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { SDKProvider } from '@telegram-apps/sdk/react'
+import { SDKProvider } from '@telegram-apps/sdk-react'
 import App from './App.tsx'
 import './index.css'
 
