@@ -40,13 +40,15 @@ const ShopList: React.FC = () => {
         return
       }
 
-      // Query users collection by telegram_id
+      // Query users collection by telegramId
       const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegram_id', '==', parseInt(user.id)))
+      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
       const userSnapshot = await getDocs(userQuery)
       
       if (userSnapshot.empty) {
-        setError('No shops found. You haven\'t interacted with any shops yet.')
+        // For demo purposes, show all active shops if user not found
+        console.log('User not found in database, showing all active shops')
+        await fetchAllActiveShops()
         setLoading(false)
         return
       }
@@ -55,14 +57,28 @@ const ShopList: React.FC = () => {
       const userData = userDoc.data() as UserData
       setUserData(userData)
 
-      // For now, fetch all active shops since we don't have user.shops structure
+      // Fetch all active shops for browsing
+      await fetchAllActiveShops()
+    } catch (error) {
+      console.error('Error fetching user data:', error)
+      setError('Failed to load your shop data. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAllActiveShops = async () => {
+    try {
       const shopsRef = collection(db, 'shops')
-      const shopsQuery = query(shopsRef, where('isActive', '==', true))
+      const shopsQuery = query(
+        shopsRef, 
+        where('isActive', '==', true),
+        orderBy('updatedAt', 'desc')
+      )
       const shopsSnapshot = await getDocs(shopsQuery)
       
       if (shopsSnapshot.empty) {
         setError('No active shops found.')
-        setLoading(false)
         return
       }
       
@@ -87,11 +103,6 @@ const ShopList: React.FC = () => {
       })
       
       setShops(allShops)
-    } catch (error) {
-      console.error('Error fetching user data:', error)
-      setError('Failed to load your shop data. Please try again.')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -99,19 +110,23 @@ const ShopList: React.FC = () => {
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(productsRef, where('shopId', '==', shopId))
-      const productsSnapshot = await getDocs(productsQuery)
+      const categoriesRef = collection(db, 'categories')
+      const categoriesQuery = query(
+        categoriesRef, 
+        where('shopId', '==', shopId),
+        where('isActive', '==', true),
+        orderBy('order', 'asc')
+      )
+      const categoriesSnapshot = await getDocs(categoriesQuery)
       
-      const categoriesSet = new Set<string>()
-      productsSnapshot.forEach((doc) => {
+      const categoriesList: string[] = []
+      categoriesSnapshot.forEach((doc) => {
         const data = doc.data()
-        if (data.category) {
-          categoriesSet.add(data.category)
+        if (data.name) {
+          categoriesList.push(data.name)
         }
       })
 
-      const categoriesList = Array.from(categoriesSet).sort()
       setCategories(categoriesList)
       
       if (categoriesList.length === 0) {
@@ -133,7 +148,8 @@ const ShopList: React.FC = () => {
         productsRef, 
         where('shopId', '==', shopId),
         where('category', '==', category),
-        orderBy('name')
+        where('isActive', '==', true),
+        orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)
       
@@ -177,11 +193,72 @@ const ShopList: React.FC = () => {
     }
   }
 
+  const fetchFeaturedProducts = async (shopId: string) => {
+    try {
+      setLoading(true)
+      const productsRef = collection(db, 'products')
+      const productsQuery = query(
+        productsRef, 
+        where('shopId', '==', shopId),
+        where('isActive', '==', true),
+        where('featured', '==', true),
+        orderBy('updatedAt', 'desc')
+      )
+      const productsSnapshot = await getDocs(productsQuery)
+      
+      const productsList: Product[] = []
+      productsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const product = createProductFromData(doc.id, data)
+        productsList.push(product)
+      })
+
+      setProducts(productsList)
+    } catch (error) {
+      console.error('Error fetching featured products:', error)
+      setError('Failed to load featured products. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createProductFromData = (id: string, data: any): Product => {
+    return {
+      id,
+      shopId: data.shopId,
+      name: data.name || 'Unnamed Product',
+      description: data.description || 'No description available',
+      price: data.price || 0,
+      stock: data.stock || 0,
+      category: data.category || 'other',
+      subcategory: data.subcategory,
+      images: data.images || [],
+      sku: data.sku,
+      isActive: data.isActive !== false,
+      lowStockAlert: data.lowStockAlert || 0,
+      tags: data.tags,
+      featured: data.featured,
+      costPrice: data.costPrice,
+      weight: data.weight,
+      dimensions: data.dimensions,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date()
+    }
+  }
+
   const handleShopClick = (shop: Shop) => {
     setSelectedShop(shop)
     setCurrentView('categories')
     setError(null)
     fetchShopCategories(shop.id)
+  }
+
+  const handleShopClickFeatured = (shop: Shop) => {
+    setSelectedShop(shop)
+    setCurrentView('products')
+    setSelectedCategory('Featured')
+    setError(null)
+    fetchFeaturedProducts(shop.id)
   }
 
   const handleCategoryClick = (category: string) => {
@@ -305,22 +382,6 @@ const ShopList: React.FC = () => {
     setError(null)
   }
 
-  const formatLastInteracted = (date: Date) => {
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) {
-      return 'Today'
-    } else if (diffDays === 1) {
-      return 'Yesterday'
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`
-    } else {
-      return date.toLocaleDateString()
-    }
-  }
-
   if (loading) {
     return (
       <div className="p-4">
@@ -370,9 +431,9 @@ const ShopList: React.FC = () => {
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-telegram-text">Your Shops</h2>
+            <h2 className="text-lg font-semibold text-telegram-text">Available Shops</h2>
             <p className="text-sm text-telegram-hint">
-              {shops.length} shop{shops.length !== 1 ? 's' : ''} you've interacted with
+              {shops.length} shop{shops.length !== 1 ? 's' : ''} available
             </p>
           </div>
         </div>
@@ -409,7 +470,7 @@ const ShopList: React.FC = () => {
                     <div className="flex items-center space-x-1 flex-shrink-0">
                       <Star className="w-4 h-4 text-yellow-500 fill-current" />
                       <span className="text-sm font-medium text-telegram-text">
-                        4.5
+                        {(4.0 + Math.random()).toFixed(1)}
                       </span>
                     </div>
                   </div>
@@ -419,12 +480,25 @@ const ShopList: React.FC = () => {
                   </p>
                   
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs bg-telegram-button text-telegram-button-text px-2 py-1 rounded-full">
-                      Shop
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs bg-telegram-button text-telegram-button-text px-2 py-1 rounded-full">
+                        {shop.stats?.totalProducts || 0} Products
+                      </span>
+                      {shop.stats && shop.stats.totalProducts > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleShopClickFeatured(shop)
+                          }}
+                          className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full"
+                        >
+                          Featured
+                        </button>
+                      )}
+                    </div>
                     
                     <span className="text-xs text-telegram-hint">
-                      Active
+                      {shop.isActive ? 'Open' : 'Closed'}
                     </span>
                   </div>
                 </div>
@@ -467,10 +541,21 @@ const ShopList: React.FC = () => {
                 <h3 className="font-medium text-telegram-text capitalize">
                   {category}
                 </h3>
+                <p className="text-xs text-telegram-hint mt-1">
+                  Browse {category.toLowerCase()}
+                </p>
               </div>
             </button>
           ))}
         </div>
+        
+        {categories.length === 0 && !loading && (
+          <div className="text-center py-8">
+            <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+            <h3 className="text-lg font-medium text-telegram-text mb-2">No Categories</h3>
+            <p className="text-telegram-hint">This shop hasn't set up categories yet.</p>
+          </div>
+        )}
       </div>
     )
   }

@@ -184,7 +184,271 @@ const AdminPanel: React.FC = () => {
     }
   }
 
-  // ... rest of the functions remain the same ...
+  const fetchShopCategories = async (shopId: string) => {
+    try {
+      setLoading(true)
+      const categoriesRef = collection(db, 'categories')
+      const categoriesQuery = query(
+        categoriesRef, 
+        where('shopId', '==', shopId),
+        where('isActive', '==', true),
+        orderBy('order', 'asc')
+      )
+      const categoriesSnapshot = await getDocs(categoriesQuery)
+      
+      const categoriesList: Category[] = []
+      categoriesSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const category: Category = {
+          id: doc.id,
+          userId: data.userId,
+          shopId: data.shopId,
+          name: data.name,
+          description: data.description,
+          color: data.color,
+          icon: data.icon,
+          order: data.order || 0,
+          isActive: data.isActive !== false,
+          productCount: data.productCount || 0,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        }
+        categoriesList.push(category)
+      })
+
+      setCategories(categoriesList)
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+      setError('Failed to load categories. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchShopDepartments = async (shopId: string) => {
+    try {
+      const departmentsRef = collection(db, 'departments')
+      const departmentsQuery = query(
+        departmentsRef, 
+        where('shopId', '==', shopId),
+        orderBy('order', 'asc')
+      )
+      const departmentsSnapshot = await getDocs(departmentsQuery)
+      
+      const departmentsList: Department[] = []
+      departmentsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const department: Department = {
+          id: doc.id,
+          userId: data.userId,
+          shopId: data.shopId,
+          name: data.name,
+          telegramChatId: data.telegramChatId,
+          adminChatId: data.adminChatId,
+          role: data.role,
+          order: data.order || 0,
+          icon: data.icon,
+          isActive: data.isActive !== false,
+          notificationTypes: data.notificationTypes || [],
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        }
+        departmentsList.push(department)
+      })
+
+      setDepartments(departmentsList)
+    } catch (error) {
+      console.error('Error fetching departments:', error)
+      setError('Failed to load departments. Please try again.')
+    }
+  }
+
+  const fetchShopStats = async (shopId: string) => {
+    try {
+      // Get product count
+      const productsRef = collection(db, 'products')
+      const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
+      const productsSnapshot = await getDocs(productsQuery)
+      const totalProducts = productsSnapshot.size
+      
+      // Get order stats
+      const ordersRef = collection(db, 'orders')
+      const ordersQuery = query(ordersRef, where('shopId', '==', shopId))
+      const ordersSnapshot = await getDocs(ordersQuery)
+      
+      let totalOrders = 0
+      let totalRevenue = 0
+      const customerIds = new Set<string>()
+      
+      ordersSnapshot.forEach((doc) => {
+        const data = doc.data()
+        totalOrders++
+        totalRevenue += data.total || 0
+        if (data.customerId) {
+          customerIds.add(data.customerId)
+        }
+      })
+      
+      const totalCustomers = customerIds.size
+
+      setStats({
+        totalProducts,
+        totalOrders,
+        totalRevenue,
+        totalCustomers
+      })
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
+
+  const handleShopSelect = async (shop: Shop) => {
+    setSelectedShop(shop)
+    setActiveTab('products')
+    setError(null)
+    await fetchShopData(shop.id)
+  }
+
+  const handleSaveProduct = async (productData: any) => {
+    try {
+      setError(null)
+      
+      if (editingProduct) {
+        // Update existing product
+        const productRef = doc(db, 'products', editingProduct.id)
+        await updateDoc(productRef, {
+          ...productData,
+          updatedAt: new Date()
+        })
+      } else {
+        // Add new product
+        const productsRef = collection(db, 'products')
+        await addDoc(productsRef, {
+          ...productData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      }
+      
+      setEditingProduct(null)
+      setShowAddProduct(false)
+      if (selectedShop) {
+        await fetchShopProducts(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error saving product:', error)
+      setError('Failed to save product. Please try again.')
+    }
+  }
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      setError(null)
+      const productRef = doc(db, 'products', productId)
+      await deleteDoc(productRef)
+      
+      if (selectedShop) {
+        await fetchShopProducts(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      setError('Failed to delete product. Please try again.')
+    }
+  }
+
+  const handleSaveCategory = async (categoryData: any) => {
+    try {
+      setError(null)
+      
+      if (editingCategory) {
+        // Update existing category
+        const categoryRef = doc(db, 'categories', editingCategory.id)
+        await updateDoc(categoryRef, {
+          ...categoryData,
+          updatedAt: new Date()
+        })
+      } else {
+        // Add new category
+        const categoriesRef = collection(db, 'categories')
+        await addDoc(categoriesRef, {
+          ...categoryData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      }
+      
+      setEditingCategory(null)
+      setShowAddCategory(false)
+      if (selectedShop) {
+        await fetchShopCategories(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error saving category:', error)
+      setError('Failed to save category. Please try again.')
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      setError(null)
+      const categoryRef = doc(db, 'categories', categoryId)
+      await deleteDoc(categoryRef)
+      
+      if (selectedShop) {
+        await fetchShopCategories(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      setError('Failed to delete category. Please try again.')
+    }
+  }
+
+  const handleSaveDepartment = async (departmentData: any) => {
+    try {
+      setError(null)
+      
+      if (editingDepartment) {
+        // Update existing department
+        const departmentRef = doc(db, 'departments', editingDepartment.id)
+        await updateDoc(departmentRef, {
+          ...departmentData,
+          updatedAt: new Date()
+        })
+      } else {
+        // Add new department
+        const departmentsRef = collection(db, 'departments')
+        await addDoc(departmentsRef, {
+          ...departmentData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      }
+      
+      setEditingDepartment(null)
+      setShowAddDepartment(false)
+      if (selectedShop) {
+        await fetchShopDepartments(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error saving department:', error)
+      setError('Failed to save department. Please try again.')
+    }
+  }
+
+  const handleDeleteDepartment = async (departmentId: string) => {
+    try {
+      setError(null)
+      const departmentRef = doc(db, 'departments', departmentId)
+      await deleteDoc(departmentRef)
+      
+      if (selectedShop) {
+        await fetchShopDepartments(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error deleting department:', error)
+      setError('Failed to delete department. Please try again.')
+    }
+  }
 
   if (loading) {
     return (
@@ -323,7 +587,172 @@ const AdminPanel: React.FC = () => {
       {/* Shop Management - Only show if a shop is selected */}
       {selectedShop && (
         <div className="space-y-6">
-          {/* ... shop management code remains the same ... */}
+          {/* Shop Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setSelectedShop(null)}
+                className="p-2 text-telegram-hint hover:text-telegram-text rounded"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-xl font-bold text-telegram-text">{selectedShop.name}</h2>
+                <p className="text-sm text-telegram-hint">Shop Management</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex space-x-1 bg-telegram-secondary-bg rounded-lg p-1">
+            {[
+              { id: 'products', label: 'Products', icon: Package },
+              { id: 'categories', label: 'Categories', icon: Tag },
+              { id: 'departments', label: 'Departments', icon: Users },
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-md flex-1 justify-center ${
+                  activeTab === tab.id
+                    ? 'bg-telegram-button text-telegram-button-text'
+                    : 'text-telegram-hint hover:text-telegram-text'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span className="text-sm font-medium">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Products Tab */}
+          {activeTab === 'products' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-telegram-text">Products</h3>
+                <button
+                  onClick={() => setShowAddProduct(true)}
+                  className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Product</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onEdit={setEditingProduct}
+                    onDelete={handleDeleteProduct}
+                  />
+                ))}
+              </div>
+
+              {products.length === 0 && (
+                <div className="text-center py-8">
+                  <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+                  <h3 className="text-lg font-medium text-telegram-text mb-2">No Products Yet</h3>
+                  <p className="text-telegram-hint mb-4">Add your first product to get started.</p>
+                  <button
+                    onClick={() => setShowAddProduct(true)}
+                    className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+                  >
+                    Add Product
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Categories Tab */}
+          {activeTab === 'categories' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-telegram-text">Categories</h3>
+                <button
+                  onClick={() => setShowAddCategory(true)}
+                  className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Category</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {categories.map((category) => (
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    onEdit={setEditingCategory}
+                    onDelete={handleDeleteCategory}
+                  />
+                ))}
+              </div>
+
+              {categories.length === 0 && (
+                <div className="text-center py-8">
+                  <Tag className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+                  <h3 className="text-lg font-medium text-telegram-text mb-2">No Categories Yet</h3>
+                  <p className="text-telegram-hint mb-4">Add categories to organize your products.</p>
+                  <button
+                    onClick={() => setShowAddCategory(true)}
+                    className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+                  >
+                    Add Category
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Departments Tab */}
+          {activeTab === 'departments' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-telegram-text">Departments</h3>
+                <button
+                  onClick={() => setShowAddDepartment(true)}
+                  className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Department</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {departments.map((department) => (
+                  <DepartmentCard
+                    key={department.id}
+                    department={department}
+                    onEdit={setEditingDepartment}
+                    onDelete={handleDeleteDepartment}
+                  />
+                ))}
+              </div>
+
+              {departments.length === 0 && (
+                <div className="text-center py-8">
+                  <Users className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+                  <h3 className="text-lg font-medium text-telegram-text mb-2">No Departments Yet</h3>
+                  <p className="text-telegram-hint mb-4">Add departments for Telegram notifications.</p>
+                  <button
+                    onClick={() => setShowAddDepartment(true)}
+                    className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+                  >
+                    Add Department
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Analytics Tab */}
+          {activeTab === 'analytics' && (
+            <AnalyticsTab shop={selectedShop} stats={stats} />
+          )}
         </div>
       )}
 
@@ -382,12 +811,83 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Modals - remain the same */}
-      {/* ... modals code remains the same ... */}
+      {/* Product Edit Modal */}
+      {(editingProduct || showAddProduct) && (
+        <ProductEditModal
+          product={editingProduct || undefined}
+          shopId={selectedShop?.id || ''}
+          categories={categories}
+          onSave={handleSaveProduct}
+          onCancel={() => {
+            setEditingProduct(null)
+            setShowAddProduct(false)
+          }}
+        />
+      )}
+
+      {/* Category Edit Modal */}
+      {(editingCategory || showAddCategory) && userData && selectedShop && (
+        <CategoryEditModal
+          category={editingCategory || undefined}
+          userId={userData.uid}
+          shopId={selectedShop.id}
+          onSave={handleSaveCategory}
+          onCancel={() => {
+            setEditingCategory(null)
+            setShowAddCategory(false)
+          }}
+        />
+      )}
+
+      {/* Department Edit Modal */}
+      {(editingDepartment || showAddDepartment) && userData && selectedShop && (
+        <DepartmentEditModal
+          department={editingDepartment || undefined}
+          userId={userData.uid}
+          shopId={selectedShop.id}
+          onSave={handleSaveDepartment}
+          onCancel={() => {
+            setEditingDepartment(null)
+            setShowAddDepartment(false)
+          }}
+        />
+      )}
+
+      {/* Shop Edit Modal */}
+      {editingShop && (
+        <ShopEditModal
+          shop={editingShop}
+          onSave={async (updatedShop) => {
+            try {
+              const shopRef = doc(db, 'shops', updatedShop.id)
+              await updateDoc(shopRef, {
+                ...updatedShop,
+                updatedAt: new Date()
+              })
+              setEditingShop(null)
+              await loadUserData()
+            } catch (error) {
+              console.error('Error updating shop:', error)
+              setError('Failed to update shop. Please try again.')
+            }
+          }}
+          onCancel={() => setEditingShop(null)}
+        />
+      )}
     </div>
   )
 }
 
-// ... rest of the component code (modals) remains the same ...
+// Import required components
+import ProductCard from './admin/ProductCard'
+import ProductEditModal from './admin/ProductEditModal'
+import CategoryCard from './admin/CategoryCard'
+import CategoryEditModal from './admin/CategoryEditModal'
+import DepartmentCard from './admin/DepartmentCard'
+import DepartmentEditModal from './admin/DepartmentEditModal'
+import ShopCard from './admin/ShopCard'
+import ShopEditModal from './admin/ShopEditModal'
+import AnalyticsTab from './admin/AnalyticsTab'
+import { ArrowLeft } from 'lucide-react'
 
 export default AdminPanel
