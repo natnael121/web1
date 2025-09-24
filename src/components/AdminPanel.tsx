@@ -63,6 +63,7 @@ const AdminPanel: React.FC = () => {
       setError(null)
       
       if (!user?.id) }
+  }
 
       // Get user document from Firebase using Telegram ID
 const usersRef = collection(db, 'users')
