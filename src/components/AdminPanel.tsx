@@ -59,11 +59,7 @@ const AdminPanel: React.FC = () => {
   const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
-    if (user?.id) {
-      loadUserData()
-    } else {
-      setLoading(false)
-    }
+    loadUserData()
   }, [user])
 
   const loadUserData = async () => {
@@ -71,32 +67,12 @@ const AdminPanel: React.FC = () => {
       setLoading(true)
       setError(null)
       
-      if (!user?.id) {
-        setError('No user information available')
-        return
-      }
-
-      // Get user document from Firebase using Telegram ID
-      const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
-
-      if (userSnapshot.empty) {
-        setError('User not found in database')
-        setLoading(false)
-        return
-      }
-
-      const userDoc = userSnapshot.docs[0]
-      const userData = userDoc.data() as UserData
-      setUserData(userData)
-
-      // Find shops owned by this user (if any)
+      // Load all shops for admin access
       const shopsRef = collection(db, 'shops')
-      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
-      const shopsSnapshot = await getDocs(ownerQuery)
+      const shopsQuery = query(shopsRef, orderBy('updatedAt', 'desc'))
+      const shopsSnapshot = await getDocs(shopsQuery)
 
-      const shopsList: Shop[] = []
+      const allShops: Shop[] = []
       shopsSnapshot.forEach((doc) => {
         const data = doc.data()
         const shop: Shop = {
@@ -118,14 +94,30 @@ const AdminPanel: React.FC = () => {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date()
         }
-        shopsList.push(shop)
+        allShops.push(shop)
       })
 
-      setOwnedShops(shopsList)
+      setOwnedShops(allShops)
+      
+      // Set dummy user data for admin access
+      setUserData({
+        uid: 'admin',
+        email: 'admin@example.com',
+        displayName: 'Admin User',
+        role: 'admin',
+        settings: {
+          notifications: { email: true, push: true, telegram: true },
+          theme: 'light',
+          language: 'en',
+          timezone: 'UTC'
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
       
     } catch (error) {
       console.error('Error loading user data:', error)
-      setError('Failed to load user data. Please try again.')
+      setError('Failed to load admin data. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -466,9 +458,9 @@ const AdminPanel: React.FC = () => {
       <div className="p-4">
         <div className="text-center py-12">
           <User className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-          <h3 className="text-lg font-medium text-telegram-text mb-2">User Not Found</h3>
+          <h3 className="text-lg font-medium text-telegram-text mb-2">Loading Error</h3>
           <p className="text-telegram-hint">
-            {error || 'Unable to load user data. Please try again.'}
+            {error || 'Unable to load admin data. Please try again.'}
           </p>
         </div>
       </div>
@@ -480,7 +472,7 @@ const AdminPanel: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-telegram-text">Admin Panel</h1>
         <div className="text-sm text-telegram-hint">
-          Welcome, {userData.displayName || userData.email}
+          Admin Panel Access
         </div>
       </div>
 
@@ -498,13 +490,13 @@ const AdminPanel: React.FC = () => {
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-telegram-text">
-              {userData.displayName || 'User'}
+              Admin User
             </h2>
-            <p className="text-telegram-hint">{userData.email}</p>
-            <p className="text-sm text-telegram-hint capitalize">Role: {userData.role}</p>
+            <p className="text-telegram-hint">admin@example.com</p>
+            <p className="text-sm text-telegram-hint capitalize">Role: admin</p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-telegram-hint">Owned Shops</div>
+            <div className="text-sm text-telegram-hint">Total Shops</div>
             <div className="text-2xl font-bold text-telegram-button">
               {ownedShops.length}
             </div>
@@ -515,7 +507,7 @@ const AdminPanel: React.FC = () => {
       {/* Shops List - Only show if user has shops */}
       {ownedShops.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-telegram-text">Your Shops</h2>
+          <h2 className="text-lg font-semibold text-telegram-text">All Shops</h2>
           
           {ownedShops.map((shop) => (
             <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-4">
@@ -573,14 +565,8 @@ const AdminPanel: React.FC = () => {
           <Store className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
           <h3 className="text-lg font-medium text-telegram-text mb-2">No Shops Yet</h3>
           <p className="text-telegram-hint mb-4">
-            You don't own any shops yet. Contact an administrator to get started.
+            No shops have been created yet.
           </p>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
-          >
-            View Profile
-          </button>
         </div>
       )}
 
@@ -759,54 +745,34 @@ const AdminPanel: React.FC = () => {
       {/* Profile Tab for all users */}
       {!selectedShop && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-telegram-text">User Profile</h2>
+          <h2 className="text-lg font-semibold text-telegram-text">Admin Profile</h2>
           <div className="bg-telegram-secondary-bg rounded-lg p-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-telegram-text mb-1">Display Name</label>
                 <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
-                  {userData.displayName || 'Not set'}
+                  Admin User
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-telegram-text mb-1">Email</label>
                 <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
-                  {userData.email}
+                  admin@example.com
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-telegram-text mb-1">Role</label>
                 <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text capitalize">
-                  {userData.role}
+                  admin
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-telegram-text mb-1">User ID</label>
                 <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text font-mono text-sm">
-                  {userData.uid}
+                  admin
                 </div>
               </div>
             </div>
-            
-            {userData.businessInfo && (
-              <div className="mt-6">
-                <h3 className="text-md font-semibold text-telegram-text mb-3">Business Information</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-telegram-text mb-1">Business Name</label>
-                    <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
-                      {userData.businessInfo.name || 'Not set'}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-telegram-text mb-1">Phone</label>
-                    <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
-                      {userData.businessInfo.phone || 'Not set'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -826,10 +792,10 @@ const AdminPanel: React.FC = () => {
       )}
 
       {/* Category Edit Modal */}
-      {(editingCategory || showAddCategory) && userData && selectedShop && (
+      {(editingCategory || showAddCategory) && selectedShop && (
         <CategoryEditModal
           category={editingCategory || undefined}
-          userId={userData.uid}
+          userId="admin"
           shopId={selectedShop.id}
           onSave={handleSaveCategory}
           onCancel={() => {
@@ -840,10 +806,10 @@ const AdminPanel: React.FC = () => {
       )}
 
       {/* Department Edit Modal */}
-      {(editingDepartment || showAddDepartment) && userData && selectedShop && (
+      {(editingDepartment || showAddDepartment) && selectedShop && (
         <DepartmentEditModal
           department={editingDepartment || undefined}
-          userId={userData.uid}
+          userId="admin"
           shopId={selectedShop.id}
           onSave={handleSaveDepartment}
           onCancel={() => {
