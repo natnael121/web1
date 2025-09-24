@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, getDocs, query, where, doc, updateDoc, deleteDoc, addDoc, getDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product } from '../types'
@@ -120,6 +120,13 @@ const AdminPanel: React.FC = () => {
             hours: data.hours || data.opening_hours || '',
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date()
+          }
+          return shop
+        }
+        return null
+      })
+      
+      const shopsResults = await Promise.all(shopsPromises)
       const validShops = shopsResults.filter((shop): shop is Shop => shop !== null)
       setOwnedShops(validShops)
     } catch (error) {
