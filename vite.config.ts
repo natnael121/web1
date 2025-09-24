@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    exclude: ['@telegram-apps/sdk-react']
+  },
   server: {
     host: true,
     port: 3000
