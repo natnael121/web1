@@ -1,6 +1,6 @@
 import React from 'react'
-import { usePopup } from '@telegram-apps/sdk-react'
 import { User } from '../types'
+import { useTelegram } from '../contexts/TelegramContext'
 import { User as UserIcon, Globe, MessageCircle, Settings } from 'lucide-react'
 
 interface UserProfileProps {
@@ -8,25 +8,17 @@ interface UserProfileProps {
 }
 
 const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
-  const popup = usePopup()
+  const { webApp } = useTelegram()
 
   const handleSettingsClick = () => {
-    if (popup) {
-      popup.open({
-        title: 'Settings',
-        message: 'Settings feature coming soon!',
-        buttons: [{ id: 'ok', type: 'default', text: 'OK' }]
-      })
+    if (webApp?.showAlert) {
+      webApp.showAlert('Settings feature coming soon!')
     }
   }
 
   const handleSupportClick = () => {
-    if (popup) {
-      popup.open({
-        title: 'Support',
-        message: 'Support feature coming soon!',
-        buttons: [{ id: 'ok', type: 'default', text: 'OK' }]
-      })
+    if (webApp?.showAlert) {
+      webApp.showAlert('Support feature coming soon!')
     }
   }
 

@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
-import { useWebApp, usePopup } from '@telegram-apps/sdk-react'
 import { useFirebase } from '../contexts/FirebaseContext'
+import { useTelegram } from '../contexts/TelegramContext'
 import { Shop } from '../types'
 import { Store, Star, MapPin } from 'lucide-react'
 
 const ShopList: React.FC = () => {
   const { db } = useFirebase()
-  const webApp = useWebApp()
-  const popup = usePopup()
+  const { webApp } = useTelegram()
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -36,7 +35,6 @@ const ShopList: React.FC = () => {
         shopsData.push({
           id: doc.id,
           ...doc.data(),
-          rating: typeof doc.data().rating === 'number' ? doc.data().rating : 0,
           createdAt: doc.data().createdAt?.toDate() || new Date(),
           updatedAt: doc.data().updatedAt?.toDate() || new Date()
         } as Shop)
@@ -46,12 +44,8 @@ const ShopList: React.FC = () => {
     } catch (error) {
       console.error('Error fetching shops:', error)
       // Show error using Telegram's popup if available
-      if (popup) {
-        popup.open({
-          title: 'Error',
-          message: 'Failed to load shops. Please try again.',
-          buttons: [{ id: 'ok', type: 'default', text: 'OK' }]
-        })
+      if (webApp?.showAlert) {
+        webApp.showAlert('Failed to load shops. Please try again.')
       }
     } finally {
       setLoading(false)
@@ -60,12 +54,8 @@ const ShopList: React.FC = () => {
 
   const handleShopClick = (shop: Shop) => {
     // In a real app, this would navigate to shop details
-    if (popup) {
-      popup.open({
-        title: 'Shop',
-        message: `Opening ${shop.name}...`,
-        buttons: [{ id: 'ok', type: 'default', text: 'OK' }]
-      })
+    if (webApp?.showAlert) {
+      webApp.showAlert(`Opening ${shop.name}...`)
     }
   }
 
