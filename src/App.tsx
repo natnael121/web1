@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
-import { TelegramProvider } from './contexts/TelegramContext'
+import { useWebApp, useInitData } from '@telegram-apps/sdk/react'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
@@ -25,61 +25,57 @@ const db = getFirestore(app)
 function App() {
   const [currentView, setCurrentView] = useState<'shops' | 'profile'>('shops')
   const [user, setUser] = useState<User | null>(null)
+  const webApp = useWebApp()
+  const initData = useInitData()
 
   useEffect(() => {
-    // Initialize Telegram WebApp
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp
-      tg.ready()
-      tg.expand()
-      
-      // Set header color to match theme
-      tg.setHeaderColor('#2481cc')
-      
-      // Get user data from Telegram
-      const telegramUser = tg.initDataUnsafe?.user
-      if (telegramUser) {
-        setUser({
-          id: telegramUser.id.toString(),
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name || '',
-          username: telegramUser.username || '',
-          languageCode: telegramUser.language_code || 'en'
-        })
-      }
+    // Configure Telegram WebApp
+    if (webApp) {
+      webApp.ready()
+      webApp.expand()
+      webApp.setHeaderColor('#2481cc')
     }
-  }, [])
+    
+    // Get user data from Telegram
+    if (initData?.user) {
+      setUser({
+        id: initData.user.id.toString(),
+        firstName: initData.user.firstName,
+        lastName: initData.user.lastName || '',
+        username: initData.user.username || '',
+        languageCode: initData.user.languageCode || 'en'
+      })
+    }
+  }, [webApp, initData])
 
   return (
-    <TelegramProvider>
-      <FirebaseProvider db={db}>
-        <div className="min-h-screen bg-telegram-bg text-telegram-text">
-          <div className="max-w-md mx-auto">
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
-              <h1 className="text-xl font-bold text-center">Multi-Shop</h1>
-              {user && (
-                <p className="text-sm text-center opacity-80 mt-1">
-                  Welcome, {user.firstName}!
-                </p>
-              )}
-            </header>
+    <FirebaseProvider db={db}>
+      <div className="min-h-screen bg-telegram-bg text-telegram-text">
+        <div className="max-w-md mx-auto">
+          {/* Header */}
+          <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
+            <h1 className="text-xl font-bold text-center">Multi-Shop</h1>
+            {user && (
+              <p className="text-sm text-center opacity-80 mt-1">
+                Welcome, {user.firstName}!
+              </p>
+            )}
+          </header>
 
-            {/* Main Content */}
-            <main className="pb-20">
-              {currentView === 'shops' && <ShopList />}
-              {currentView === 'profile' && <UserProfile user={user} />}
-            </main>
+          {/* Main Content */}
+          <main className="pb-20">
+            {currentView === 'shops' && <ShopList />}
+            {currentView === 'profile' && <UserProfile user={user} />}
+          </main>
 
-            {/* Bottom Navigation */}
-            <Navigation 
-              currentView={currentView} 
-              onViewChange={setCurrentView} 
-            />
-          </div>
+          {/* Bottom Navigation */}
+          <Navigation 
+            currentView={currentView} 
+            onViewChange={setCurrentView} 
+          />
         </div>
-      </FirebaseProvider>
-    </TelegramProvider>
+      </div>
+    </FirebaseProvider>
   )
 }
 
