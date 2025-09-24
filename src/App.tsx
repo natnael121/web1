@@ -6,7 +6,6 @@ import { FirebaseProvider } from './contexts/FirebaseContext'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import Navigation from './components/Navigation'
-import { addSampleData } from './utils/sampleData'
 import { Shop, User } from './types'
 
 // Firebase configuration
@@ -26,32 +25,8 @@ const db = getFirestore(app)
 function App() {
   const [currentView, setCurrentView] = useState<'shops' | 'profile'>('shops')
   const [user, setUser] = useState<User | null>(null)
-  const [firebaseReady, setFirebaseReady] = useState(false)
 
   useEffect(() => {
-    // Check Firebase configuration and initialize
-    const initializeFirebase = async () => {
-      try {
-        // Check if Firebase is properly configured
-        if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
-          console.warn('Firebase not configured. Please set up your .env file with Firebase credentials.')
-          setFirebaseReady(false)
-          return
-        }
-        
-        // Optionally add sample data (uncomment the line below to add sample shops)
-        // await addSampleData(db)
-        
-        setFirebaseReady(true)
-        console.log('Firebase initialized successfully')
-      } catch (error) {
-        console.error('Firebase initialization error:', error)
-        setFirebaseReady(false)
-      }
-    }
-    
-    initializeFirebase()
-    
     // Initialize Telegram WebApp
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
@@ -75,17 +50,6 @@ function App() {
     }
   }, [])
 
-  // Show loading screen while Firebase is initializing
-  if (!firebaseReady && import.meta.env.VITE_FIREBASE_PROJECT_ID) {
-    return (
-      <div className="min-h-screen bg-telegram-bg text-telegram-text flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-telegram-button mx-auto mb-4"></div>
-          <p className="text-telegram-hint">Connecting to Firebase...</p>
-        </div>
-      </div>
-    )
-  }
   return (
     <TelegramProvider>
       <FirebaseProvider db={db}>
@@ -97,11 +61,6 @@ function App() {
               {user && (
                 <p className="text-sm text-center opacity-80 mt-1">
                   Welcome, {user.firstName}!
-                </p>
-              )}
-              {!import.meta.env.VITE_FIREBASE_PROJECT_ID && (
-                <p className="text-xs text-center opacity-60 mt-1">
-                  ⚠️ Firebase not configured
                 </p>
               )}
             </header>

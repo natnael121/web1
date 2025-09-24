@@ -31,7 +31,7 @@ npm install
 
 ### 2. Environment Variables
 
-Create a `.env` file in the root directory (copy from `.env.example`):
+Create a `.env` file in the root directory:
 
 ```env
 VITE_FIREBASE_API_KEY=your_firebase_api_key
@@ -47,18 +47,7 @@ VITE_FIREBASE_APP_ID=your_app_id
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Create a new project or use existing one
 3. Enable Firestore Database
-4. Set up Firestore rules (for development):
-   ```javascript
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /{document=**} {
-         allow read, write: if true;
-       }
-     }
-   }
-   ```
-5. The app will automatically create sample data, or you can manually create collections:
+4. Create collections:
    - `shops` - for shop data
    - `products` - for product data
    - `orders` - for order data
@@ -76,19 +65,6 @@ VITE_FIREBASE_APP_ID=your_app_id
   "updatedAt": "2024-01-01T00:00:00Z"
 }
 ```
-
-### 4. Adding Sample Data
-
-To add sample shop data to your Firebase:
-
-1. Uncomment the line in `src/App.tsx`:
-   ```typescript
-   // await addSampleData(db)  // Remove the // to enable
-   ```
-2. Refresh the app once to populate the database
-3. Comment the line back to prevent duplicate data
-
-Or manually add shops through the Firebase Console.
 
 ### 4. Local Development
 
