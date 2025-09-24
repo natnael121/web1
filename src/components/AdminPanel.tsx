@@ -62,10 +62,7 @@ const AdminPanel: React.FC = () => {
       setLoading(true)
       setError(null)
       
-      if (!user?.id) {
-        setError('No user information available')
-        return
-      }
+      if (!user?.id) {}
 
       // Get user document from Firebase using Telegram ID
 const usersRef = collection(db, 'users')
