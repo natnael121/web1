@@ -1,9 +1,9 @@
 import React from 'react'
-import { Store, User } from 'lucide-react'
+import { Store, User, Settings } from 'lucide-react'
 
 interface NavigationProps {
-  currentView: 'shops' | 'profile'
-  onViewChange: (view: 'shops' | 'profile') => void
+  currentView: 'shops' | 'profile' | 'admin'
+  onViewChange: (view: 'shops' | 'profile' | 'admin') => void
 }
 
 const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) => {
@@ -32,6 +32,18 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
         >
           <User className="w-6 h-6" />
           <span className="text-xs font-medium">Profile</span>
+        </button>
+        
+        <button
+          onClick={() => onViewChange('admin')}
+          className={`flex-1 py-3 px-4 flex flex-col items-center space-y-1 transition-colors ${
+            currentView === 'admin'
+              ? 'text-telegram-button'
+              : 'text-telegram-hint'
+          }`}
+        >
+          <Settings className="w-6 h-6" />
+          <span className="text-xs font-medium">Admin</span>
         </button>
       </div>
     </nav>

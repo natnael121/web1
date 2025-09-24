@@ -5,6 +5,7 @@ import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
+import AdminPanel from './components/AdminPanel'
 import Navigation from './components/Navigation'
 import { User } from './types'
 
@@ -23,7 +24,7 @@ const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
 function App() {
-  const [currentView, setCurrentView] = useState<'shops' | 'profile'>('shops')
+  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('shops')
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
@@ -70,6 +71,7 @@ function App() {
             <main className="pb-20">
               {currentView === 'shops' && <ShopList />}
               {currentView === 'profile' && <UserProfile user={user} />}
+              {currentView === 'admin' && <AdminPanel />}
             </main>
 
             {/* Bottom Navigation */}

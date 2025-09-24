@@ -22,6 +22,14 @@ export interface UserData {
   }
 }
 
+export interface Department {
+  id: string
+  telegram_id: number
+  role: string
+  shop_id: string
+  created_at: Date
+}
+
 export interface Shop {
   id: string
   name: string
