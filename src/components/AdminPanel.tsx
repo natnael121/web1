@@ -22,10 +22,15 @@ import {
 
 interface Department {
   id: string
-  telegram_id: number
+  telegramChatId: string
   role: string
-  shop_id: string
-  created_at: Date
+  shopId: string
+  userId: string
+  name: string
+  icon: string
+  order: number
+  createdAt: Date
+  updatedAt: Date
 }
 
 const AdminPanel: React.FC = () => {
@@ -63,7 +68,7 @@ const AdminPanel: React.FC = () => {
       const departmentRef = collection(db, 'department')
       const ownerQuery = query(
         departmentRef, 
-        where('telegram_id', '==', parseInt(user.id)),
+        where('telegramChatId', '==', user.id),
         where('role', '==', 'owner')
       )
       const ownerSnapshot = await getDocs(ownerQuery)
@@ -80,8 +85,8 @@ const AdminPanel: React.FC = () => {
       const shopIds: string[] = []
       ownerSnapshot.forEach((doc) => {
         const data = doc.data() as Department
-        if (data.shop_id) {
-          shopIds.push(data.shop_id)
+        if (data.shopId) {
+          shopIds.push(data.shopId)
         }
       })
 
@@ -99,11 +104,11 @@ const AdminPanel: React.FC = () => {
   const fetchOwnedShops = async (shopIds: string[]) => {
     try {
       const shopsPromises = shopIds.map(async (shopId) => {
-        const shopDoc = await getDocs(query(collection(db, 'shops'), where('__name__', '==', shopId)))
-        if (!shopDoc.empty) {
-          const data = shopDoc.docs[0].data()
+        const shopDoc = await getDoc(doc(db, 'shops', shopId))
+        if (shopDoc.exists()) {
+          const data = shopDoc.data()
           const shop: Shop = {
-            id: shopDoc.docs[0].id,
+            id: shopDoc.id,
             name: data.name || 'Unnamed Shop',
             description: data.description || 'No description available',
             imageUrl: data.imageUrl || data.image_url || '',
@@ -115,13 +120,6 @@ const AdminPanel: React.FC = () => {
             hours: data.hours || data.opening_hours || '',
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date()
-          }
-          return shop
-        }
-        return null
-      })
-
-      const shopsResults = await Promise.all(shopsPromises)
       const validShops = shopsResults.filter((shop): shop is Shop => shop !== null)
       setOwnedShops(validShops)
     } catch (error) {

@@ -24,10 +24,15 @@ export interface UserData {
 
 export interface Department {
   id: string
-  telegram_id: number
+  telegramChatId: string
   role: string
-  shop_id: string
-  created_at: Date
+  shopId: string
+  userId: string
+  name: string
+  icon: string
+  order: number
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface Shop {
