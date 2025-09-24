@@ -116,6 +116,14 @@ shopsSnapshot.forEach((doc) => {
 })
 
 setOwnedShops(shopsList)
+    } catch (error) {
+      console.error('Error checking owner role:', error)
+      setError('Failed to load user data. Please try again.')
+      setIsOwner(false)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchShopData = async (shopId: string) => {
     await Promise.all([
