@@ -44,7 +44,8 @@ function App() {
           firstName: telegramUser.first_name,
           lastName: telegramUser.last_name || '',
           username: telegramUser.username || '',
-          languageCode: telegramUser.language_code || 'en'
+          languageCode: telegramUser.language_code || 'en',
+          telegramId: telegramUser.id
         })
       }
     }

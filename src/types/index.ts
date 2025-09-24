@@ -4,6 +4,22 @@ export interface User {
   lastName: string
   username: string
   languageCode: string
+  telegramId?: number
+}
+
+export interface UserData {
+  telegram_id: number
+  first_name: string
+  last_name: string
+  username: string
+  created_at: string
+  updated_at: Date
+  last_shop_id: string
+  shops: {
+    [shopId: string]: {
+      last_interacted: Date
+    }
+  }
 }
 
 export interface Shop {
@@ -19,6 +35,7 @@ export interface Shop {
   hours?: string
   createdAt: Date
   updatedAt: Date
+  lastInteracted?: Date
 }
 
 export interface Product {
