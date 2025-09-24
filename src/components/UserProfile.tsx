@@ -1,5 +1,5 @@
 import React from 'react'
-import { usePopup } from '@telegram-apps/sdk/react'
+import { usePopup } from '@telegram-apps/sdk-react'
 import { User } from '../types'
 import { User as UserIcon, Globe, MessageCircle, Settings } from 'lucide-react'
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
-import { useWebApp, usePopup } from '@telegram-apps/sdk/react'
+import { useWebApp, usePopup } from '@telegram-apps/sdk-react'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { Shop } from '../types'
 import { Store, Star, MapPin } from 'lucide-react'
