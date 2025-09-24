@@ -3,7 +3,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop } from '../types'
-import { Store, Star, MapPin } from 'lucide-react'
+import { Store, Star, MapPin, Clock, Phone } from 'lucide-react'
 
 const ShopList: React.FC = () => {
   const { db } = useFirebase()
@@ -120,7 +120,7 @@ const ShopList: React.FC = () => {
                     <img 
                       src={shop.imageUrl} 
                       alt={shop.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded-lg"
                     />
                   ) : (
                     <Store className="w-8 h-8 text-telegram-hint" />
@@ -134,6 +134,28 @@ const ShopList: React.FC = () => {
                   <p className="text-sm text-telegram-hint mt-1 line-clamp-2">
                     {shop.description}
                   </p>
+                  
+                  {/* Additional shop info */}
+                  <div className="mt-2 space-y-1">
+                    {shop.address && (
+                      <div className="flex items-center space-x-1 text-xs text-telegram-hint">
+                        <MapPin className="w-3 h-3" />
+                        <span className="truncate">{shop.address}</span>
+                      </div>
+                    )}
+                    {shop.hours && (
+                      <div className="flex items-center space-x-1 text-xs text-telegram-hint">
+                        <Clock className="w-3 h-3" />
+                        <span>{shop.hours}</span>
+                      </div>
+                    )}
+                    {shop.phone && (
+                      <div className="flex items-center space-x-1 text-xs text-telegram-hint">
+                        <Phone className="w-3 h-3" />
+                        <span>{shop.phone}</span>
+                      </div>
+                    )}
+                  </div>
                   
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center space-x-1">

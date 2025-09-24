@@ -14,6 +14,9 @@ export interface Shop {
   category: string
   rating: number
   isActive: boolean
+  address?: string
+  phone?: string
+  hours?: string
   createdAt: Date
   updatedAt: Date
 }
