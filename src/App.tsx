@@ -6,7 +6,7 @@ import { FirebaseProvider } from './contexts/FirebaseContext'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import Navigation from './components/Navigation'
-import { Shop, User } from './types'
+import { User } from './types'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -57,7 +57,7 @@ function App() {
           <div className="max-w-md mx-auto">
             {/* Header */}
             <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
-              <h1 className="text-xl font-bold text-center">Multi-Shop</h1>
+              <h1 className="text-xl font-bold text-center">Shop Directory</h1>
               {user && (
                 <p className="text-sm text-center opacity-80 mt-1">
                   Welcome, {user.firstName}!
