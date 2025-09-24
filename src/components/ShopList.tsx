@@ -103,6 +103,9 @@ const ShopList: React.FC = () => {
       })
       
       setShops(allShops)
+    } catch (error) {
+      console.error('Error fetching shops:', error)
+      setError('Failed to load shops. Please try again.')
     }
   }
 
