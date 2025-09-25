@@ -480,36 +480,36 @@ const AdminPanel: React.FC = () => {
   }
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-telegram-text">Admin Panel</h1>
-        <div className="text-sm text-telegram-hint">
-          Welcome, {userData.displayName || userData.email}
+    <div className="p-3 space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-xl font-bold text-telegram-text">Admin Panel</h1>
+        <div className="text-xs text-telegram-hint">
+          {userData.displayName || userData.email}
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-lg text-sm">
           {error}
         </div>
       )}
 
       {/* User Profile Section - Show for all users */}
-      <div className="bg-telegram-secondary-bg rounded-lg p-4">
+      <div className="bg-telegram-secondary-bg rounded-lg p-3">
         <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-telegram-button rounded-full flex items-center justify-center">
-            <User className="w-8 h-8 text-white" />
+          <div className="w-12 h-12 bg-telegram-button rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold text-telegram-text">
+            <h2 className="text-base font-semibold text-telegram-text">
               {userData.displayName || 'User'}
             </h2>
-            <p className="text-telegram-hint">{userData.email}</p>
+            <p className="text-sm text-telegram-hint">{userData.email}</p>
             <p className="text-sm text-telegram-hint capitalize">Role: {userData.role}</p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-telegram-hint">Owned Shops</div>
-            <div className="text-2xl font-bold text-telegram-button">
+            <div className="text-xs text-telegram-hint">Shops</div>
+            <div className="text-lg font-bold text-telegram-button">
               {ownedShops.length}
             </div>
           </div>
@@ -518,23 +518,23 @@ const AdminPanel: React.FC = () => {
 
       {/* Shops List - Only show if user has shops */}
       {ownedShops.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-telegram-text">Your Shops</h2>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-telegram-text">Your Shops</h2>
           
           {ownedShops.map((shop) => (
-            <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-4">
+            <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
                     {shop.logo && (
-                      <img src={shop.logo} alt={shop.name} className="w-12 h-12 rounded-lg object-cover" />
+                      <img src={shop.logo} alt={shop.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                     )}
                     <div>
-                      <h3 className="font-semibold text-telegram-text">{shop.name}</h3>
-                      <p className="text-sm text-telegram-hint mt-1">{shop.description}</p>
+                      <h3 className="text-sm font-semibold text-telegram-text">{shop.name}</h3>
+                      <p className="text-xs text-telegram-hint mt-1 line-clamp-2">{shop.description}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4 mt-2 text-xs text-telegram-hint">
+                  <div className="flex items-center space-x-3 mt-2 text-xs text-telegram-hint">
                     <span className="flex items-center">
                       <Package className="w-3 h-3 mr-1" />
                       {shop.stats?.totalProducts || 0} products
@@ -551,18 +551,18 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex space-x-2">
+                <div className="flex space-x-1 ml-2">
                   <button
                     onClick={() => setEditingShop(shop)}
-                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
+                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => handleShopSelect(shop)}
-                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
+                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
                   >
-                    <BarChart3 className="w-4 h-4" />
+                    <BarChart3 className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -573,15 +573,15 @@ const AdminPanel: React.FC = () => {
 
       {/* No Shops Message */}
       {ownedShops.length === 0 && (
-        <div className="text-center py-8">
-          <Store className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-          <h3 className="text-lg font-medium text-telegram-text mb-2">No Shops Yet</h3>
-          <p className="text-telegram-hint mb-4">
+        <div className="text-center py-6">
+          <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
+          <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
+          <p className="text-sm text-telegram-hint mb-4">
             You don't own any shops yet. Contact an administrator to get started.
           </p>
           <button
             onClick={() => setActiveTab('profile')}
-            className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
           >
             View Profile
           </button>
@@ -590,25 +590,25 @@ const AdminPanel: React.FC = () => {
 
       {/* Shop Management - Only show if a shop is selected */}
       {selectedShop && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Shop Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setSelectedShop(null)}
-                className="p-2 text-telegram-hint hover:text-telegram-text rounded"
+                className="p-2 text-telegram-hint hover:text-telegram-text rounded-lg"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h2 className="text-xl font-bold text-telegram-text">{selectedShop.name}</h2>
-                <p className="text-sm text-telegram-hint">Shop Management</p>
+                <h2 className="text-lg font-bold text-telegram-text">{selectedShop.name}</h2>
+                <p className="text-xs text-telegram-hint">Shop Management</p>
               </div>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-1 bg-telegram-secondary-bg rounded-lg p-1">
+          <div className="flex bg-telegram-secondary-bg rounded-lg p-1 overflow-x-auto">
             {[
               { id: 'products', label: 'Products', icon: Package },
               { id: 'categories', label: 'Categories', icon: Tag },
@@ -618,33 +618,33 @@ const AdminPanel: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md flex-1 justify-center ${
+                className={`flex items-center space-x-1 px-3 py-2 rounded-md flex-1 justify-center min-w-0 ${
                   activeTab === tab.id
                     ? 'bg-telegram-button text-telegram-button-text'
                     : 'text-telegram-hint hover:text-telegram-text'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
-                <span className="text-sm font-medium">{tab.label}</span>
+                <tab.icon className="w-3 h-3 flex-shrink-0" />
+                <span className="text-xs font-medium truncate">{tab.label}</span>
               </button>
             ))}
           </div>
 
           {/* Products Tab */}
           {activeTab === 'products' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-telegram-text">Products</h3>
+                <h3 className="text-base font-semibold text-telegram-text">Products</h3>
                 <button
                   onClick={() => setShowAddProduct(true)}
-                  className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg flex items-center space-x-2"
+                  className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
                   <span>Add Product</span>
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -656,13 +656,13 @@ const AdminPanel: React.FC = () => {
               </div>
 
               {products.length === 0 && (
-                <div className="text-center py-8">
-                  <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-                  <h3 className="text-lg font-medium text-telegram-text mb-2">No Products Yet</h3>
-                  <p className="text-telegram-hint mb-4">Add your first product to get started.</p>
+                <div className="text-center py-6">
+                  <Package className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
+                  <h3 className="text-base font-medium text-telegram-text mb-2">No Products Yet</h3>
+                  <p className="text-sm text-telegram-hint mb-4">Add your first product to get started.</p>
                   <button
                     onClick={() => setShowAddProduct(true)}
-                    className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+                    className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
                   >
                     Add Product
                   </button>
@@ -673,19 +673,19 @@ const AdminPanel: React.FC = () => {
 
           {/* Categories Tab */}
           {activeTab === 'categories' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-telegram-text">Categories</h3>
+                <h3 className="text-base font-semibold text-telegram-text">Categories</h3>
                 <button
                   onClick={() => setShowAddCategory(true)}
-                  className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg flex items-center space-x-2"
+                  className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
                   <span>Add Category</span>
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {categories.map((category) => (
                   <CategoryCard
                     key={category.id}
@@ -697,13 +697,13 @@ const AdminPanel: React.FC = () => {
               </div>
 
               {categories.length === 0 && (
-                <div className="text-center py-8">
-                  <Tag className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-                  <h3 className="text-lg font-medium text-telegram-text mb-2">No Categories Yet</h3>
-                  <p className="text-telegram-hint mb-4">Add categories to organize your products.</p>
+                <div className="text-center py-6">
+                  <Tag className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
+                  <h3 className="text-base font-medium text-telegram-text mb-2">No Categories Yet</h3>
+                  <p className="text-sm text-telegram-hint mb-4">Add categories to organize your products.</p>
                   <button
                     onClick={() => setShowAddCategory(true)}
-                    className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+                    className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
                   >
                     Add Category
                   </button>
@@ -714,19 +714,19 @@ const AdminPanel: React.FC = () => {
 
           {/* Departments Tab */}
           {activeTab === 'departments' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-telegram-text">Departments</h3>
+                <h3 className="text-base font-semibold text-telegram-text">Departments</h3>
                 <button
                   onClick={() => setShowAddDepartment(true)}
-                  className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg flex items-center space-x-2"
+                  className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
                   <span>Add Department</span>
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {departments.map((department) => (
                   <DepartmentCard
                     key={department.id}
@@ -738,13 +738,13 @@ const AdminPanel: React.FC = () => {
               </div>
 
               {departments.length === 0 && (
-                <div className="text-center py-8">
-                  <Users className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-                  <h3 className="text-lg font-medium text-telegram-text mb-2">No Departments Yet</h3>
-                  <p className="text-telegram-hint mb-4">Add departments for Telegram notifications.</p>
+                <div className="text-center py-6">
+                  <Users className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
+                  <h3 className="text-base font-medium text-telegram-text mb-2">No Departments Yet</h3>
+                  <p className="text-sm text-telegram-hint mb-4">Add departments for Telegram notifications.</p>
                   <button
                     onClick={() => setShowAddDepartment(true)}
-                    className="bg-telegram-button text-telegram-button-text px-6 py-2 rounded-lg"
+                    className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
                   >
                     Add Department
                   </button>
@@ -762,49 +762,49 @@ const AdminPanel: React.FC = () => {
 
       {/* Profile Tab for all users */}
       {!selectedShop && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-telegram-text">User Profile</h2>
-          <div className="bg-telegram-secondary-bg rounded-lg p-4">
-            <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-telegram-text">User Profile</h2>
+          <div className="bg-telegram-secondary-bg rounded-lg p-3">
+            <div className="grid grid-cols-1 gap-3">
               <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">Display Name</label>
-                <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
+                <label className="block text-xs font-medium text-telegram-text mb-1">Display Name</label>
+                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
                   {userData.displayName || 'Not set'}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">Email</label>
-                <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
+                <label className="block text-xs font-medium text-telegram-text mb-1">Email</label>
+                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
                   {userData.email}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">Role</label>
-                <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text capitalize">
+                <label className="block text-xs font-medium text-telegram-text mb-1">Role</label>
+                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text capitalize text-sm">
                   {userData.role}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">User ID</label>
-                <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text font-mono text-sm">
+                <label className="block text-xs font-medium text-telegram-text mb-1">User ID</label>
+                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text font-mono text-xs">
                   {userData.uid}
                 </div>
               </div>
             </div>
             
             {userData.businessInfo && (
-              <div className="mt-6">
-                <h3 className="text-md font-semibold text-telegram-text mb-3">Business Information</h3>
-                <div className="grid md:grid-cols-2 gap-4">
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-telegram-text mb-2">Business Information</h3>
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-telegram-text mb-1">Business Name</label>
-                    <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
+                    <label className="block text-xs font-medium text-telegram-text mb-1">Business Name</label>
+                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
                       {userData.businessInfo.name || 'Not set'}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-telegram-text mb-1">Phone</label>
-                    <div className="p-3 bg-telegram-bg rounded-lg text-telegram-text">
+                    <label className="block text-xs font-medium text-telegram-text mb-1">Phone</label>
+                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
                       {userData.businessInfo.phone || 'Not set'}
                     </div>
                   </div>
