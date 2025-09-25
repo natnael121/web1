@@ -330,7 +330,11 @@ const ShopList: React.FC = () => {
   }
 
   const placeOrder = async () => {
-    if (!selectedShop || !user || cart.length === 0) return
+    if (!selectedShop || !user || cart.length === 0) {
+  console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
+  setError("Cannot place order: missing information or empty cart.")
+  return
+}
     
     try {
       setOrderPlacing(true)
