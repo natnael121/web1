@@ -117,7 +117,7 @@ const ShopList: React.FC = () => {
       const categoriesQuery = query(
         categoriesRef, 
         where('shopId', '==', shopId),
-        where('isActive', '==', true),
+        
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
