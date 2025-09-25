@@ -73,22 +73,7 @@ const AdminPanel: React.FC = () => {
       const userQuery = query(usersRef, where('telegramId', '==', telegramId))
       const userSnapshot = await getDocs(userQuery)
       
-      let userData: any = {}
-      if (!userSnapshot.empty) {
-        const userDoc = userSnapshot.docs[0]
-        userData = { id: userDoc.id, ...userDoc.data() }
-      } else {
-        // Create basic user data if doesn't exist
-        userData = {
-          telegramId: telegramId,
-          username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          createdAt: new Date(),
-          role: 'shop_owner'
-        }
-      }
-      setUserData(userData)
+     
 
       // Find shops where user is owner via departments collection
       const departmentsRef = collection(db, 'departments')
