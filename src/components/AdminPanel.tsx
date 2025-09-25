@@ -81,7 +81,7 @@ const AdminPanel: React.FC = () => {
 const deptQuery = query(departmentsRef, where("telegramChatId", "==", user.id.toString()))
 const deptSnapshot = await getDocs(deptQuery)
 
-
+ 
 
 
 
