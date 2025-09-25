@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-"""
+
+
 Multi-Shop Telegram Bot with User Caching and Shop Navigation
 Enhanced with proper product and category management and order processing
 """
