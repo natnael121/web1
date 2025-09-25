@@ -14,28 +14,7 @@ import {
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
-import { 
-  Store, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  Package, 
-  DollarSign,
-  Image,
-  FileText,
-  Star,
-  MapPin,
-  Phone,
-  Clock,
-  Users,
-  BarChart3,
-  Bell,
-  ShoppingCart,
-  Tag,
-  User
-} from 'lucide-react'
+import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
