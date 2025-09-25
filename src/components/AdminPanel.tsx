@@ -8,7 +8,8 @@ import {
   updateDoc, 
   deleteDoc, 
   addDoc,
-  orderBy 
+  orderBy,
+  getDoc
 } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
@@ -67,27 +68,29 @@ const AdminPanel: React.FC = () => {
 
       const telegramId = parseInt(user.id)
 
-      // Get user data from users collection
-      const userRef = doc(db, 'users', user.id)
-      const userDoc = await getDoc(userRef)
-
+      // Query users collection by telegramId like in main.py
+      const usersRef = collection(db, 'users')
+      const userQuery = query(usersRef, where('telegramId', '==', telegramId))
+      const userSnapshot = await getDocs(userQuery)
+      
       let userData: any = {}
-      if (userDoc.exists()) {
-        userData = userDoc.data()
+      if (!userSnapshot.empty) {
+        const userDoc = userSnapshot.docs[0]
+        userData = { id: userDoc.id, ...userDoc.data() }
       } else {
-        // Create basic user data if doesn't exist (like bot does)
+        // Create basic user data if doesn't exist
         userData = {
-          telegram_id: telegramId,
+          telegramId: telegramId,
           username: user.username,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          created_at: new Date(),
-          shops: {}
+          firstName: user.firstName,
+          lastName: user.lastName,
+          createdAt: new Date(),
+          role: 'shop_owner'
         }
       }
       setUserData(userData)
 
-      // CORRECT: Find shops where user is owner via departments collection
+      // Find shops where user is owner via departments collection
       const departmentsRef = collection(db, 'departments')
       const ownerQuery = query(
         departmentsRef, 
@@ -114,9 +117,15 @@ const AdminPanel: React.FC = () => {
           const shopData = shopDoc.data()
           const shop: Shop = {
             id: shopDoc.id,
+            ownerId: shopData.ownerId || '',
             name: shopData.name,
+            slug: shopData.slug || '',
             description: shopData.description || '',
+            logo: shopData.logo,
             isActive: shopData.isActive !== false,
+            businessInfo: shopData.businessInfo,
+            settings: shopData.settings,
+            stats: shopData.stats,
             createdAt: shopData.createdAt?.toDate() || new Date(),
             updatedAt: shopData.updatedAt?.toDate() || new Date()
           }
@@ -149,6 +158,7 @@ const AdminPanel: React.FC = () => {
       const productsQuery = query(
         productsRef, 
         where('shopId', '==', shopId),
+        where('isActive', '==', true),
         orderBy('createdAt', 'desc')
       )
       const productsSnapshot = await getDocs(productsQuery)
@@ -164,10 +174,16 @@ const AdminPanel: React.FC = () => {
           price: data.price,
           stock: data.stock || 0,
           category: data.category,
+          subcategory: data.subcategory,
           images: data.images || [],
           sku: data.sku || '',
           isActive: data.isActive !== false,
           lowStockAlert: data.lowStockAlert || 5,
+          tags: data.tags,
+          featured: data.featured,
+          costPrice: data.costPrice,
+          weight: data.weight,
+          dimensions: data.dimensions,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date()
         }
@@ -187,6 +203,7 @@ const AdminPanel: React.FC = () => {
       const categoriesQuery = query(
         categoriesRef, 
         where('shopId', '==', shopId),
+        where('isActive', '==', true),
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
@@ -196,12 +213,15 @@ const AdminPanel: React.FC = () => {
         const data = doc.data()
         const category: Category = {
           id: doc.id,
+          userId: data.userId,
           shopId: data.shopId,
           name: data.name,
           description: data.description || '',
+          color: data.color || '#3B82F6',
           icon: data.icon || '📦',
           order: data.order || 0,
           isActive: data.isActive !== false,
+          productCount: data.productCount,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date()
         }
@@ -220,7 +240,8 @@ const AdminPanel: React.FC = () => {
       const departmentsRef = collection(db, 'departments')
       const departmentsQuery = query(
         departmentsRef, 
-        where('shopId', '==', shopId)
+        where('shopId', '==', shopId),
+        where('isActive', '==', true)
       )
       const departmentsSnapshot = await getDocs(departmentsQuery)
       
@@ -229,11 +250,16 @@ const AdminPanel: React.FC = () => {
         const data = doc.data()
         const department: Department = {
           id: doc.id,
+          userId: data.userId,
           shopId: data.shopId,
           name: data.name || '',
           telegramChatId: data.telegramChatId,
+          adminChatId: data.adminChatId,
           role: data.role,
+          order: data.order || 0,
+          icon: data.icon || '👥',
           isActive: data.isActive !== false,
+          notificationTypes: data.notificationTypes,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date()
         }
@@ -262,17 +288,25 @@ const AdminPanel: React.FC = () => {
       
       let totalOrders = 0
       let totalRevenue = 0
+      let totalCustomers = 0
+      const customerIds = new Set()
       
       ordersSnapshot.forEach((doc) => {
         const data = doc.data()
         totalOrders++
         totalRevenue += data.total || 0
+        if (data.customerId) {
+          customerIds.add(data.customerId)
+        }
       })
+      
+      totalCustomers = customerIds.size
 
       setStats({
         totalProducts,
         totalOrders,
-        totalRevenue
+        totalRevenue,
+        totalCustomers
       })
     } catch (error) {
       console.error('Error fetching stats:', error)
