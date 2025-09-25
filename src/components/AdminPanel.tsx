@@ -77,21 +77,15 @@ const AdminPanel: React.FC = () => {
       }
 
       // Get user document from Firebase using Telegram ID
-    const departmentsRef = collection(db, "departments");
-const deptQuery = query(
-  departmentsRef,
-  where("telegramChatId", "==", user.id.toString()) // ✅ make sure it's string
-);
+      const usersRef = collection(db, 'users')
+      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+      const userSnapshot = await getDocs(userQuery)
 
-const deptSnapshot = await getDocs(deptQuery);
-
-if (!deptSnapshot.empty) {
-  deptSnapshot.forEach(doc => {
-    console.log("Department:", doc.id, doc.data());
-  });
-} else {
-  console.log("No department found for telegramChatId:", user.id);
-}
+      if (userSnapshot.empty) {
+        setError('User not found in database')
+        setLoading(false)
+        return
+      }
 
       const userDoc = userSnapshot.docs[0]
       const userData = userDoc.data() as UserData
