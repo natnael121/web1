@@ -7,9 +7,9 @@ import {
   doc, 
   updateDoc, 
   deleteDoc, 
-  addDoc,
-  orderBy,
-  getDoc
+  addDoc, 
+  getDoc,
+  orderBy 
 } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
@@ -19,31 +19,42 @@ import {
   Plus, 
   Edit, 
   Trash2, 
+  Save, 
+  X, 
   Package, 
+  DollarSign,
+  Image,
+  FileText,
+  Star,
+  MapPin,
+  Phone,
+  Clock,
   Users,
   BarChart3,
-  Tag,
-  User,
-  ArrowLeft,
+  Bell,
   ShoppingCart,
-  DollarSign
+  Tag,
+  User
 } from 'lucide-react'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
   const { user } = useTelegram()
   const [loading, setLoading] = useState(true)
-  const [userData, setUserData] = useState<any>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile'>('profile')
+  const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
+  const [showAddDepartment, setShowAddDepartment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
 
@@ -55,7 +66,6 @@ const AdminPanel: React.FC = () => {
     }
   }, [user])
 
-  // CORRECT: Load shops where user is owner via departments collection
   const loadUserData = async () => {
     try {
       setLoading(true)
@@ -66,57 +76,50 @@ const AdminPanel: React.FC = () => {
         return
       }
 
-      const telegramId = parseInt(user.id)
-
-      // Query users collection by telegramId like in main.py
+      // Get user document from Firebase using Telegram ID
       const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', telegramId))
+      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
       const userSnapshot = await getDocs(userQuery)
-      
-     
 
-      // Find shops where user is owner via departments collection
-      const departmentsRef = collection(db, 'departments')
-      const ownerQuery = query(
-        departmentsRef, 
-        where('role', '==', 'owner'),
-        where('telegramChatId', '==', telegramId)
-      )
-      const departmentsSnapshot = await getDocs(ownerQuery)
-
-      const shopIds: string[] = []
-      departmentsSnapshot.forEach((doc) => {
-        const deptData = doc.data()
-        if (deptData.shopId) {
-          shopIds.push(deptData.shopId)
-        }
-      })
-
-      // Get shop details for owned shops
-      const shopsList: Shop[] = []
-      for (const shopId of shopIds) {
-        const shopRef = doc(db, 'shops', shopId)
-        const shopDoc = await getDoc(shopRef)
-        
-        if (shopDoc.exists()) {
-          const shopData = shopDoc.data()
-          const shop: Shop = {
-            id: shopDoc.id,
-            ownerId: shopData.ownerId || '',
-            name: shopData.name,
-            slug: shopData.slug || '',
-            description: shopData.description || '',
-            logo: shopData.logo,
-            isActive: shopData.isActive !== false,
-            businessInfo: shopData.businessInfo,
-            settings: shopData.settings,
-            stats: shopData.stats,
-            createdAt: shopData.createdAt?.toDate() || new Date(),
-            updatedAt: shopData.updatedAt?.toDate() || new Date()
-          }
-          shopsList.push(shop)
-        }
+      if (userSnapshot.empty) {
+        setError('User not found in database')
+        setLoading(false)
+        return
       }
+
+      const userDoc = userSnapshot.docs[0]
+      const userData = userDoc.data() as UserData
+      setUserData(userData)
+
+      // Find shops owned by this user (if any)
+      const shopsRef = collection(db, 'shops')
+      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
+      const shopsSnapshot = await getDocs(ownerQuery)
+
+      const shopsList: Shop[] = []
+      shopsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const shop: Shop = {
+          id: doc.id,
+          ownerId: data.ownerId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          logo: data.logo,
+          isActive: data.isActive !== false,
+          businessInfo: data.businessInfo || {},
+          settings: data.settings || {
+            currency: 'USD',
+            taxRate: 0,
+            businessHours: { open: '09:00', close: '18:00', days: [] },
+            orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
+          },
+          stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        }
+        shopsList.push(shop)
+      })
 
       setOwnedShops(shopsList)
       
@@ -143,7 +146,6 @@ const AdminPanel: React.FC = () => {
       const productsQuery = query(
         productsRef, 
         where('shopId', '==', shopId),
-        where('isActive', '==', true),
         orderBy('createdAt', 'desc')
       )
       const productsSnapshot = await getDocs(productsQuery)
@@ -155,17 +157,17 @@ const AdminPanel: React.FC = () => {
           id: doc.id,
           shopId: data.shopId,
           name: data.name,
-          description: data.description || '',
+          description: data.description,
           price: data.price,
           stock: data.stock || 0,
           category: data.category,
           subcategory: data.subcategory,
           images: data.images || [],
-          sku: data.sku || '',
+          sku: data.sku,
           isActive: data.isActive !== false,
           lowStockAlert: data.lowStockAlert || 5,
-          tags: data.tags,
-          featured: data.featured,
+          tags: data.tags || [],
+          featured: data.featured || false,
           costPrice: data.costPrice,
           weight: data.weight,
           dimensions: data.dimensions,
@@ -184,6 +186,7 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopCategories = async (shopId: string) => {
     try {
+      setLoading(true)
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
         categoriesRef, 
@@ -201,12 +204,12 @@ const AdminPanel: React.FC = () => {
           userId: data.userId,
           shopId: data.shopId,
           name: data.name,
-          description: data.description || '',
-          color: data.color || '#3B82F6',
-          icon: data.icon || '📦',
+          description: data.description,
+          color: data.color,
+          icon: data.icon,
           order: data.order || 0,
           isActive: data.isActive !== false,
-          productCount: data.productCount,
+          productCount: data.productCount || 0,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date()
         }
@@ -217,6 +220,8 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error fetching categories:', error)
       setError('Failed to load categories. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -226,7 +231,7 @@ const AdminPanel: React.FC = () => {
       const departmentsQuery = query(
         departmentsRef, 
         where('shopId', '==', shopId),
-        where('isActive', '==', true)
+        orderBy('order', 'asc')
       )
       const departmentsSnapshot = await getDocs(departmentsQuery)
       
@@ -237,14 +242,14 @@ const AdminPanel: React.FC = () => {
           id: doc.id,
           userId: data.userId,
           shopId: data.shopId,
-          name: data.name || '',
+          name: data.name,
           telegramChatId: data.telegramChatId,
           adminChatId: data.adminChatId,
           role: data.role,
           order: data.order || 0,
-          icon: data.icon || '👥',
+          icon: data.icon,
           isActive: data.isActive !== false,
-          notificationTypes: data.notificationTypes,
+          notificationTypes: data.notificationTypes || [],
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date()
         }
@@ -273,8 +278,7 @@ const AdminPanel: React.FC = () => {
       
       let totalOrders = 0
       let totalRevenue = 0
-      let totalCustomers = 0
-      const customerIds = new Set()
+      const customerIds = new Set<string>()
       
       ordersSnapshot.forEach((doc) => {
         const data = doc.data()
@@ -285,7 +289,7 @@ const AdminPanel: React.FC = () => {
         }
       })
       
-      totalCustomers = customerIds.size
+      const totalCustomers = customerIds.size
 
       setStats({
         totalProducts,
@@ -321,8 +325,6 @@ const AdminPanel: React.FC = () => {
         const productsRef = collection(db, 'products')
         await addDoc(productsRef, {
           ...productData,
-          shopId: selectedShop?.id,
-          isActive: true,
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -366,12 +368,10 @@ const AdminPanel: React.FC = () => {
           updatedAt: new Date()
         })
       } else {
-        // Add new category - CORRECT: Use category name, not ID reference
+        // Add new category
         const categoriesRef = collection(db, 'categories')
         await addDoc(categoriesRef, {
           ...categoryData,
-          shopId: selectedShop?.id,
-          isActive: true,
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -400,6 +400,53 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error deleting category:', error)
       setError('Failed to delete category. Please try again.')
+    }
+  }
+
+  const handleSaveDepartment = async (departmentData: any) => {
+    try {
+      setError(null)
+      
+      if (editingDepartment) {
+        // Update existing department
+        const departmentRef = doc(db, 'departments', editingDepartment.id)
+        await updateDoc(departmentRef, {
+          ...departmentData,
+          updatedAt: new Date()
+        })
+      } else {
+        // Add new department
+        const departmentsRef = collection(db, 'departments')
+        await addDoc(departmentsRef, {
+          ...departmentData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      }
+      
+      setEditingDepartment(null)
+      setShowAddDepartment(false)
+      if (selectedShop) {
+        await fetchShopDepartments(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error saving department:', error)
+      setError('Failed to save department. Please try again.')
+    }
+  }
+
+  const handleDeleteDepartment = async (departmentId: string) => {
+    try {
+      setError(null)
+      const departmentRef = doc(db, 'departments', departmentId)
+      await deleteDoc(departmentRef)
+      
+      if (selectedShop) {
+        await fetchShopDepartments(selectedShop.id)
+      }
+    } catch (error) {
+      console.error('Error deleting department:', error)
+      setError('Failed to delete department. Please try again.')
     }
   }
 
@@ -841,5 +888,6 @@ import DepartmentEditModal from './admin/DepartmentEditModal'
 import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
+import { ArrowLeft } from 'lucide-react'
 
 export default AdminPanel
