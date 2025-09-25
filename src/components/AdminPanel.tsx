@@ -93,12 +93,9 @@ const AdminPanel: React.FC = () => {
 
       // Find shops owned by this user (if any)
       const shopsRef = collection(db, 'shops')
-const ownerQuery = query(
-  shopsRef,
-  where('ownerId', 'in', [userDoc.id, telegramChatId])
-)
-const shopsSnapshot = await getDocs(ownerQuery)
-
+      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
+      const shopsSnapshot = await getDocs(ownerQuery)
+ 
       const shopsList: Shop[] = []
       shopsSnapshot.forEach((doc) => {
         const data = doc.data()
