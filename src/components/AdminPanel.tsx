@@ -184,46 +184,23 @@ const AdminPanel: React.FC = () => {
     }
   }
 
-  const fetchShopCategories = async (shopId: string) => {
-    try {
-      setLoading(true)
-      const categoriesRef = collection(db, 'categories')
-      const categoriesQuery = query(
-        categoriesRef, 
-        where('shopId', '==', shopId),
-        where('isActive', '==', true),
-        orderBy('order', 'asc')
-      )
-      const categoriesSnapshot = await getDocs(categoriesQuery)
-      
-      const categoriesList: Category[] = []
-      categoriesSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const category: Category = {
-          id: doc.id,
-          userId: data.userId,
-          shopId: data.shopId,
-          name: data.name,
-          description: data.description,
-          color: data.color,
-          icon: data.icon,
-          order: data.order || 0,
-          isActive: data.isActive !== false,
-          productCount: data.productCount || 0,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        categoriesList.push(category)
-      })
-
-      setCategories(categoriesList)
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-      setError('Failed to load categories. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+ const categoriesList: Category[] = categoriesSnapshot.docs.map((doc) => {
+  const data = doc.data()
+  return {
+    id: doc.id,
+    userId: data.userId,
+    shopId: data.shopId,
+    name: data.name,
+    description: data.description,
+    color: data.color,
+    icon: data.icon,
+    order: data.order || 0,
+    isActive: data.isActive !== false,
+    productCount: data.productCount || 0,
+    createdAt: data.createdAt?.toDate() || new Date(),
+    updatedAt: data.updatedAt?.toDate() || new Date()
   }
+})
 
   const fetchShopDepartments = async (shopId: string) => {
   try {
