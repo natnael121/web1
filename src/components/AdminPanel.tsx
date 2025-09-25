@@ -78,7 +78,11 @@ const AdminPanel: React.FC = () => {
 
       // Get user document from Firebase using Telegram ID
       const usersRef = collection(db, 'departments')
-      const userQuery = query(usersRef, where('telegramChatId', '==', parseInt(user.id))) 
+      const userQuery = query(usersRef, where('telegramChatId', '==', parseInt(user.id))) const ownerQuery = query(
+        departmentsRef, 
+        where('role', '==', 'owner'),
+        where('telegramChatId', '==', telegramId)
+      )
       const userSnapshot = await getDocs(userQuery)
 
       if (userSnapshot.empty) {
