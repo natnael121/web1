@@ -822,6 +822,5 @@ import DepartmentEditModal from './admin/DepartmentEditModal'
 import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
-import { ArrowLeft } from 'lucide-react'
 
 export default AdminPanel
