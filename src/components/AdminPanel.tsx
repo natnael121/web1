@@ -226,42 +226,46 @@ const AdminPanel: React.FC = () => {
   }
 
   const fetchShopDepartments = async (shopId: string) => {
-    try {
-      const departmentsRef = collection(db, 'departments')
-      const departmentsQuery = query(
-        departmentsRef, 
-        where('shopId', '==', shopId),
-        orderBy('order', 'asc')
-      )
-      const departmentsSnapshot = await getDocs(departmentsQuery)
-      
-      const departmentsList: Department[] = []
-      departmentsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const department: Department = {
-          id: doc.id,
-          userId: data.userId,
-          shopId: data.shopId,
-          name: data.name,
-          telegramChatId: data.telegramChatId,
-          adminChatId: data.adminChatId,
-          role: data.role,
-          order: data.order || 0,
-          icon: data.icon,
-          isActive: data.isActive !== false,
-          notificationTypes: data.notificationTypes || [],
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        departmentsList.push(department)
-      })
+  try {
+    const departmentsRef = collection(db, "departments")
+    const departmentsQuery = query(
+      departmentsRef,
+      where("shopId", "==", shopId),
+      orderBy("order", "asc") // requires composite index!
+    )
+    const departmentsSnapshot = await getDocs(departmentsQuery)
 
-      setDepartments(departmentsList)
-    } catch (error) {
-      console.error('Error fetching departments:', error)
-      setError('Failed to load departments. Please try again.')
-    }
+    const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
+      const data = doc.data()
+
+      return {
+        id: doc.id,
+        userId: data.userId || "",
+        shopId: data.shopId || "",
+        name: data.name || "",
+        telegramChatId: data.telegramChatId || "",
+        adminChatId: data.adminChatId || "",
+        role: data.role || "",
+        order: typeof data.order === "number" ? data.order : 0,
+        icon: data.icon || "",
+        isActive: data.isActive !== false,
+        notificationTypes: data.notificationTypes || [],
+        createdAt:
+          data.createdAt?.toDate?.() ??
+          (data.createdAt ? new Date(data.createdAt) : new Date()),
+        updatedAt:
+          data.updatedAt?.toDate?.() ??
+          (data.updatedAt ? new Date(data.updatedAt) : new Date()),
+      }
+    })
+
+    setDepartments(departmentsList)
+  } catch (error) {
+    console.error("Error fetching departments:", error)
+    setError("Failed to load departments. Please try again.")
   }
+}
+
 
   const fetchShopStats = async (shopId: string) => {
     try {
