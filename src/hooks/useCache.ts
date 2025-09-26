@@ -6,7 +6,23 @@ export interface UseCacheOptions {
   fallbackToCache?: boolean
   syncOnMount?: boolean
 }
+// Filter by telegramId
+  const ordersData = result.data && Array.isArray(result.data) ? result.data : []
+  const userOrders = ordersData.filter((order: Order) => order.telegramId === telegramId)
+  
+  return {
+    ...result,
+    data: userOrders
+  }
+}
 
+export function useActiveShops() {
+  const result = useCache<Shop>('shops', undefined, { 
+    enableRealtime: true, 
+    syncOnMount: true 
+  })
+  
+  })
 export function useCache<T>(
   collectionName: string,
   id?: string,
