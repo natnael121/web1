@@ -1,6 +1,6 @@
 import React from 'react'
 import { Product } from '../../types'
-import { Package, Edit, Trash2, Star, AlertTriangle } from 'lucide-react'
+import { Package, FileEdit as Edit, Trash2, Star, AlertTriangle } from 'lucide-react'
 
 interface ProductCardProps {
   product: Product
