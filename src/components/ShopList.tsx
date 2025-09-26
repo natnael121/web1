@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore'
-import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
+import { useShops, useProducts, useCategories } from '../hooks/useCache'
+import { cacheSyncService } from '../services/cacheSync'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 
 const ShopList: React.FC = () => {
-  const { db } = useFirebase()
   const { user } = useTelegram()
-  const [shops, setShops] = useState<Shop[]>([])
+  const { data: shops, loading: shopsLoading, error: shopsError } = useShops()
   const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(shopsError)
   const [userData, setUserData] = useState<any>(null)
   const [currentView, setCurrentView] = useState<'shops' | 'categories' | 'products' | 'cart'>('shops')
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
@@ -22,117 +21,22 @@ const ShopList: React.FC = () => {
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
 
   useEffect(() => {
-    if (user?.id) {
-      fetchUserData()
-    } else {
-      setLoading(false)
+    if (!user?.id) {
       setError('Please open this app from Telegram to see your shops.')
     }
   }, [user])
 
-  const fetchUserData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      if (!user?.id) {
-        setError('No user information available')
-        return
-      }
-
-      // Query users collection by telegramId
-      const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegram_id', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
-      
-      if (userSnapshot.empty) {
-        // For demo purposes, show all active shops if user not found
-        console.log('User not found in database, showing all active shops')
-        await fetchAllActiveShops()
-        setLoading(false)
-        return
-      }
-
-      const userDoc = userSnapshot.docs[0]
-      const userData = userDoc.data() as UserData
-      setUserData(userData)
-
-      // Fetch all active shops for browsing
-      await fetchAllActiveShops()
-    } catch (error) {
-      console.error('Error fetching user data:', error)
-      setError('Failed to load your shop data. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchAllActiveShops = async () => {
-    try {
-      const shopsRef = collection(db, 'shops')
-      const shopsQuery = query(
-        shopsRef, 
-        where('isActive', '==', true),
-        orderBy('updatedAt', 'desc')
-      )
-      const shopsSnapshot = await getDocs(shopsQuery)
-      
-      if (shopsSnapshot.empty) {
-        setError('No active shops found.')
-        return
-      }
-      
-      const allShops: Shop[] = []
-      shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive,
-          businessInfo: data.businessInfo,
-          settings: data.settings,
-          stats: data.stats,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        allShops.push(shop)
-      })
-      
-      setShops(allShops)
-    } catch (error) {
-      console.error('Error fetching all active shops:', error)
-      setError('Failed to load shops. Please try again.')
-    }
-  }
-
-
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
-      const categoriesRef = collection(db, 'categories')
-      const categoriesQuery = query(
-        categoriesRef, 
-        where('shopId', '==', shopId),
-        
-        orderBy('order', 'asc')
-      )
-      const categoriesSnapshot = await getDocs(categoriesQuery)
+      const cachedCategories = await cacheSyncService.getCachedData<any>('categories')
+      const shopCategories = Array.isArray(cachedCategories) 
+        ? cachedCategories.filter(cat => cat.shopId === shopId && cat.isActive)
+        : []
       
-      const categoriesList: string[] = []
-      categoriesSnapshot.forEach((doc) => {
-        const data = doc.data()
-        if (data.name) {
-          categoriesList.push(data.name)
-        }
-      })
-
-      setCategories(categoriesList)
+      setCategories(shopCategories)
       
-      if (categoriesList.length === 0) {
+      if (shopCategories.length === 0) {
         setError('No categories found for this shop.')
       }
     } catch (error) {
@@ -146,46 +50,18 @@ const ShopList: React.FC = () => {
   const fetchCategoryProducts = async (shopId: string, category: string) => {
     try {
       setLoading(true)
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef, 
-        where('shopId', '==', shopId),
-        where('category', '==', category),
-        where('isActive', '==', true),
-        orderBy('name', 'asc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
+      const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
+      const categoryProducts = Array.isArray(cachedProducts)
+        ? cachedProducts.filter(product => 
+            product.shopId === shopId && 
+            product.category === category && 
+            product.isActive
+          )
+        : []
       
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name || 'Unnamed Product',
-          description: data.description || 'No description available',
-          price: data.price || 0,
-          stock: data.stock || 0,
-          category: data.category || 'other',
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 0,
-          tags: data.tags,
-          featured: data.featured,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
+      setProducts(categoryProducts)
       
-      if (productsList.length === 0) {
+      if (categoryProducts.length === 0) {
         setError(`No products found in the ${category} category.`)
       }
     } catch (error) {
@@ -199,24 +75,16 @@ const ShopList: React.FC = () => {
   const fetchFeaturedProducts = async (shopId: string) => {
     try {
       setLoading(true)
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef, 
-        where('shopId', '==', shopId),
-        where('isActive', '==', true),
-        where('featured', '==', true),
-        orderBy('updatedAt', 'desc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
+      const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
+      const featuredProducts = Array.isArray(cachedProducts)
+        ? cachedProducts.filter(product => 
+            product.shopId === shopId && 
+            product.isActive && 
+            product.featured
+          )
+        : []
       
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product = createProductFromData(doc.id, data)
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
+      setProducts(featuredProducts)
     } catch (error) {
       console.error('Error fetching featured products:', error)
       setError('Failed to load featured products. Please try again.')
@@ -360,12 +228,13 @@ const ShopList: React.FC = () => {
         telegramUsername: user.username
       }
       
-      const ordersRef = collection(db, 'orders')
-      await addDoc(ordersRef, {
+      const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      await cacheSyncService.setCachedData('orders', orderId, {
+        id: orderId,
         ...orderData,
         createdAt: new Date(),
         updatedAt: new Date()
-      })
+      }, true)
       
       // Clear cart and show success
       setCart([])
@@ -389,7 +258,7 @@ const ShopList: React.FC = () => {
     setError(null)
   }
 
-  if (loading) {
+  if (shopsLoading || loading) {
     return (
       <div className="p-4">
         <div className="animate-pulse space-y-4">
@@ -410,18 +279,18 @@ const ShopList: React.FC = () => {
     )
   }
 
-  if (error) {
+  if (error || shopsError) {
     return (
       <div className="p-4">
         <div className="text-center py-12">
           <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
           <h3 className="text-lg font-medium text-telegram-text mb-2">
-            {error.includes('No shops') ? 'No Shops Found' : 'Error Loading Data'}
+            {(error || shopsError)?.includes('No shops') ? 'No Shops Found' : 'Error Loading Data'}
           </h3>
-          <p className="text-telegram-hint mb-4">{error}</p>
-          {!error.includes('No shops') && (
+          <p className="text-telegram-hint mb-4">{error || shopsError}</p>
+          {!(error || shopsError)?.includes('No shops') && (
             <button
-              onClick={fetchUserData}
+              onClick={() => window.location.reload()}
               className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg"
             >
               Try Again
@@ -434,19 +303,21 @@ const ShopList: React.FC = () => {
 
   // Render shops view
   if (currentView === 'shops') {
+    const activeShops = Array.isArray(shops) ? shops.filter(shop => shop.isActive) : []
+    
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-telegram-text">Available Shops</h2>
             <p className="text-sm text-telegram-hint">
-              {shops.length} shop{shops.length !== 1 ? 's' : ''} available
+              {activeShops.length} shop{activeShops.length !== 1 ? 's' : ''} available
             </p>
           </div>
         </div>
 
         <div className="space-y-3">
-          {shops.map((shop) => (
+          {activeShops.map((shop) => (
             <div
               key={shop.id}
               onClick={() => handleShopClick(shop)}
@@ -534,17 +405,17 @@ const ShopList: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           {categories.map((category) => (
             <button
-              key={category}
-              onClick={() => handleCategoryClick(category)}
+              key={category.id}
+              onClick={() => handleCategoryClick(category.name)}
               className="bg-telegram-secondary-bg rounded-lg p-4 text-left hover:shadow-md transition-all active:scale-95"
             >
               <div className="text-center">
-                <Package className="w-8 h-8 mx-auto text-telegram-button mb-2" />
-                <h3 className="font-medium text-telegram-text capitalize">
-                  {category}
+                <div className="text-2xl mb-2">{category.icon}</div>
+                <h3 className="font-medium text-telegram-text">
+                  {category.name}
                 </h3>
                 <p className="text-xs text-telegram-hint mt-1">
-                  Browse {category.toLowerCase()}
+                  {category.productCount || 0} products
                 </p>
               </div>
             </button>

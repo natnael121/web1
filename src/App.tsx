@@ -3,10 +3,12 @@ import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
+import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
 import Navigation from './components/Navigation'
+import SyncStatus from './components/common/SyncStatus'
 import { User } from './types'
 
 // Firebase configuration
@@ -28,6 +30,13 @@ function App() {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
+    // Initialize cache sync service
+    cacheSyncService.init(db, {
+      syncInterval: 30000, // 30 seconds
+      batchSize: 50,
+      maxRetries: 3
+    })
+
     // Initialize Telegram WebApp
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
@@ -56,6 +65,7 @@ function App() {
     <TelegramProvider>
       <FirebaseProvider db={db}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
+          <SyncStatus />
           <div className="max-w-md mx-auto">
             {/* Header */}
             <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
