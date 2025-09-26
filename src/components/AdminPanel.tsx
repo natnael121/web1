@@ -14,6 +14,7 @@ import {
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
+import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
 
 const AdminPanel: React.FC = () => {
@@ -34,6 +35,8 @@ const AdminPanel: React.FC = () => {
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showAddDepartment, setShowAddDepartment] = useState(false)
+  const [showPromotionModal, setShowPromotionModal] = useState(false)
+  const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
 
@@ -433,6 +436,90 @@ const AdminPanel: React.FC = () => {
     }
   }
 
+  const handlePromoteProduct = (product: Product) => {
+    setPromotingProduct(product)
+    setShowPromotionModal(true)
+  }
+
+  const handlePromotionSubmit = async (promotionData: any) => {
+    try {
+      setError(null)
+      
+      const { 
+        product, 
+        customMessage, 
+        promotionImages, 
+        promotionTitle, 
+        discountPercentage, 
+        validUntil, 
+        tags, 
+        isScheduled, 
+        scheduledDate, 
+        selectedDepartments 
+      } = promotionData
+
+      // Generate promotion message
+      const discountText = discountPercentage > 0 ? `\n💥 <b>${discountPercentage}% OFF!</b>` : ''
+      const originalPrice = discountPercentage > 0 ? `\n~~$${product.price.toFixed(2)}~~ ` : ''
+      const discountedPrice = discountPercentage > 0 ? `<b>$${(product.price * (1 - discountPercentage / 100)).toFixed(2)}</b>` : `<b>$${product.price.toFixed(2)}</b>`
+      const validUntilText = validUntil ? `\n⏰ <b>Valid until:</b> ${validUntil.toLocaleDateString()}` : ''
+      const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
+      
+      const message = `
+🔥 <b>${promotionTitle}</b>${discountText}
+
+🛍️ <b>${product.name}</b>
+
+${customMessage || product.description}
+
+💰 <b>Price:</b> ${originalPrice}${discountedPrice}
+📦 <b>Available:</b> ${product.stock} in stock
+${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
+
+🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}
+
+<i>🚀 Limited time offer - Order today!</i>
+      `.trim()
+
+      const promotionMessage = {
+        text: message,
+        images: promotionImages.length > 0 ? promotionImages : (product.images.length > 0 ? [product.images[0]] : undefined),
+        parseMode: 'HTML' as const
+      }
+
+      // Send to selected departments or all active departments if none selected
+      const targetDepartments = selectedDepartments.length > 0 
+        ? departments.filter(d => selectedDepartments.includes(d.id))
+        : departments.filter(d => d.isActive)
+
+      const botToken = process.env.TELEGRAM_BOT_TOKEN || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
+      
+      if (!botToken) {
+        throw new Error('Telegram bot token not configured')
+      }
+
+      // Send or schedule promotion
+      for (const department of targetDepartments) {
+        const config = {
+          botToken,
+          chatId: department.telegramChatId
+        }
+
+        if (isScheduled && scheduledDate) {
+          await telegramService.scheduleMessage(config, promotionMessage, scheduledDate)
+        } else {
+          await telegramService.sendPromotionMessage(config, promotionMessage)
+        }
+      }
+
+      setShowPromotionModal(false)
+      setPromotingProduct(null)
+    } catch (error) {
+      console.error('Error promoting product:', error)
+      setError('Failed to promote product. Please check your Telegram bot configuration.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-4">
@@ -630,6 +717,7 @@ const AdminPanel: React.FC = () => {
                     product={product}
                     onEdit={setEditingProduct}
                     onDelete={handleDeleteProduct}
+                    onPromote={handlePromoteProduct}
                   />
                 ))}
               </div>
@@ -857,6 +945,19 @@ const AdminPanel: React.FC = () => {
           onCancel={() => setEditingShop(null)}
         />
       )}
+
+      {/* Promotion Modal */}
+      {showPromotionModal && promotingProduct && (
+        <PromotionModal
+          product={promotingProduct}
+          departments={departments}
+          onClose={() => {
+            setShowPromotionModal(false)
+            setPromotingProduct(null)
+          }}
+          onPromote={handlePromotionSubmit}
+        />
+      )}
     </div>
   )
 } 
@@ -864,6 +965,7 @@ const AdminPanel: React.FC = () => {
 // Import required components
 import ProductCard from './admin/ProductCard'
 import ProductEditModal from './admin/ProductEditModal'
+import { PromotionModal } from './admin/PromotionModal'
 import CategoryCard from './admin/CategoryCard'
 import CategoryEditModal from './admin/CategoryEditModal'
 import DepartmentCard from './admin/DepartmentCard'

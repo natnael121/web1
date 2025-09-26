@@ -1,14 +1,15 @@
 import React from 'react'
 import { Product } from '../../types'
-import { Package, FileEdit as Edit, Trash2, Star, AlertTriangle } from 'lucide-react'
+import { Package, FileEdit as Edit, Trash2, Star, AlertTriangle, Megaphone } from 'lucide-react'
 
 interface ProductCardProps {
   product: Product
   onEdit: (product: Product) => void
   onDelete: (productId: string) => void
+  onPromote?: (product: Product) => void
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, onPromote }) => {
   const isLowStock = product.stock <= product.lowStockAlert
 
   return (
@@ -90,6 +91,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete }) 
         </div>
         
         <div className="flex space-x-2 ml-4">
+          {onPromote && (
+            <button
+              onClick={() => onPromote(product)}
+              className="p-2 text-green-600 hover:bg-green-600 hover:text-white rounded"
+              title="Promote Product"
+            >
+              <Megaphone className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(product)}
             className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
