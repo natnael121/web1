@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Shop } from '../../types'
 import { X, Save, Store, FileText, Image, Globe, Phone, Mail, MapPin, Clock } from 'lucide-react'
+import ImageUpload from '../common/ImageUpload'
 
 interface ShopEditModalProps {
   shop: Shop
@@ -118,13 +119,12 @@ const ShopEditModal: React.FC<ShopEditModalProps> = ({ shop, onSave, onCancel })
               <div>
                 <label className="block text-sm font-medium text-telegram-text mb-1">
                   <Image className="w-4 h-4 inline mr-1" />
-                  Logo URL
+                  Shop Logo
                 </label>
-                <input
-                  type="url"
+                <ImageUpload
                   value={formData.logo || ''}
-                  onChange={(e) => setFormData({...formData, logo: e.target.value})}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
+                  onChange={(url) => setFormData({...formData, logo: url})}
+                  placeholder="Upload shop logo"
                 />
               </div>
 

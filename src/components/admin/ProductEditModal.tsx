@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Product, Category } from '../../types'
 import { X, Save, Package, FileText, DollarSign, Image, Plus, Trash2, Tag } from 'lucide-react'
+import MultiImageUpload from '../common/MultiImageUpload'
 
 interface ProductEditModalProps {
   product?: Product
@@ -252,36 +253,11 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({
               Product Images
             </h4>
             
-            <div className="space-y-2">
-              {formData.images.map((image, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <input
-                    type="url"
-                    value={image}
-                    onChange={(e) => updateImage(index, e.target.value)}
-                    className="flex-1 p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                    placeholder={`Image URL ${index + 1}`}
-                  />
-                  {formData.images.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="p-3 text-red-500 hover:bg-red-500 hover:text-white rounded"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addImageField}
-                className="text-telegram-button text-sm flex items-center space-x-1 hover:underline"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add another image</span>
-              </button>
-            </div>
+            <MultiImageUpload
+              value={formData.images.filter(img => img.trim() !== '')}
+              onChange={(urls) => setFormData({...formData, images: urls})}
+              maxImages={5}
+            />
           </div>
 
           {/* Tags */}
