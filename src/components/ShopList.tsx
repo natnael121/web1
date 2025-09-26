@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useTelegram } from '../contexts/TelegramContext'
-import { useShops, useProducts, useCategories } from '../hooks/useCache'
-import { cacheSyncService } from '../services/cacheSync'
+import { useShops } from '../hooks/useCache'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 
@@ -29,6 +28,7 @@ const ShopList: React.FC = () => {
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
+      const { cacheSyncService } = await import('../services/cacheSync')
       const cachedCategories = await cacheSyncService.getCachedData<any>('categories')
       const shopCategories = Array.isArray(cachedCategories) 
         ? cachedCategories.filter(cat => cat.shopId === shopId && cat.isActive)
@@ -50,6 +50,7 @@ const ShopList: React.FC = () => {
   const fetchCategoryProducts = async (shopId: string, category: string) => {
     try {
       setLoading(true)
+      const { cacheSyncService } = await import('../services/cacheSync')
       const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
       const categoryProducts = Array.isArray(cachedProducts)
         ? cachedProducts.filter(product => 
@@ -75,6 +76,7 @@ const ShopList: React.FC = () => {
   const fetchFeaturedProducts = async (shopId: string) => {
     try {
       setLoading(true)
+      const { cacheSyncService } = await import('../services/cacheSync')
       const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
       const featuredProducts = Array.isArray(cachedProducts)
         ? cachedProducts.filter(product => 
@@ -207,6 +209,7 @@ const ShopList: React.FC = () => {
     try {
       setOrderPlacing(true)
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       
       const subtotal = getCartTotal()
       const tax = subtotal * 0.1 // 10% tax rate

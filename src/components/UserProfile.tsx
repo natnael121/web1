@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { useOrders } from '../hooks/useCache'
-import { cacheSyncService } from '../services/cacheSync'
 import { User, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
 import { 
@@ -63,6 +62,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   useEffect(() => {
     const loadShops = async () => {
       try {
+        const { cacheSyncService } = await import('../services/cacheSync')
         const cachedShops = await cacheSyncService.getCachedData<Shop>('shops')
         const activeShops = Array.isArray(cachedShops) 
           ? cachedShops.filter(shop => shop.isActive)

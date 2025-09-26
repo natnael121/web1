@@ -248,12 +248,13 @@ class CacheSyncService {
     try {
       if (id) {
         const item = await indexedDBService.get(collectionName, id)
-        return item ? item.data : null
+        return item && item.data ? item.data : null
       } else {
         const items = await indexedDBService.getAll(collectionName)
         const filteredData = items
           .filter(item => !item.data?.deleted && !item.deleted)
           .map(item => item.data)
+          .filter(data => data) // Remove any null/undefined items
         
         console.log(`Retrieved ${filteredData.length} items from ${collectionName} cache`)
         return filteredData

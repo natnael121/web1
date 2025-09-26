@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useTelegram } from '../contexts/TelegramContext'
-import { cacheSyncService } from '../services/cacheSync'
-import { useCache } from '../hooks/useCache'
+import { useCache, useShops, useProducts, useCategories, useDepartments } from '../hooks/useCache'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
@@ -9,6 +8,7 @@ import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Im
 const AdminPanel: React.FC = () => {
   const { user } = useTelegram()
   const { data: userData, loading: userLoading, updateData: updateUserData } = useCache<UserData>('users', user?.id)
+  const { data: allShops, loading: shopsLoading } = useShops()
   const [loading, setLoading] = useState(true)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
@@ -29,12 +29,12 @@ const AdminPanel: React.FC = () => {
   const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && allShops) {
       loadUserData()
     } else {
       setLoading(false)
     }
-  }, [user])
+  }, [user, allShops])
 
   const loadUserData = async () => {
     try {
@@ -47,9 +47,8 @@ const AdminPanel: React.FC = () => {
       }
 
       // Find shops owned by this user (if any)
-      const cachedShops = await cacheSyncService.getCachedData<Shop>('shops')
-      const userShops = Array.isArray(cachedShops) 
-        ? cachedShops.filter(shop => shop.ownerId === user.id)
+      const userShops = Array.isArray(allShops) 
+        ? allShops.filter(shop => shop.ownerId === user.id)
         : []
       
       setOwnedShops(userShops)
@@ -73,9 +72,13 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopProducts = async (shopId: string) => {
     try {
+      // Use the products hook to get all products, then filter by shopId
+      const { data: allProducts } = await import('../hooks/useCache').then(m => ({ data: [] }))
+      // For now, we'll fetch directly from cache service
+      const { cacheSyncService } = await import('../services/cacheSync')
       const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
-      const shopProducts = Array.isArray(cachedProducts)
-        ? cachedProducts.filter(product => product.shopId === shopId)
+      const shopProducts = Array.isArray(cachedProducts) 
+        ? cachedProducts.filter(product => product.shopId === shopId && product.isActive)
         : []
       
       setProducts(shopProducts)
@@ -88,9 +91,10 @@ const AdminPanel: React.FC = () => {
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
+      const { cacheSyncService } = await import('../services/cacheSync')
       const cachedCategories = await cacheSyncService.getCachedData<Category>('categories')
       const shopCategories = Array.isArray(cachedCategories)
-        ? cachedCategories.filter(category => category.shopId === shopId)
+        ? cachedCategories.filter(category => category.shopId === shopId && category.isActive)
         : []
       
       setCategories(shopCategories)
@@ -104,9 +108,10 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopDepartments = async (shopId: string) => {
   try {
+    const { cacheSyncService } = await import('../services/cacheSync')
     const cachedDepartments = await cacheSyncService.getCachedData<Department>('departments')
     const shopDepartments = Array.isArray(cachedDepartments)
-      ? cachedDepartments.filter(department => department.shopId === shopId)
+      ? cachedDepartments.filter(department => department.shopId === shopId && department.isActive)
       : []
     
     setDepartments(shopDepartments)
@@ -120,6 +125,7 @@ const AdminPanel: React.FC = () => {
   const fetchShopStats = async (shopId: string) => {
     try {
       // Get product count
+      const { cacheSyncService } = await import('../services/cacheSync')
       const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
       const shopProducts = Array.isArray(cachedProducts)
         ? cachedProducts.filter(product => product.shopId === shopId && product.isActive)
@@ -167,6 +173,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveProduct = async (productData: any) => {
     try {
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       
       if (editingProduct) {
         // Update existing product
@@ -200,6 +207,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteProduct = async (productId: string) => {
     try {
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       await cacheSyncService.deleteCachedData('products', productId, true)
       
       if (selectedShop) {
@@ -214,6 +222,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveCategory = async (categoryData: any) => {
     try {
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       
       if (editingCategory) {
         // Update existing category
@@ -247,6 +256,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       await cacheSyncService.deleteCachedData('categories', categoryId, true)
       
       if (selectedShop) {
@@ -261,6 +271,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveDepartment = async (departmentData: any) => {
     try {
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       
       if (editingDepartment) {
         // Update existing department
@@ -294,6 +305,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteDepartment = async (departmentId: string) => {
     try {
       setError(null)
+      const { cacheSyncService } = await import('../services/cacheSync')
       await cacheSyncService.deleteCachedData('departments', departmentId, true)
       
       if (selectedShop) {
@@ -799,6 +811,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           shop={editingShop}
           onSave={async (updatedShop) => {
             try {
+              const { cacheSyncService } = await import('../services/cacheSync')
               await cacheSyncService.setCachedData('shops', updatedShop.id, {
                 ...updatedShop,
                 updatedAt: new Date()

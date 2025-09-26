@@ -54,6 +54,8 @@ export function useCache<T>(
     } catch (err) {
       console.error(`Error loading data from ${collectionName}:`, err)
       setError(err instanceof Error ? err.message : 'Failed to load data')
+      // Set empty data on error to prevent undefined issues
+      setData(id ? null : [])
     } finally {
       setLoading(false)
     }
@@ -164,20 +166,29 @@ export function useCache<T>(
 
 // Specialized hooks for common use cases
 export function useShops() {
-  return useCache<any>('shops', undefined, { enableRealtime: true, syncOnMount: true })
+  const result = useCache<Shop>('shops', undefined, { enableRealtime: true, syncOnMount: true })
+  
+  // Ensure we always return an array for shops
+  const shopsData = result.data && Array.isArray(result.data) ? result.data : []
+  
+  return {
+    ...result,
+    data: shopsData
+  }
 }
 
 export function useShop(shopId: string) {
-  return useCache<any>('shops', shopId)
+  return useCache<Shop>('shops', shopId)
 }
 
 export function useProducts(shopId?: string) {
-  const result = useCache<any>('products', undefined, { enableRealtime: true })
+  const result = useCache<Product>('products', undefined, { enableRealtime: true })
   
   // Filter by shopId if provided
-  const filteredData = shopId && result.data && Array.isArray(result.data)
-    ? result.data.filter((product: any) => product.shopId === shopId)
-    : result.data
+  const productsData = result.data && Array.isArray(result.data) ? result.data : []
+  const filteredData = shopId 
+    ? productsData.filter((product: Product) => product.shopId === shopId)
+    : productsData
 
   return {
     ...result,
@@ -190,12 +201,13 @@ export function useProduct(productId: string) {
 }
 
 export function useCategories(shopId?: string) {
-  const result = useCache<any>('categories', undefined, { enableRealtime: true })
+  const result = useCache<Category>('categories', undefined, { enableRealtime: true })
   
   // Filter by shopId if provided
-  const filteredData = shopId && result.data && Array.isArray(result.data)
-    ? result.data.filter((category: any) => category.shopId === shopId)
-    : result.data
+  const categoriesData = result.data && Array.isArray(result.data) ? result.data : []
+  const filteredData = shopId 
+    ? categoriesData.filter((category: Category) => category.shopId === shopId)
+    : categoriesData
 
   return {
     ...result,
@@ -204,12 +216,13 @@ export function useCategories(shopId?: string) {
 }
 
 export function useDepartments(shopId?: string) {
-  const result = useCache<any>('departments', undefined, { enableRealtime: true })
+  const result = useCache<Department>('departments', undefined, { enableRealtime: true })
   
   // Filter by shopId if provided
-  const filteredData = shopId && result.data && Array.isArray(result.data)
-    ? result.data.filter((department: any) => department.shopId === shopId)
-    : result.data
+  const departmentsData = result.data && Array.isArray(result.data) ? result.data : []
+  const filteredData = shopId 
+    ? departmentsData.filter((department: Department) => department.shopId === shopId)
+    : departmentsData
 
   return {
     ...result,
@@ -218,12 +231,13 @@ export function useDepartments(shopId?: string) {
 }
 
 export function useOrders(customerId?: string) {
-  const result = useCache<any>('orders', undefined, { enableRealtime: true })
+  const result = useCache<Order>('orders', undefined, { enableRealtime: true })
   
   // Filter by customerId if provided
-  const filteredData = customerId && result.data && Array.isArray(result.data)
-    ? result.data.filter((order: any) => order.customerId === customerId)
-    : result.data
+  const ordersData = result.data && Array.isArray(result.data) ? result.data : []
+  const filteredData = customerId 
+    ? ordersData.filter((order: Order) => order.customerId === customerId)
+    : ordersData
 
   return {
     ...result,
