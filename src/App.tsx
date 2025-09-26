@@ -31,11 +31,21 @@ function App() {
 
   useEffect(() => {
     // Initialize cache sync service
-    cacheSyncService.init(db, {
-      syncInterval: 30000, // 30 seconds
-      batchSize: 50,
-      maxRetries: 3
-    })
+    const initializeCache = async () => {
+      try {
+        console.log('Initializing cache sync service...')
+        await cacheSyncService.init(db, {
+          syncInterval: 30000, // 30 seconds
+          batchSize: 50,
+          maxRetries: 3
+        })
+        console.log('Cache sync service initialized successfully')
+      } catch (error) {
+        console.error('Failed to initialize cache sync service:', error)
+      }
+    }
+    
+    initializeCache()
 
     // Initialize Telegram WebApp
     if (window.Telegram?.WebApp) {

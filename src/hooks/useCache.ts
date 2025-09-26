@@ -20,7 +20,7 @@ export function useCache<T>(
   const {
     enableRealtime = true,
     fallbackToCache = true,
-    syncOnMount = true
+    syncOnMount = false
   } = options
 
   // Load data function
@@ -29,13 +29,30 @@ export function useCache<T>(
       setLoading(true)
       setError(null)
       
+      console.log(`Loading data from ${collectionName}${id ? ` with id ${id}` : ''}`)
+      
       const cachedData = await cacheSyncService.getCachedData<T>(collectionName, id)
-      setData(cachedData)
+      
+      if (cachedData) {
+        console.log(`Found cached data for ${collectionName}:`, cachedData)
+        setData(cachedData)
+      } else {
+        console.log(`No cached data found for ${collectionName}`)
+        setData(id ? null : [])
+      }
       
       if (syncOnMount && !cacheSyncService.isOffline()) {
+        console.log('Forcing sync on mount...')
         await cacheSyncService.forcSync()
+        
+        // Reload data after sync
+        const updatedData = await cacheSyncService.getCachedData<T>(collectionName, id)
+        if (updatedData) {
+          setData(updatedData)
+        }
       }
     } catch (err) {
+      console.error(`Error loading data from ${collectionName}:`, err)
       setError(err instanceof Error ? err.message : 'Failed to load data')
     } finally {
       setLoading(false)
@@ -47,11 +64,13 @@ export function useCache<T>(
     try {
       if (!id) throw new Error('ID is required for updates')
       
+      console.log(`Updating data in ${collectionName} with id ${id}`)
       await cacheSyncService.setCachedData(collectionName, id, newData, syncToFirebase)
       
       // Update local state immediately for better UX
       setData(newData)
     } catch (err) {
+      console.error(`Error updating data in ${collectionName}:`, err)
       setError(err instanceof Error ? err.message : 'Failed to update data')
       throw err
     }
@@ -62,9 +81,11 @@ export function useCache<T>(
     try {
       if (!id) throw new Error('ID is required for deletion')
       
+      console.log(`Deleting data from ${collectionName} with id ${id}`)
       await cacheSyncService.deleteCachedData(collectionName, id, syncToFirebase)
       setData(null)
     } catch (err) {
+      console.error(`Error deleting data from ${collectionName}:`, err)
       setError(err instanceof Error ? err.message : 'Failed to delete data')
       throw err
     }
@@ -73,6 +94,7 @@ export function useCache<T>(
   // Create data function
   const createData = useCallback(async (newData: T & { id: string }, syncToFirebase: boolean = true) => {
     try {
+      console.log(`Creating data in ${collectionName} with id ${newData.id}`)
       await cacheSyncService.setCachedData(collectionName, newData.id, newData, syncToFirebase)
       
       // If we're loading a collection, refresh the data
@@ -82,6 +104,7 @@ export function useCache<T>(
         setData(newData)
       }
     } catch (err) {
+      console.error(`Error creating data in ${collectionName}:`, err)
       setError(err instanceof Error ? err.message : 'Failed to create data')
       throw err
     }
@@ -90,10 +113,12 @@ export function useCache<T>(
   // Setup real-time listener or load data on mount
   useEffect(() => {
     if (enableRealtime && !id) {
+      console.log(`Setting up realtime listener for ${collectionName}`)
       // Setup real-time listener for collections
       const unsubscribe = cacheSyncService.setupRealtimeListener<T>(
         collectionName,
         (newData) => {
+          console.log(`Received realtime update for ${collectionName}:`, newData)
           setData(newData)
           setLoading(false)
         }
@@ -107,8 +132,14 @@ export function useCache<T>(
 
   // Listen for online/offline status
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false)
-    const handleOffline = () => setIsOffline(true)
+    const handleOnline = () => {
+      console.log('App came online')
+      setIsOffline(false)
+    }
+    const handleOffline = () => {
+      console.log('App went offline')
+      setIsOffline(true)
+    }
 
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
@@ -133,7 +164,7 @@ export function useCache<T>(
 
 // Specialized hooks for common use cases
 export function useShops() {
-  return useCache<any>('shops')
+  return useCache<any>('shops', undefined, { enableRealtime: true, syncOnMount: true })
 }
 
 export function useShop(shopId: string) {
@@ -141,7 +172,7 @@ export function useShop(shopId: string) {
 }
 
 export function useProducts(shopId?: string) {
-  const result = useCache<any>('products')
+  const result = useCache<any>('products', undefined, { enableRealtime: true })
   
   // Filter by shopId if provided
   const filteredData = shopId && result.data && Array.isArray(result.data)
@@ -159,7 +190,7 @@ export function useProduct(productId: string) {
 }
 
 export function useCategories(shopId?: string) {
-  const result = useCache<any>('categories')
+  const result = useCache<any>('categories', undefined, { enableRealtime: true })
   
   // Filter by shopId if provided
   const filteredData = shopId && result.data && Array.isArray(result.data)
@@ -173,7 +204,7 @@ export function useCategories(shopId?: string) {
 }
 
 export function useDepartments(shopId?: string) {
-  const result = useCache<any>('departments')
+  const result = useCache<any>('departments', undefined, { enableRealtime: true })
   
   // Filter by shopId if provided
   const filteredData = shopId && result.data && Array.isArray(result.data)
@@ -187,7 +218,7 @@ export function useDepartments(shopId?: string) {
 }
 
 export function useOrders(customerId?: string) {
-  const result = useCache<any>('orders')
+  const result = useCache<any>('orders', undefined, { enableRealtime: true })
   
   // Filter by customerId if provided
   const filteredData = customerId && result.data && Array.isArray(result.data)

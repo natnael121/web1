@@ -26,77 +26,114 @@ class CacheSyncService {
   private db: Firestore | null = null
   private syncWorker: Worker | null = null
   private syncInterval: number = 30000 // 30 seconds
-  private isOnline: boolean = navigator.onLine
+  private isOnlineStatus: boolean = navigator.onLine
   private syncInProgress: boolean = false
   private listeners: Map<string, () => void> = new Map()
+  private syncIntervalId: NodeJS.Timeout | null = null
 
   constructor() {
     // Listen for online/offline events
     window.addEventListener('online', () => {
-      this.isOnline = true
+      this.isOnlineStatus = true
       this.startSync()
     })
     
     window.addEventListener('offline', () => {
-      this.isOnline = false
+      this.isOnlineStatus = false
       this.stopSync()
     })
   }
 
-  init(firestore: Firestore, options: SyncOptions = {}) {
+  async init(firestore: Firestore, options: SyncOptions = {}) {
     this.db = firestore
     this.syncInterval = options.syncInterval || 30000
     
-    // Initialize IndexedDB
-    indexedDBService.init().then(() => {
-      console.log('IndexedDB initialized')
-      if (this.isOnline) {
+    try {
+      // Initialize IndexedDB
+      await indexedDBService.init()
+      console.log('IndexedDB initialized successfully')
+      
+      // Load initial data from Firebase
+      await this.initialDataLoad()
+      
+      if (this.isOnlineStatus) {
         this.startSync()
       }
-    }).catch(error => {
-      console.error('Failed to initialize IndexedDB:', error)
-    })
+    } catch (error) {
+      console.error('Failed to initialize cache service:', error)
+      throw error
+    }
+  }
+
+  private async initialDataLoad() {
+    if (!this.db) return
+    
+    console.log('Starting initial data load...')
+    const collections = ['shops', 'products', 'categories', 'departments', 'orders', 'users']
+    
+    for (const collectionName of collections) {
+      try {
+        const collectionRef = collection(this.db, collectionName)
+        const snapshot = await getDocs(collectionRef)
+        
+        console.log(`Loading ${snapshot.docs.length} items from ${collectionName}`)
+        
+        for (const docSnapshot of snapshot.docs) {
+          const data = docSnapshot.data()
+          await indexedDBService.set(collectionName, docSnapshot.id, {
+            id: docSnapshot.id,
+            ...data,
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            createdAt: data.createdAt?.toDate() || new Date()
+          }, true)
+        }
+        
+        console.log(`Successfully cached ${snapshot.docs.length} items from ${collectionName}`)
+      } catch (error) {
+        console.error(`Error loading initial data from ${collectionName}:`, error)
+      }
+    }
+    
+    console.log('Initial data load completed')
   }
 
   private startSync() {
-    if (this.syncInProgress || !this.isOnline || !this.db) return
+    if (this.syncInProgress || !this.isOnlineStatus || !this.db) return
+    
+    // Clear existing interval
+    if (this.syncIntervalId) {
+      clearInterval(this.syncIntervalId)
+    }
     
     // Start periodic sync
     this.performSync()
-    setInterval(() => {
-      if (this.isOnline && !this.syncInProgress) {
+    this.syncIntervalId = setInterval(() => {
+      if (this.isOnlineStatus && !this.syncInProgress) {
         this.performSync()
       }
     }, this.syncInterval)
   }
 
   private stopSync() {
-    // Sync will naturally stop due to online check
+    if (this.syncIntervalId) {
+      clearInterval(this.syncIntervalId)
+      this.syncIntervalId = null
+    }
   }
 
   private async performSync() {
-    if (this.syncInProgress || !this.isOnline || !this.db) return
+    if (this.syncInProgress || !this.isOnlineStatus || !this.db) return
     
     this.syncInProgress = true
     
     try {
-      // Run sync operations in background using requestIdleCallback
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(async () => {
-          await this.syncFromFirebase()
-          await this.syncToFirebase()
-          this.syncInProgress = false
-        }, { timeout: 5000 })
-      } else {
-        // Fallback for browsers without requestIdleCallback
-        setTimeout(async () => {
-          await this.syncFromFirebase()
-          await this.syncToFirebase()
-          this.syncInProgress = false
-        }, 0)
-      }
+      console.log('Starting sync process...')
+      await this.syncFromFirebase()
+      await this.syncToFirebase()
+      console.log('Sync process completed')
     } catch (error) {
       console.error('Sync error:', error)
+    } finally {
       this.syncInProgress = false
     }
   }
@@ -112,13 +149,12 @@ class CacheSyncService {
         const lastSyncTime = await indexedDBService.getLastSyncTime(collectionName)
         const collectionRef = collection(this.db, collectionName)
         
-        let q = query(collectionRef, orderBy('updatedAt', 'desc'), limit(50))
+        let q = query(collectionRef, limit(50))
         
         if (lastSyncTime > 0) {
           q = query(
             collectionRef, 
             where('updatedAt', '>', Timestamp.fromMillis(lastSyncTime)),
-            orderBy('updatedAt', 'desc'),
             limit(50)
           )
         }
@@ -135,7 +171,9 @@ class CacheSyncService {
           }, true)
         }
         
-        console.log(`Synced ${snapshot.docs.length} items from ${collectionName}`)
+        if (snapshot.docs.length > 0) {
+          console.log(`Synced ${snapshot.docs.length} items from ${collectionName}`)
+        }
       } catch (error) {
         console.error(`Error syncing ${collectionName} from Firebase:`, error)
       }
@@ -207,53 +245,78 @@ class CacheSyncService {
 
   // Public API methods
   async getCachedData<T>(collectionName: string, id?: string): Promise<T[] | T | null> {
-    if (id) {
-      const item = await indexedDBService.get(collectionName, id)
-      return item ? item.data : null
-    } else {
-      const items = await indexedDBService.getAll(collectionName)
-      return items.map(item => item.data).filter(data => !data.deleted)
+    try {
+      if (id) {
+        const item = await indexedDBService.get(collectionName, id)
+        return item ? item.data : null
+      } else {
+        const items = await indexedDBService.getAll(collectionName)
+        const filteredData = items
+          .filter(item => !item.data?.deleted && !item.deleted)
+          .map(item => item.data)
+        
+        console.log(`Retrieved ${filteredData.length} items from ${collectionName} cache`)
+        return filteredData
+      }
+    } catch (error) {
+      console.error(`Error getting cached data from ${collectionName}:`, error)
+      return id ? null : []
     }
   }
 
   async setCachedData<T>(collectionName: string, id: string, data: T, syncToFirebase: boolean = true): Promise<void> {
-    // Store in cache immediately
-    await indexedDBService.set(collectionName, id, data, !syncToFirebase)
-    
-    // Add to sync queue if needed
-    if (syncToFirebase && this.isOnline) {
-      const existingItem = await indexedDBService.get(collectionName, id)
-      const operation = existingItem?.synced ? 'update' : 'create'
-      await indexedDBService.addToSyncQueue(collectionName, operation, data)
+    try {
+      // Store in cache immediately
+      await indexedDBService.set(collectionName, id, data, !syncToFirebase)
       
-      // Trigger immediate sync for important operations
-      if (!this.syncInProgress) {
-        setTimeout(() => this.performSync(), 100)
+      // Add to sync queue if needed
+      if (syncToFirebase && this.isOnlineStatus) {
+        const existingItem = await indexedDBService.get(collectionName, id)
+        const operation = existingItem?.synced ? 'update' : 'create'
+        await indexedDBService.addToSyncQueue(collectionName, operation, data)
+        
+        // Trigger immediate sync for important operations
+        if (!this.syncInProgress) {
+          setTimeout(() => this.performSync(), 100)
+        }
       }
+    } catch (error) {
+      console.error(`Error setting cached data in ${collectionName}:`, error)
+      throw error
     }
   }
 
   async deleteCachedData(collectionName: string, id: string, syncToFirebase: boolean = true): Promise<void> {
-    if (syncToFirebase && this.isOnline) {
-      await indexedDBService.addToSyncQueue(collectionName, 'delete', { id })
-    }
-    
-    await indexedDBService.delete(collectionName, id)
-    
-    // Trigger immediate sync
-    if (syncToFirebase && !this.syncInProgress) {
-      setTimeout(() => this.performSync(), 100)
+    try {
+      if (syncToFirebase && this.isOnlineStatus) {
+        await indexedDBService.addToSyncQueue(collectionName, 'delete', { id })
+      }
+      
+      await indexedDBService.delete(collectionName, id)
+      
+      // Trigger immediate sync
+      if (syncToFirebase && !this.syncInProgress) {
+        setTimeout(() => this.performSync(), 100)
+      }
+    } catch (error) {
+      console.error(`Error deleting cached data from ${collectionName}:`, error)
+      throw error
     }
   }
 
   async clearCache(collectionName?: string): Promise<void> {
-    if (collectionName) {
-      await indexedDBService.clear(collectionName)
-    } else {
-      const collections = ['shops', 'products', 'categories', 'departments', 'orders', 'users']
-      for (const collection of collections) {
-        await indexedDBService.clear(collection)
+    try {
+      if (collectionName) {
+        await indexedDBService.clear(collectionName)
+      } else {
+        const collections = ['shops', 'products', 'categories', 'departments', 'orders', 'users']
+        for (const collection of collections) {
+          await indexedDBService.clear(collection)
+        }
       }
+    } catch (error) {
+      console.error('Error clearing cache:', error)
+      throw error
     }
   }
 
@@ -263,11 +326,15 @@ class CacheSyncService {
     callback: (data: T[]) => void,
     queryConstraints?: any[]
   ): () => void {
+    // First, load from cache immediately
+    this.getCachedData<T>(collectionName).then(cachedData => {
+      if (cachedData) {
+        const dataArray = Array.isArray(cachedData) ? cachedData : [cachedData]
+        callback(dataArray)
+      }
+    })
+
     if (!this.db) {
-      // Fallback to cached data
-      this.getCachedData<T>(collectionName).then(data => {
-        callback(Array.isArray(data) ? data : data ? [data] : [])
-      })
       return () => {}
     }
 
@@ -277,13 +344,6 @@ class CacheSyncService {
     if (queryConstraints && queryConstraints.length > 0) {
       q = query(collectionRef, ...queryConstraints)
     }
-
-    // First, load from cache
-    this.getCachedData<T>(collectionName).then(cachedData => {
-      if (cachedData) {
-        callback(Array.isArray(cachedData) ? cachedData : [cachedData])
-      }
-    })
 
     // Then setup real-time listener
     const unsubscribe = onSnapshot(q, 
@@ -309,7 +369,8 @@ class CacheSyncService {
         // Fallback to cached data on error
         this.getCachedData<T>(collectionName).then(cachedData => {
           if (cachedData) {
-            callback(Array.isArray(cachedData) ? cachedData : [cachedData])
+            const dataArray = Array.isArray(cachedData) ? cachedData : [cachedData]
+            callback(dataArray)
           }
         })
       }
@@ -321,7 +382,7 @@ class CacheSyncService {
 
   // Utility methods
   isOffline(): boolean {
-    return !this.isOnline
+    return !this.isOnlineStatus
   }
 
   async getSyncStatus(): Promise<{
@@ -329,16 +390,25 @@ class CacheSyncService {
     lastSyncTime: number
     isOnline: boolean
   }> {
-    const syncQueue = await indexedDBService.getSyncQueue()
-    return {
-      pendingSync: syncQueue.length,
-      lastSyncTime: Date.now(), // You might want to store this properly
-      isOnline: this.isOnline
+    try {
+      const syncQueue = await indexedDBService.getSyncQueue()
+      return {
+        pendingSync: syncQueue.length,
+        lastSyncTime: Date.now(),
+        isOnline: this.isOnlineStatus
+      }
+    } catch (error) {
+      console.error('Error getting sync status:', error)
+      return {
+        pendingSync: 0,
+        lastSyncTime: 0,
+        isOnline: this.isOnlineStatus
+      }
     }
   }
 
   async forcSync(): Promise<void> {
-    if (this.isOnline && !this.syncInProgress) {
+    if (this.isOnlineStatus && !this.syncInProgress) {
       await this.performSync()
     }
   }

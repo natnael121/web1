@@ -20,38 +20,54 @@ export interface SyncQueue {
 class IndexedDBService {
   private db: IDBDatabase | null = null
   private dbName = 'MultiShopCache'
-  private version = 1
+  private version = 2
   private stores = ['shops', 'products', 'categories', 'departments', 'orders', 'users', 'syncQueue']
 
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version)
 
-      request.onerror = () => reject(request.error)
+      request.onerror = () => {
+        console.error('IndexedDB error:', request.error)
+        reject(request.error)
+      }
+      
       request.onsuccess = () => {
         this.db = request.result
+        console.log('IndexedDB opened successfully')
         resolve()
       }
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
+        console.log('Upgrading IndexedDB schema...')
 
         // Create object stores
         this.stores.forEach(storeName => {
           if (!db.objectStoreNames.contains(storeName)) {
+            console.log(`Creating object store: ${storeName}`)
             const store = db.createObjectStore(storeName, { keyPath: 'id' })
             
             // Add indexes for common queries
             if (storeName !== 'syncQueue') {
               store.createIndex('timestamp', 'timestamp')
               store.createIndex('synced', 'synced')
-              store.createIndex('shopId', 'data.shopId', { unique: false })
+              try {
+                store.createIndex('shopId', 'data.shopId', { unique: false })
+              } catch (e) {
+                // Index might already exist or data.shopId might not be available
+                console.log(`Could not create shopId index for ${storeName}`)
+              }
             } else {
               store.createIndex('timestamp', 'timestamp')
               store.createIndex('collection', 'collection')
             }
           }
         })
+      }
+
+      request.onblocked = () => {
+        console.warn('IndexedDB upgrade blocked')
       }
     })
   }
@@ -60,8 +76,21 @@ class IndexedDBService {
     if (!this.db) {
       await this.init()
     }
-    const transaction = this.db!.transaction([storeName], mode)
-    return transaction.objectStore(storeName)
+    
+    if (!this.db) {
+      throw new Error('IndexedDB not initialized')
+    }
+
+    try {
+      const transaction = this.db.transaction([storeName], mode)
+      transaction.onerror = () => {
+        console.error(`Transaction error for ${storeName}:`, transaction.error)
+      }
+      return transaction.objectStore(storeName)
+    } catch (error) {
+      console.error(`Error getting store ${storeName}:`, error)
+      throw error
+    }
   }
 
   // Generic CRUD operations
@@ -71,7 +100,10 @@ class IndexedDBService {
       return new Promise((resolve, reject) => {
         const request = store.get(id)
         request.onsuccess = () => resolve(request.result || null)
-        request.onerror = () => reject(request.error)
+        request.onerror = () => {
+          console.error(`Error getting item ${id} from ${storeName}:`, request.error)
+          reject(request.error)
+        }
       })
     } catch (error) {
       console.error(`Error getting item from ${storeName}:`, error)
@@ -91,7 +123,10 @@ class IndexedDBService {
           }
           resolve(results)
         }
-        request.onerror = () => reject(request.error)
+        request.onerror = () => {
+          console.error(`Error getting all items from ${storeName}:`, request.error)
+          reject(request.error)
+        }
       })
     } catch (error) {
       console.error(`Error getting all items from ${storeName}:`, error)
@@ -113,7 +148,10 @@ class IndexedDBService {
       return new Promise((resolve, reject) => {
         const request = store.put(cacheItem)
         request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
+        request.onerror = () => {
+          console.error(`Error setting item ${id} in ${storeName}:`, request.error)
+          reject(request.error)
+        }
       })
     } catch (error) {
       console.error(`Error setting item in ${storeName}:`, error)
@@ -127,7 +165,10 @@ class IndexedDBService {
       return new Promise((resolve, reject) => {
         const request = store.delete(id)
         request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
+        request.onerror = () => {
+          console.error(`Error deleting item ${id} from ${storeName}:`, request.error)
+          reject(request.error)
+        }
       })
     } catch (error) {
       console.error(`Error deleting item from ${storeName}:`, error)
@@ -140,8 +181,14 @@ class IndexedDBService {
       const store = await this.getStore(storeName, 'readwrite')
       return new Promise((resolve, reject) => {
         const request = store.clear()
-        request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          console.log(`Cleared ${storeName} store`)
+          resolve()
+        }
+        request.onerror = () => {
+          console.error(`Error clearing ${storeName}:`, request.error)
+          reject(request.error)
+        }
       })
     } catch (error) {
       console.error(`Error clearing ${storeName}:`, error)
@@ -151,25 +198,39 @@ class IndexedDBService {
 
   // Sync queue operations
   async addToSyncQueue(collection: string, operation: 'create' | 'update' | 'delete', data: any): Promise<void> {
-    const syncItem: SyncQueue = {
-      id: `${collection}_${operation}_${Date.now()}_${Math.random()}`,
-      collection,
-      operation,
-      data,
-      timestamp: Date.now(),
-      retries: 0
-    }
+    try {
+      const syncItem: SyncQueue = {
+        id: `${collection}_${operation}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        collection,
+        operation,
+        data,
+        timestamp: Date.now(),
+        retries: 0
+      }
 
-    const store = await this.getStore('syncQueue', 'readwrite')
-    return new Promise((resolve, reject) => {
-      const request = store.put(syncItem)
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+      const store = await this.getStore('syncQueue', 'readwrite')
+      return new Promise((resolve, reject) => {
+        const request = store.put(syncItem)
+        request.onsuccess = () => resolve()
+        request.onerror = () => {
+          console.error('Error adding to sync queue:', request.error)
+          reject(request.error)
+        }
+      })
+    } catch (error) {
+      console.error('Error adding to sync queue:', error)
+      throw error
+    }
   }
 
   async getSyncQueue(): Promise<SyncQueue[]> {
-    return this.getAll<SyncQueue>('syncQueue')
+    try {
+      const items = await this.getAll<SyncQueue>('syncQueue')
+      return items.map(item => item.data || item).filter(item => item.collection)
+    } catch (error) {
+      console.error('Error getting sync queue:', error)
+      return []
+    }
   }
 
   async removeSyncQueueItem(id: string): Promise<void> {
@@ -177,15 +238,23 @@ class IndexedDBService {
   }
 
   async updateSyncQueueRetries(id: string, retries: number): Promise<void> {
-    const item = await this.get<SyncQueue>('syncQueue', id)
-    if (item) {
-      item.retries = retries
-      const store = await this.getStore('syncQueue', 'readwrite')
-      return new Promise((resolve, reject) => {
-        const request = store.put(item)
-        request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
-      })
+    try {
+      const item = await this.get<SyncQueue>('syncQueue', id)
+      if (item) {
+        const updatedData = { ...item.data, retries }
+        const store = await this.getStore('syncQueue', 'readwrite')
+        return new Promise((resolve, reject) => {
+          const request = store.put({ ...item, data: updatedData })
+          request.onsuccess = () => resolve()
+          request.onerror = () => {
+            console.error('Error updating sync queue retries:', request.error)
+            reject(request.error)
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error updating sync queue retries:', error)
+      throw error
     }
   }
 
@@ -202,16 +271,24 @@ class IndexedDBService {
   }
 
   async markAsSynced(storeName: string, id: string): Promise<void> {
-    const item = await this.get(storeName, id)
-    if (item) {
-      item.synced = true
-      item.timestamp = Date.now()
-      const store = await this.getStore(storeName, 'readwrite')
-      return new Promise((resolve, reject) => {
-        const request = store.put(item)
-        request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
-      })
+    try {
+      const item = await this.get(storeName, id)
+      if (item) {
+        item.synced = true
+        item.timestamp = Date.now()
+        const store = await this.getStore(storeName, 'readwrite')
+        return new Promise((resolve, reject) => {
+          const request = store.put(item)
+          request.onsuccess = () => resolve()
+          request.onerror = () => {
+            console.error(`Error marking ${id} as synced in ${storeName}:`, request.error)
+            reject(request.error)
+          }
+        })
+      }
+    } catch (error) {
+      console.error(`Error marking as synced in ${storeName}:`, error)
+      throw error
     }
   }
 
