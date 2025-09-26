@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { useOrders } from '../hooks/useCache'
+import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { useFirebase } from '../contexts/FirebaseContext'
 import { User, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
 import { 
@@ -36,7 +37,10 @@ interface UserProfileProps {
 
 const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   const { webApp } = useTelegram()
-  const { data: orders, loading, error, refetch } = useOrders(user?.id)
+  const { db } = useFirebase()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [shops, setShops] = useState<Shop[]>([])
   const [showSettings, setShowSettings] = useState(false)
@@ -60,33 +64,75 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   })
 
   useEffect(() => {
-    const loadShops = async () => {
-      try {
-        const { cacheSyncService } = await import('../services/cacheSync')
-        const cachedShops = await cacheSyncService.getCachedData<Shop>('shops')
-        const activeShops = Array.isArray(cachedShops) 
-          ? cachedShops.filter(shop => shop.isActive)
-          : []
-        setShops(activeShops)
-      } catch (error) {
-        console.error('Error fetching shops:', error)
-      }
-    }
-
     if (user?.id) {
-      loadShops()
+      fetchUserOrders()
+      fetchShops()
     }
   }, [user])
 
-  // Calculate stats when orders change
-  useEffect(() => {
-    if (orders && Array.isArray(orders)) {
-      const totalOrders = orders.length
-      const totalSpent = orders.reduce((sum, order) => sum + order.total, 0)
-      const pendingOrders = orders.filter(order => 
+  const fetchUserOrders = async () => {
+    if (!user?.id) return
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      const ordersRef = collection(db, 'orders')
+      const ordersQuery = query(
+        ordersRef,
+        where('telegramId', '==', user.id),
+        orderBy('createdAt', 'desc')
+      )
+      
+      const ordersSnapshot = await getDocs(ordersQuery)
+      const ordersList: Order[] = []
+      
+      ordersSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const order: Order = {
+          id: doc.id,
+          shopId: data.shopId,
+          customerId: data.customerId,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          customerEmail: data.customerEmail,
+          items: data.items || [],
+          subtotal: data.subtotal || 0,
+          tax: data.tax || 0,
+          total: data.total || 0,
+          status: data.status || 'pending',
+          paymentStatus: data.paymentStatus || 'pending',
+          deliveryMethod: data.deliveryMethod || 'pickup',
+          deliveryAddress: data.deliveryAddress,
+          deliveryFee: data.deliveryFee,
+          estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
+          paymentPreference: data.paymentPreference,
+          paymentPhotoUrl: data.paymentPhotoUrl,
+          requiresPaymentConfirmation: data.requiresPaymentConfirmation,
+          customerNotes: data.customerNotes,
+          source: data.source || 'web',
+          tableNumber: data.tableNumber,
+          telegramId: data.telegramId,
+          telegramUsername: data.telegramUsername,
+          trackingNumber: data.trackingNumber,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          confirmedAt: data.confirmedAt?.toDate(),
+          shippedAt: data.shippedAt?.toDate(),
+          deliveredAt: data.deliveredAt?.toDate()
+        }
+        ordersList.push(order)
+      })
+
+      setOrders(ordersList)
+      
+      // Calculate stats
+      const totalOrders = ordersList.length
+      const totalSpent = ordersList.reduce((sum, order) => sum + order.total, 0)
+      const pendingOrders = ordersList.filter(order => 
         ['pending', 'payment_pending', 'confirmed', 'processing'].includes(order.status)
       ).length
-      const completedOrders = orders.filter(order => 
+      const completedOrders = ordersList.filter(order => 
         order.status === 'delivered'
       ).length
 
@@ -96,8 +142,50 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
         pendingOrders,
         completedOrders
       })
+
+    } catch (error) {
+      console.error('Error fetching user orders:', error)
+      setError('Failed to load your orders. Please try again.')
+    } finally {
+      setLoading(false)
     }
-  }, [orders])
+  }
+
+  const fetchShops = async () => {
+    try {
+      const shopsRef = collection(db, 'shops')
+      const shopsQuery = query(
+        shopsRef,
+        where('isActive', '==', true),
+        orderBy('name', 'asc')
+      )
+      const shopsSnapshot = await getDocs(shopsQuery)
+      
+      const shopsList: Shop[] = []
+      shopsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const shop: Shop = {
+          id: doc.id,
+          ownerId: data.ownerId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          logo: data.logo,
+          isActive: data.isActive,
+          businessInfo: data.businessInfo,
+          settings: data.settings,
+          stats: data.stats,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        }
+        shopsList.push(shop)
+      })
+      
+      setShops(shopsList)
+    } catch (error) {
+      console.error('Error fetching shops:', error)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -718,7 +806,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-telegram-text">Your Orders</h3>
           <button
-            onClick={refetch}
+            onClick={fetchUserOrders}
             disabled={loading}
             className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg disabled:opacity-50"
           >
@@ -754,7 +842,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
           </div>
         ) : (
           <div className="space-y-3">
-            {Array.isArray(orders) && orders.map((order) => (
+            {orders.map((order) => (
               <div
                 key={order.id}
                 onClick={() => setSelectedOrder(order)}
