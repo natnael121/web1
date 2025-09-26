@@ -459,14 +459,9 @@ const ShopList: React.FC = () => {
                       src={shop.logo} 
                       alt={shop.name}
                       className="w-full h-full object-cover rounded-lg"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.nextElementSibling?.classList.remove('hidden');
-                      }}
                     />
                   ) : null}
-                  <Store className={`w-8 h-8 text-telegram-hint ${shop.logo ? 'hidden' : ''}`} />
+                  {!shop.logo && <Store className="w-8 h-8 text-telegram-hint" />}
                 </div>
                 
                 <div className="flex-1 min-w-0">
@@ -717,14 +712,9 @@ const ShopList: React.FC = () => {
                         src={product.images[0]} 
                         alt={product.name}
                         className="w-full h-full object-cover rounded-lg"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
                       />
                     ) : null}
-                    <Package className={`w-8 h-8 text-telegram-hint ${product.images?.[0] ? 'hidden' : ''}`} />
+                    {!product.images?.[0] && <Package className="w-8 h-8 text-telegram-hint" />}
                   </div>
                   
                   <div className="flex-1 min-w-0">

@@ -79,6 +79,7 @@ export interface Category {
   shopId: string
   name: string
   description?: string
+  image?: string
   color: string
   icon: string
   order: number

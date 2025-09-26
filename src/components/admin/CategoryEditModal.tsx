@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Category } from '../../types'
 import { X, Save, Tag, FileText, Palette } from 'lucide-react'
+import ImageUpload from '../common/ImageUpload'
 
 interface CategoryEditModalProps {
   category?: Category
@@ -20,6 +21,7 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({
   const [formData, setFormData] = useState({
     name: category?.name || '',
     description: category?.description || '',
+    image: category?.image || '',
     color: category?.color || '#3B82F6',
     icon: category?.icon || '📦',
     order: category?.order || 0,
@@ -90,6 +92,17 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({
                 className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
                 rows={3}
                 placeholder="Optional category description"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-telegram-text mb-1">
+                Category Image (Optional)
+              </label>
+              <ImageUpload
+                value={formData.image}
+                onChange={(url) => setFormData({...formData, image: url})}
+                placeholder="Upload category image"
               />
             </div>
 
@@ -213,12 +226,20 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({
             
             <div className="bg-telegram-secondary-bg rounded-lg p-4">
               <div className="flex items-center space-x-3">
+                {formData.image ? (
+                  <img 
+                    src={formData.image} 
+                    alt={formData.name || 'Category'} 
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                ) : (
                 <div 
                   className="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
                   style={{ backgroundColor: formData.color + '20', color: formData.color }}
                 >
                   {formData.icon}
                 </div>
+                )}
                 <div>
                   <h4 className="font-medium text-telegram-text">
                     {formData.name || 'Category Name'}

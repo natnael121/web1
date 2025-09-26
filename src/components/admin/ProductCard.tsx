@@ -16,7 +16,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete }) 
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center space-x-3">
-            {product.images[0] ? (
+            {product.images && product.images[0] ? (
               <img 
                 src={product.images[0]} 
                 alt={product.name} 
