@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
-import { User, Order } from '../types'
+import { User, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
 import { 
   User as UserIcon, 
@@ -17,7 +17,18 @@ import {
   DollarSign,
   Calendar,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  Moon,
+  Sun,
+  Languages,
+  Shield,
+  Phone,
+  Mail,
+  MapPin,
+  Store,
+  Save,
+  X
 } from 'lucide-react'
 
 interface UserProfileProps {
@@ -31,6 +42,20 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [shops, setShops] = useState<Shop[]>([])
+  const [showSettings, setShowSettings] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
+  const [settings, setSettings] = useState({
+    notifications: {
+      orderUpdates: true,
+      promotions: false,
+      newsletter: false
+    },
+    theme: 'auto' as 'light' | 'dark' | 'auto',
+    language: 'en',
+    currency: 'USD'
+  })
+  const [settingsLoading, setSettingsLoading] = useState(false)
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalSpent: 0,
@@ -41,6 +66,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   useEffect(() => {
     if (user?.id) {
       fetchUserOrders()
+      fetchShops()
     }
   }, [user])
 
@@ -125,6 +151,42 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
     }
   }
 
+  const fetchShops = async () => {
+    try {
+      const shopsRef = collection(db, 'shops')
+      const shopsQuery = query(
+        shopsRef,
+        where('isActive', '==', true),
+        orderBy('name', 'asc')
+      )
+      const shopsSnapshot = await getDocs(shopsQuery)
+      
+      const shopsList: Shop[] = []
+      shopsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const shop: Shop = {
+          id: doc.id,
+          ownerId: data.ownerId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          logo: data.logo,
+          isActive: data.isActive,
+          businessInfo: data.businessInfo,
+          settings: data.settings,
+          stats: data.stats,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        }
+        shopsList.push(shop)
+      })
+      
+      setShops(shopsList)
+    } catch (error) {
+      console.error('Error fetching shops:', error)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -176,16 +238,62 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   }
 
   const handleSettingsClick = () => {
-    if (webApp?.showAlert) {
-      webApp.showAlert('Settings feature coming soon!')
-    }
+    setShowSettings(true)
   }
 
   const handleSupportClick = () => {
-    if (webApp?.showAlert) {
-      webApp.showAlert('Support feature coming soon!')
+    setShowSupport(true)
+  }
+
+  const handleSaveSettings = async () => {
+    try {
+      setSettingsLoading(true)
+      // In a real app, you would save settings to user profile in Firebase
+      // For now, we'll just simulate saving to localStorage
+      localStorage.setItem('userSettings', JSON.stringify(settings))
+      
+      if (webApp?.showAlert) {
+        webApp.showAlert('Settings saved successfully!')
+      }
+      setShowSettings(false)
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      if (webApp?.showAlert) {
+        webApp.showAlert('Failed to save settings. Please try again.')
+      }
+    } finally {
+      setSettingsLoading(false)
     }
   }
+
+  const updateSetting = (category: string, key: string, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category as keyof typeof prev],
+        [key]: value
+      }
+    }))
+  }
+
+  const updateDirectSetting = (key: string, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: value
+    }))
+  }
+
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('userSettings')
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings))
+      } catch (error) {
+        console.error('Error loading saved settings:', error)
+      }
+    }
+  }, [])
 
   if (!user) {
     return (
@@ -196,6 +304,334 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
           <p className="text-telegram-hint">
             Please open this app from Telegram to see your profile.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Settings Modal
+  if (showSettings) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Settings Header */}
+        <div className="flex items-center space-x-3 mb-4">
+          <button
+            onClick={() => setShowSettings(false)}
+            className="p-2 rounded-lg bg-telegram-secondary-bg"
+          >
+            <ArrowRight className="w-5 h-5 text-telegram-text rotate-180" />
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-telegram-text">Settings</h2>
+            <p className="text-sm text-telegram-hint">Customize your experience</p>
+          </div>
+        </div>
+
+        {/* Notifications Settings */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Bell className="w-4 h-4 mr-2" />
+            Notifications
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Order Updates</p>
+                <p className="text-xs text-telegram-hint">Get notified about order status changes</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.orderUpdates}
+                onChange={(e) => updateSetting('notifications', 'orderUpdates', e.target.checked)}
+                className="w-4 h-4"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Promotions</p>
+                <p className="text-xs text-telegram-hint">Receive special offers and discounts</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.promotions}
+                onChange={(e) => updateSetting('notifications', 'promotions', e.target.checked)}
+                className="w-4 h-4"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Newsletter</p>
+                <p className="text-xs text-telegram-hint">Weekly updates and news</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.newsletter}
+                onChange={(e) => updateSetting('notifications', 'newsletter', e.target.checked)}
+                className="w-4 h-4"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Appearance Settings */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Sun className="w-4 h-4 mr-2" />
+            Appearance
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-telegram-text mb-2">Theme</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'light', label: 'Light', icon: Sun },
+                  { value: 'dark', label: 'Dark', icon: Moon },
+                  { value: 'auto', label: 'Auto', icon: Settings }
+                ].map((theme) => (
+                  <button
+                    key={theme.value}
+                    onClick={() => updateDirectSetting('theme', theme.value)}
+                    className={`p-3 rounded-lg border text-center ${
+                      settings.theme === theme.value
+                        ? 'border-telegram-button bg-telegram-button bg-opacity-10'
+                        : 'border-telegram-hint hover:border-telegram-button'
+                    }`}
+                  >
+                    <theme.icon className="w-4 h-4 mx-auto mb-1" />
+                    <span className="text-xs">{theme.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Language & Region */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Languages className="w-4 h-4 mr-2" />
+            Language & Region
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-telegram-text mb-1">Language</label>
+              <select
+                value={settings.language}
+                onChange={(e) => updateDirectSetting('language', e.target.value)}
+                className="w-full p-2 border rounded-lg bg-telegram-bg text-telegram-text"
+              >
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="ar">العربية</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-telegram-text mb-1">Currency</label>
+              <select
+                value={settings.currency}
+                onChange={(e) => updateDirectSetting('currency', e.target.value)}
+                className="w-full p-2 border rounded-lg bg-telegram-bg text-telegram-text"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="ETB">ETB (Br)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Privacy & Security */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Shield className="w-4 h-4 mr-2" />
+            Privacy & Security
+          </h3>
+          <div className="space-y-2">
+            <button className="w-full text-left p-2 hover:bg-telegram-bg rounded-lg">
+              <p className="text-sm font-medium text-telegram-text">Clear Order History</p>
+              <p className="text-xs text-telegram-hint">Remove all your order data</p>
+            </button>
+            <button className="w-full text-left p-2 hover:bg-telegram-bg rounded-lg">
+              <p className="text-sm font-medium text-telegram-text">Export Data</p>
+              <p className="text-xs text-telegram-hint">Download your personal data</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <button
+          onClick={handleSaveSettings}
+          disabled={settingsLoading}
+          className="w-full bg-telegram-button text-telegram-button-text py-3 rounded-lg flex items-center justify-center space-x-2 disabled:opacity-50"
+        >
+          {settingsLoading ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{settingsLoading ? 'Saving...' : 'Save Settings'}</span>
+        </button>
+      </div>
+    )
+  }
+
+  // Support Modal
+  if (showSupport) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Support Header */}
+        <div className="flex items-center space-x-3 mb-4">
+          <button
+            onClick={() => setShowSupport(false)}
+            className="p-2 rounded-lg bg-telegram-secondary-bg"
+          >
+            <ArrowRight className="w-5 h-5 text-telegram-text rotate-180" />
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-telegram-text">Support</h2>
+            <p className="text-sm text-telegram-hint">Get help and contact information</p>
+          </div>
+        </div>
+
+        {/* Contact Information */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Contact Support
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <Mail className="w-4 h-4 text-telegram-hint" />
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Email Support</p>
+                <p className="text-sm text-telegram-button">support@multishop.app</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <MessageCircle className="w-4 h-4 text-telegram-hint" />
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Telegram Support</p>
+                <p className="text-sm text-telegram-button">@multishop_support</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Shop Contact Information */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Store className="w-4 h-4 mr-2" />
+            Shop Contacts
+          </h3>
+          {shops.length > 0 ? (
+            <div className="space-y-3">
+              {shops.map((shop) => (
+                <div key={shop.id} className="border-b border-telegram-hint/20 last:border-b-0 pb-3 last:pb-0">
+                  <div className="flex items-start space-x-3">
+                    {shop.logo ? (
+                      <img src={shop.logo} alt={shop.name} className="w-10 h-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 bg-telegram-button rounded-lg flex items-center justify-center">
+                        <Store className="w-5 h-5 text-telegram-button-text" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h4 className="font-medium text-telegram-text">{shop.name}</h4>
+                      {shop.businessInfo?.phone && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Phone className="w-3 h-3 text-telegram-hint" />
+                          <a 
+                            href={`tel:${shop.businessInfo.phone}`}
+                            className="text-sm text-telegram-button hover:underline"
+                          >
+                            {shop.businessInfo.phone}
+                          </a>
+                        </div>
+                      )}
+                      {shop.businessInfo?.email && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Mail className="w-3 h-3 text-telegram-hint" />
+                          <a 
+                            href={`mailto:${shop.businessInfo.email}`}
+                            className="text-sm text-telegram-button hover:underline"
+                          >
+                            {shop.businessInfo.email}
+                          </a>
+                        </div>
+                      )}
+                      {shop.businessInfo?.address && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <MapPin className="w-3 h-3 text-telegram-hint" />
+                          <p className="text-sm text-telegram-hint">{shop.businessInfo.address}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-telegram-hint">No shop contact information available.</p>
+          )}
+        </div>
+
+        {/* FAQ Section */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3">Frequently Asked Questions</h3>
+          <div className="space-y-2">
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-telegram-text hover:text-telegram-button">
+                How do I track my order?
+              </summary>
+              <p className="text-sm text-telegram-hint mt-2 pl-4">
+                You can track your order status in the Profile section under "Your Orders". You'll receive notifications for status updates.
+              </p>
+            </details>
+            
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-telegram-text hover:text-telegram-button">
+                How do I cancel an order?
+              </summary>
+              <p className="text-sm text-telegram-hint mt-2 pl-4">
+                Orders can be cancelled within 5 minutes of placing them. Contact the shop directly for cancellations after this period.
+              </p>
+            </details>
+            
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-telegram-text hover:text-telegram-button">
+                What payment methods are accepted?
+              </summary>
+              <p className="text-sm text-telegram-hint mt-2 pl-4">
+                Payment methods vary by shop. Most shops accept cash on delivery, mobile money, and bank transfers.
+              </p>
+            </details>
+          </div>
+        </div>
+
+        {/* App Information */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3">App Information</h3>
+          <div className="space-y-2 text-sm text-telegram-hint">
+            <div className="flex justify-between">
+              <span>Version:</span>
+              <span>1.0.0</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Last Updated:</span>
+              <span>Dec 2024</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Platform:</span>
+              <span>Telegram Mini App</span>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -451,18 +887,30 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
       <div className="space-y-2">
         <button
           onClick={handleSettingsClick}
-          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center space-x-3 text-left hover:opacity-80 transition-opacity"
+          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
         >
-          <Settings className="w-5 h-5 text-telegram-hint" />
-          <span className="text-telegram-text">Settings</span>
+          <div className="flex items-center space-x-3">
+            <Settings className="w-5 h-5 text-telegram-hint" />
+            <div>
+              <span className="text-telegram-text">Settings</span>
+              <p className="text-xs text-telegram-hint">Notifications, theme, language</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-telegram-hint" />
         </button>
         
         <button
           onClick={handleSupportClick}
-          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center space-x-3 text-left hover:opacity-80 transition-opacity"
+          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
         >
-          <MessageCircle className="w-5 h-5 text-telegram-hint" />
-          <span className="text-telegram-text">Support</span>
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="w-5 h-5 text-telegram-hint" />
+            <div>
+              <span className="text-telegram-text">Support</span>
+              <p className="text-xs text-telegram-hint">Help, contact info, FAQ</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-telegram-hint" />
         </button>
       </div>
 
