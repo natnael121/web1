@@ -46,6 +46,7 @@ const AdminPanel: React.FC = () => {
       loadUserData()
     } else {
       setLoading(false)
+      setError('Please open this app from Telegram to access the admin panel.')
     }
   }, [user])
 
@@ -56,6 +57,7 @@ const AdminPanel: React.FC = () => {
       
       if (!user?.id) {
         setError('No user information available')
+        setLoading(false)
         return
       }
 
@@ -76,6 +78,7 @@ const AdminPanel: React.FC = () => {
       if (userSnapshot.empty) {
         userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', user.id)))
       }
+      
       if (userSnapshot.empty) {
         setError('User not found in database. Please complete your registration first.')
         setLoading(false)
@@ -132,6 +135,11 @@ const AdminPanel: React.FC = () => {
   }
 
   const fetchShopData = async (shopId: string) => {
+    if (!shopId) {
+      console.error('No shop ID provided')
+      return
+    }
+    
     await Promise.all([
       fetchShopProducts(shopId),
       fetchShopCategories(shopId),
@@ -142,6 +150,8 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopProducts = async (shopId: string) => {
     try {
+      if (!shopId) return
+      
       const productsRef = collection(db, 'products')
       const productsQuery = query(
         productsRef, 
@@ -180,13 +190,57 @@ const AdminPanel: React.FC = () => {
       setProducts(productsList)
     } catch (error) {
       console.error('Error fetching products:', error)
-      setError('Failed to load products. Please try again.')
+      // Don't set error for missing orderBy index, just log it
+      if (error.code === 'failed-precondition') {
+        console.warn('Firestore index missing for products orderBy query')
+        // Try without orderBy
+        try {
+          const productsRef = collection(db, 'products')
+          const productsQuery = query(productsRef, where('shopId', '==', shopId))
+          const productsSnapshot = await getDocs(productsQuery)
+          
+          const productsList: Product[] = []
+          productsSnapshot.forEach((doc) => {
+            const data = doc.data()
+            const product: Product = {
+              id: doc.id,
+              shopId: data.shopId,
+              name: data.name || 'Unnamed Product',
+              description: data.description || '',
+              price: data.price || 0,
+              stock: data.stock || 0,
+              category: data.category || '',
+              subcategory: data.subcategory,
+              images: data.images || [],
+              sku: data.sku,
+              isActive: data.isActive !== false,
+              lowStockAlert: data.lowStockAlert || 5,
+              tags: data.tags || [],
+              featured: data.featured || false,
+              costPrice: data.costPrice,
+              weight: data.weight,
+              dimensions: data.dimensions,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date()
+            }
+            productsList.push(product)
+          })
+          setProducts(productsList)
+        } catch (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError)
+          setProducts([])
+        }
+      } else {
+        setError('Failed to load products. Please try again.')
+        setProducts([])
+      }
     }
   }
 
   const fetchShopCategories = async (shopId: string) => {
     try {
-      setLoading(true)
+      if (!shopId) return
+      
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
         categoriesRef, 
@@ -218,14 +272,47 @@ const AdminPanel: React.FC = () => {
       setCategories(categoriesList)
     } catch (error) {
       console.error('Error fetching categories:', error)
-      setError('Failed to load categories. Please try again.')
-    } finally {
-      setLoading(false)
+      // Handle missing index gracefully
+      if (error.code === 'failed-precondition') {
+        try {
+          const categoriesRef = collection(db, 'categories')
+          const categoriesQuery = query(categoriesRef, where('shopId', '==', shopId))
+          const categoriesSnapshot = await getDocs(categoriesQuery)
+          
+          const categoriesList: Category[] = []
+          categoriesSnapshot.forEach((doc) => {
+            const data = doc.data()
+            const category: Category = {
+              id: doc.id,
+              userId: data.userId || '',
+              shopId: data.shopId || '',
+              name: data.name || '',
+              description: data.description,
+              color: data.color || '#3B82F6',
+              icon: data.icon || '📦',
+              order: data.order || 0,
+              isActive: data.isActive !== false,
+              productCount: data.productCount || 0,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date()
+            }
+            categoriesList.push(category)
+          })
+          setCategories(categoriesList)
+        } catch (fallbackError) {
+          console.error('Fallback categories query failed:', fallbackError)
+          setCategories([])
+        }
+      } else {
+        setCategories([])
+      }
     }
   }
 
   const fetchShopDepartments = async (shopId: string) => {
     try {
+      if (!shopId) return
+      
       const departmentsRef = collection(db, "departments")
       const departmentsQuery = query(
         departmentsRef,
@@ -261,12 +348,46 @@ const AdminPanel: React.FC = () => {
       setDepartments(departmentsList)
     } catch (error) {
       console.error("Error fetching departments:", error)
-      setError("Failed to load departments. Please try again.")
+      // Handle missing index gracefully
+      if (error.code === 'failed-precondition') {
+        try {
+          const departmentsRef = collection(db, "departments")
+          const departmentsQuery = query(departmentsRef, where("shopId", "==", shopId))
+          const departmentsSnapshot = await getDocs(departmentsQuery)
+          
+          const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
+            const data = doc.data()
+            return {
+              id: doc.id,
+              userId: data.userId || "",
+              shopId: data.shopId || "",
+              name: data.name || "",
+              telegramChatId: data.telegramChatId || "",
+              adminChatId: data.adminChatId || "",
+              role: data.role || "shop",
+              order: typeof data.order === "number" ? data.order : 0,
+              icon: data.icon || "👥",
+              isActive: data.isActive !== false,
+              notificationTypes: data.notificationTypes || [],
+              createdAt: data.createdAt?.toDate?.() || new Date(),
+              updatedAt: data.updatedAt?.toDate?.() || new Date(),
+            }
+          })
+          setDepartments(departmentsList)
+        } catch (fallbackError) {
+          console.error('Fallback departments query failed:', fallbackError)
+          setDepartments([])
+        }
+      } else {
+        setDepartments([])
+      }
     }
   }
 
   const fetchShopStats = async (shopId: string) => {
     try {
+      if (!shopId) return
+      
       // Get product count
       const productsRef = collection(db, 'products')
       const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
@@ -301,10 +422,22 @@ const AdminPanel: React.FC = () => {
       })
     } catch (error) {
       console.error('Error fetching stats:', error)
+      // Set default stats on error
+      setStats({
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        totalCustomers: 0
+      })
     }
   }
 
   const handleShopSelect = async (shop: Shop) => {
+    if (!shop || !shop.id) {
+      console.error('Invalid shop selected')
+      return
+    }
+    
     setSelectedShop(shop)
     setActiveTab('products')
     setError(null)
@@ -378,6 +511,11 @@ const AdminPanel: React.FC = () => {
 
   const handleDeleteProduct = async (productId: string) => {
     try {
+      if (!productId) {
+        setError('Invalid product ID')
+        return
+      }
+      
       setError(null)
       const productRef = doc(db, 'products', productId)
       await deleteDoc(productRef)
@@ -425,6 +563,11 @@ const AdminPanel: React.FC = () => {
 
   const handleDeleteCategory = async (categoryId: string) => {
     try {
+      if (!categoryId) {
+        setError('Invalid category ID')
+        return
+      }
+      
       setError(null)
       const categoryRef = doc(db, 'categories', categoryId)
       await deleteDoc(categoryRef)
@@ -472,6 +615,11 @@ const AdminPanel: React.FC = () => {
 
   const handleDeleteDepartment = async (departmentId: string) => {
     try {
+      if (!departmentId) {
+        setError('Invalid department ID')
+        return
+      }
+      
       setError(null)
       const departmentRef = doc(db, 'departments', departmentId)
       await deleteDoc(departmentRef)
@@ -486,6 +634,11 @@ const AdminPanel: React.FC = () => {
   }
 
   const handlePromoteProduct = (product: Product) => {
+    if (!product || !product.id) {
+      setError('Invalid product selected for promotion')
+      return
+    }
+    
     setPromotingProduct(product)
     setShowPromotionModal(true)
   }
@@ -549,6 +702,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
 
       // Send or schedule promotion
       for (const department of targetDepartments) {
+        if (!department.telegramChatId) {
+          console.warn(`Department ${department.name} has no Telegram chat ID`)
+          continue
+        }
+        
         const config = {
           botToken,
           chatId: department.telegramChatId
@@ -589,6 +747,12 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           <p className="text-telegram-hint">
             {error || 'Unable to load user data. Please try again.'}
           </p>
+          <button
+            onClick={loadUserData}
+            className="mt-4 bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg"
+          >
+            Retry
+          </button>
         </div>
       </div>
     )
@@ -606,6 +770,12 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-lg text-sm">
           {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-2 text-red-500 hover:text-red-700"
+          >
+            <X className="w-4 h-4 inline" />
+          </button>
         </div>
       )}
 
