@@ -57,18 +57,43 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
       return
     }
     
-    onSave({
+    // Ensure all required nested objects exist
+    const shopData = {
       ...formData,
       slug,
       ownerId: userId,
       isActive: true,
+      businessInfo: {
+        name: formData.businessInfo.name || '',
+        description: formData.businessInfo.description || '',
+        address: formData.businessInfo.address || '',
+        phone: formData.businessInfo.phone || '',
+        email: formData.businessInfo.email || '',
+        website: formData.businessInfo.website || ''
+      },
+      settings: {
+        currency: formData.settings.currency || 'USD',
+        taxRate: formData.settings.taxRate || 0,
+        businessHours: {
+          open: formData.settings.businessHours.open || '09:00',
+          close: formData.settings.businessHours.close || '18:00',
+          days: formData.settings.businessHours.days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+        },
+        orderSettings: {
+          autoConfirm: formData.settings.orderSettings.autoConfirm || false,
+          requirePayment: formData.settings.orderSettings.requirePayment || false,
+          allowCancellation: formData.settings.orderSettings.allowCancellation !== false
+        }
+      },
       stats: {
         totalProducts: 0,
         totalOrders: 0,
         totalRevenue: 0,
         totalCustomers: 0
       }
-    })
+    }
+    
+    onSave(shopData)
   }
 
   const updateBusinessInfo = (field: string, value: any) => {
