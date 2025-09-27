@@ -5,6 +5,164 @@ import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 
+// Simple IndexedDB wrapper for ShopList caching
+class ShopListCache {
+  private dbName = 'ShopListCache'
+  private version = 1
+  private db: IDBDatabase | null = null
+
+  async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version)
+      
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        this.db = request.result
+        resolve()
+      }
+      
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        
+        // Create stores
+        if (!db.objectStoreNames.contains('shops')) {
+          db.createObjectStore('shops', { keyPath: 'id' })
+        }
+        if (!db.objectStoreNames.contains('products')) {
+          db.createObjectStore('products', { keyPath: 'id' })
+        }
+        if (!db.objectStoreNames.contains('categories')) {
+          db.createObjectStore('categories', { keyPath: 'id' })
+        }
+      }
+    })
+  }
+
+  async getShops(): Promise<Shop[]> {
+    if (!this.db) await this.init()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['shops'], 'readonly')
+      const store = transaction.objectStore('shops')
+      const request = store.getAll()
+      
+      request.onsuccess = () => resolve(request.result || [])
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  async setShops(shops: Shop[]): Promise<void> {
+    if (!this.db) await this.init()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['shops'], 'readwrite')
+      const store = transaction.objectStore('shops')
+      
+      // Clear existing data
+      store.clear()
+      
+      // Add new data
+      shops.forEach(shop => store.add(shop))
+      
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+  }
+
+  async getProducts(shopId: string): Promise<Product[]> {
+    if (!this.db) await this.init()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['products'], 'readonly')
+      const store = transaction.objectStore('products')
+      const request = store.getAll()
+      
+      request.onsuccess = () => {
+        const allProducts = request.result || []
+        const shopProducts = allProducts.filter((p: Product) => p.shopId === shopId)
+        resolve(shopProducts)
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  async setProducts(shopId: string, products: Product[]): Promise<void> {
+    if (!this.db) await this.init()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['products'], 'readwrite')
+      const store = transaction.objectStore('products')
+      
+      // Remove existing products for this shop
+      const getAllRequest = store.getAll()
+      getAllRequest.onsuccess = () => {
+        const allProducts = getAllRequest.result || []
+        const otherShopProducts = allProducts.filter((p: Product) => p.shopId !== shopId)
+        
+        // Clear and re-add
+        store.clear()
+        otherShopProducts.forEach(product => store.add(product))
+        products.forEach(product => store.add(product))
+        
+        transaction.oncomplete = () => resolve()
+        transaction.onerror = () => reject(transaction.error)
+      }
+    })
+  }
+
+  async getCategories(shopId: string): Promise<string[]> {
+    if (!this.db) await this.init()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['categories'], 'readonly')
+      const store = transaction.objectStore('categories')
+      const request = store.getAll()
+      
+      request.onsuccess = () => {
+        const allCategories = request.result || []
+        const shopCategories = allCategories
+          .filter((c: any) => c.shopId === shopId)
+          .map((c: any) => c.name)
+        resolve(shopCategories)
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  async setCategories(shopId: string, categories: string[]): Promise<void> {
+    if (!this.db) await this.init()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['categories'], 'readwrite')
+      const store = transaction.objectStore('categories')
+      
+      // Remove existing categories for this shop
+      const getAllRequest = store.getAll()
+      getAllRequest.onsuccess = () => {
+        const allCategories = getAllRequest.result || []
+        const otherShopCategories = allCategories.filter((c: any) => c.shopId !== shopId)
+        
+        // Clear and re-add
+        store.clear()
+        otherShopCategories.forEach(category => store.add(category))
+        categories.forEach((name, index) => {
+          store.add({
+            id: `${shopId}_${name}`,
+            shopId,
+            name,
+            order: index
+          })
+        })
+        
+        transaction.oncomplete = () => resolve()
+        transaction.onerror = () => reject(transaction.error)
+      }
+    })
+  }
+}
+
+const shopListCache = new ShopListCache()
+
 const ShopList: React.FC = () => {
   const { db } = useFirebase()
   const { user } = useTelegram()
@@ -20,13 +178,29 @@ const ShopList: React.FC = () => {
   const [cart, setCart] = useState<OrderItem[]>([])
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   useEffect(() => {
+    // Initialize cache
+    shopListCache.init().catch(console.error)
+    
+    // Listen for online/offline events
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
     if (user?.id) {
       fetchUserData()
     } else {
       setLoading(false)
       setError('Please open this app from Telegram to see your shops.')
+    }
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
   }, [user])
 
@@ -69,6 +243,16 @@ const ShopList: React.FC = () => {
 
   const fetchAllActiveShops = async () => {
     try {
+      // Try to load from cache first
+      if (!isOnline) {
+        console.log('Offline: Loading shops from cache')
+        const cachedShops = await shopListCache.getShops()
+        if (cachedShops.length > 0) {
+          setShops(cachedShops)
+          return
+        }
+      }
+      
       const shopsRef = collection(db, 'shops')
       const shopsQuery = query(
         shopsRef, 
@@ -78,6 +262,12 @@ const ShopList: React.FC = () => {
       const shopsSnapshot = await getDocs(shopsQuery)
       
       if (shopsSnapshot.empty) {
+        // Try cache as fallback
+        const cachedShops = await shopListCache.getShops()
+        if (cachedShops.length > 0) {
+          setShops(cachedShops)
+          return
+        }
         setError('No active shops found.')
         return
       }
@@ -103,9 +293,29 @@ const ShopList: React.FC = () => {
       })
       
       setShops(allShops)
+      
+      // Cache the shops for offline use
+      try {
+        await shopListCache.setShops(allShops)
+        console.log('Shops cached successfully')
+      } catch (cacheError) {
+        console.warn('Failed to cache shops:', cacheError)
+      }
     } catch (error) {
       console.error('Error fetching all active shops:', error)
-      setError('Failed to load shops. Please try again.')
+      
+      // Try to load from cache as fallback
+      try {
+        const cachedShops = await shopListCache.getShops()
+        if (cachedShops.length > 0) {
+          setShops(cachedShops)
+          setError('Showing cached shops (offline)')
+        } else {
+          setError('Failed to load shops. Please try again.')
+        }
+      } catch (cacheError) {
+        setError('Failed to load shops. Please try again.')
+      }
     }
   }
 
@@ -113,6 +323,18 @@ const ShopList: React.FC = () => {
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
+      
+      // Try to load from cache first
+      if (!isOnline) {
+        console.log('Offline: Loading categories from cache')
+        const cachedCategories = await shopListCache.getCategories(shopId)
+        if (cachedCategories.length > 0) {
+          setCategories(cachedCategories)
+          setLoading(false)
+          return
+        }
+      }
+      
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
         categoriesRef, 
@@ -132,12 +354,38 @@ const ShopList: React.FC = () => {
 
       setCategories(categoriesList)
       
+      // Cache the categories
+      try {
+        await shopListCache.setCategories(shopId, categoriesList)
+        console.log('Categories cached successfully')
+      } catch (cacheError) {
+        console.warn('Failed to cache categories:', cacheError)
+      }
+      
       if (categoriesList.length === 0) {
-        setError('No categories found for this shop.')
+        // Try cache as fallback
+        const cachedCategories = await shopListCache.getCategories(shopId)
+        if (cachedCategories.length > 0) {
+          setCategories(cachedCategories)
+        } else {
+          setError('No categories found for this shop.')
+        }
       }
     } catch (error) {
       console.error('Error fetching categories:', error)
-      setError('Failed to load categories. Please try again.')
+      
+      // Try to load from cache as fallback
+      try {
+        const cachedCategories = await shopListCache.getCategories(shopId)
+        if (cachedCategories.length > 0) {
+          setCategories(cachedCategories)
+          setError('Showing cached categories (offline)')
+        } else {
+          setError('Failed to load categories. Please try again.')
+        }
+      } catch (cacheError) {
+        setError('Failed to load categories. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -146,6 +394,19 @@ const ShopList: React.FC = () => {
   const fetchCategoryProducts = async (shopId: string, category: string) => {
     try {
       setLoading(true)
+      
+      // Try to load from cache first
+      if (!isOnline) {
+        console.log('Offline: Loading products from cache')
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
+        if (categoryProducts.length > 0) {
+          setProducts(categoryProducts)
+          setLoading(false)
+          return
+        }
+      }
+      
       const productsRef = collection(db, 'products')
       const productsQuery = query(
         productsRef, 
@@ -185,12 +446,40 @@ const ShopList: React.FC = () => {
 
       setProducts(productsList)
       
+      // Cache the products
+      try {
+        await shopListCache.setProducts(shopId, productsList)
+        console.log('Products cached successfully')
+      } catch (cacheError) {
+        console.warn('Failed to cache products:', cacheError)
+      }
+      
       if (productsList.length === 0) {
-        setError(`No products found in the ${category} category.`)
+        // Try cache as fallback
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
+        if (categoryProducts.length > 0) {
+          setProducts(categoryProducts)
+        } else {
+          setError(`No products found in the ${category} category.`)
+        }
       }
     } catch (error) {
       console.error('Error fetching products:', error)
-      setError('Failed to load products. Please try again.')
+      
+      // Try to load from cache as fallback
+      try {
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
+        if (categoryProducts.length > 0) {
+          setProducts(categoryProducts)
+          setError('Showing cached products (offline)')
+        } else {
+          setError('Failed to load products. Please try again.')
+        }
+      } catch (cacheError) {
+        setError('Failed to load products. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -199,6 +488,19 @@ const ShopList: React.FC = () => {
   const fetchFeaturedProducts = async (shopId: string) => {
     try {
       setLoading(true)
+      
+      // Try to load from cache first
+      if (!isOnline) {
+        console.log('Offline: Loading featured products from cache')
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const featuredProducts = cachedProducts.filter(p => p.featured && p.isActive)
+        if (featuredProducts.length > 0) {
+          setProducts(featuredProducts)
+          setLoading(false)
+          return
+        }
+      }
+      
       const productsRef = collection(db, 'products')
       const productsQuery = query(
         productsRef, 
@@ -217,9 +519,30 @@ const ShopList: React.FC = () => {
       })
 
       setProducts(productsList)
+      
+      // Cache the products
+      try {
+        await shopListCache.setProducts(shopId, productsList)
+        console.log('Featured products cached successfully')
+      } catch (cacheError) {
+        console.warn('Failed to cache featured products:', cacheError)
+      }
     } catch (error) {
       console.error('Error fetching featured products:', error)
-      setError('Failed to load featured products. Please try again.')
+      
+      // Try to load from cache as fallback
+      try {
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const featuredProducts = cachedProducts.filter(p => p.featured && p.isActive)
+        if (featuredProducts.length > 0) {
+          setProducts(featuredProducts)
+          setError('Showing cached featured products (offline)')
+        } else {
+          setError('Failed to load featured products. Please try again.')
+        }
+      } catch (cacheError) {
+        setError('Failed to load featured products. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -419,6 +742,11 @@ const ShopList: React.FC = () => {
             {error.includes('No shops') ? 'No Shops Found' : 'Error Loading Data'}
           </h3>
           <p className="text-telegram-hint mb-4">{error}</p>
+          {!isOnline && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+              <p className="text-sm">You're currently offline. Some data may be cached.</p>
+            </div>
+          )}
           {!error.includes('No shops') && (
             <button
               onClick={fetchUserData}
@@ -441,9 +769,16 @@ const ShopList: React.FC = () => {
             <h2 className="text-lg font-semibold text-telegram-text">Available Shops</h2>
             <p className="text-sm text-telegram-hint">
               {shops.length} shop{shops.length !== 1 ? 's' : ''} available
+              {!isOnline && ' (cached)'}
             </p>
           </div>
         </div>
+
+        {!isOnline && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+            <p className="text-sm">You're offline. Showing cached data.</p>
+          </div>
+        )}
 
         <div className="space-y-3">
           {shops.map((shop) => (
@@ -581,6 +916,12 @@ const ShopList: React.FC = () => {
           </div>
         </div>
 
+        {!isOnline && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+            <p className="text-sm">You're offline. Showing cached categories.</p>
+          </div>
+        )}
+
         {showOrderSuccess && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg flex items-center space-x-2 mb-4">
             <CheckCircle className="w-5 h-5" />
@@ -680,6 +1021,7 @@ const ShopList: React.FC = () => {
               </h2>
               <p className="text-sm text-telegram-hint">
                 {selectedShop?.name} • {products.length} product{products.length !== 1 ? 's' : ''}
+                {!isOnline && ' (cached)'}
               </p>
             </div>
           </div>
@@ -696,6 +1038,12 @@ const ShopList: React.FC = () => {
             </button>
           )}
         </div>
+
+        {!isOnline && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+            <p className="text-sm">You're offline. Showing cached products.</p>
+          </div>
+        )}
 
         <div className="space-y-3">
           {products.map((product) => {
