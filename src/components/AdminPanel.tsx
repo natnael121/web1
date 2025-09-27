@@ -39,6 +39,7 @@ const AdminPanel: React.FC = () => {
   const [showAddDepartment, setShowAddDepartment] = useState(false)
   const [showPromotionModal, setShowPromotionModal] = useState(false)
   const [showCreateShop, setShowCreateShop] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
@@ -439,6 +440,29 @@ const AdminPanel: React.FC = () => {
     }
   }
 
+  const handleDeleteShop = async (shopId: string) => {
+    try {
+      setError(null)
+      
+      // Delete the shop document
+      const shopRef = doc(db, 'shops', shopId)
+      await deleteDoc(shopRef)
+      
+      // If this was the selected shop, clear selection
+      if (selectedShop?.id === shopId) {
+        setSelectedShop(null)
+        setActiveTab('profile')
+      }
+      
+      // Reload user data to refresh shops list
+      await loadUserData()
+      setShowDeleteConfirm(null)
+    } catch (error) {
+      console.error('Error deleting shop:', error)
+      setError('Failed to delete shop. Please try again.')
+    }
+  }
+
   const handlePromoteProduct = (product: Product) => {
     setPromotingProduct(product)
     setShowPromotionModal(true)
@@ -588,7 +612,16 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       {/* Shops List - Only show if user has shops */}
       {ownedShops.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-base font-semibold text-telegram-text">Your Shops</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-telegram-text">Your Shops</h2>
+            <button
+              onClick={() => setShowCreateShop(true)}
+              className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg text-sm flex items-center space-x-1"
+            >
+              <Plus className="w-3 h-3" />
+              <span>Add Shop</span>
+            </button>
+          </div>
           
           {ownedShops.map((shop) => (
             <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-3">
@@ -624,14 +657,23 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
                   <button
                     onClick={() => setEditingShop(shop)}
                     className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
+                    title="Edit Shop"
                   >
                     <Edit className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => handleShopSelect(shop)}
                     className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
+                    title="Manage Shop"
                   >
                     <BarChart3 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(shop.id)}
+                    className="p-2 text-red-500 hover:bg-red-500 hover:text-white rounded-lg"
+                    title="Delete Shop"
+                  >
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -646,22 +688,14 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
           <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
           <p className="text-sm text-telegram-hint mb-4">
-            You don't own any shops yet. Contact an administrator to get started.
+            You don't own any shops yet. Create your first shop to get started.
           </p>
-          <div className="space-x-3">
-            <button
-              onClick={() => setShowCreateShop(true)}
-              className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
-            >
-              Create Shop
-            </button>
-            <button
-              onClick={() => setActiveTab('profile')}
-              className="bg-telegram-hint text-white px-4 py-2 rounded-lg text-sm"
-            >
-              View Profile
-            </button>
-          </div>
+          <button
+            onClick={() => setShowCreateShop(true)}
+            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+          >
+            Create Your First Shop
+          </button>
         </div>
       )}
 
@@ -844,61 +878,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         </div>
       )}
 
-      {/* Profile Tab for all users */}
-      {!selectedShop && (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-telegram-text">User Profile</h2>
-          <div className="bg-telegram-secondary-bg rounded-lg p-3">
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Display Name</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                  {userData.displayName || 'Not set'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Email</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                  {userData.email}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Role</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text capitalize text-sm">
-                  {userData.role}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">User ID</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text font-mono text-xs">
-                  {userData.uid}
-                </div>
-              </div>
-            </div>
-            
-            {userData.businessInfo && (
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-telegram-text mb-2">Business Information</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-telegram-text mb-1">Business Name</label>
-                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                      {userData.businessInfo.name || 'Not set'}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-telegram-text mb-1">Phone</label>
-                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                      {userData.businessInfo.phone || 'Not set'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Product Edit Modal */}
       {(editingProduct || showAddProduct) && (
         <ProductEditModal
@@ -998,6 +977,47 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           onCancel={() => setShowCreateShop(false)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-telegram-bg rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-telegram-text">Delete Shop</h3>
+              <button 
+                onClick={() => setShowDeleteConfirm(null)} 
+                className="text-telegram-hint"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-telegram-text mb-2">
+                Are you sure you want to delete this shop? This action cannot be undone.
+              </p>
+              <p className="text-sm text-red-600">
+                All products, categories, departments, and orders associated with this shop will be permanently deleted.
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 bg-telegram-hint text-white py-3 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteShop(showDeleteConfirm)}
+                className="flex-1 bg-red-500 text-white py-3 rounded-lg font-medium"
+              >
+                Delete Shop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
@@ -1014,5 +1034,7 @@ import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
 import { ArrowLeft } from 'lucide-react'
+import { deleteDoc } from 'firebase/firestore'
+import { Trash2, Plus } from 'lucide-react'
 
 export default AdminPanel

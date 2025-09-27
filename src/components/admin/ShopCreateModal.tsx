@@ -61,7 +61,13 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
       ...formData,
       slug,
       ownerId: userId,
-      isActive: true
+      isActive: true,
+      stats: {
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        totalCustomers: 0
+      }
     })
   }
 

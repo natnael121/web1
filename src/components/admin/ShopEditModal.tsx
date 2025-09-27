@@ -234,6 +234,9 @@ const ShopEditModal: React.FC<ShopEditModalProps> = ({ shop, onSave, onCancel })
                     <option value="EUR">EUR (€)</option>
                     <option value="ETB">ETB (Br)</option>
                     <option value="GBP">GBP (£)</option>
+                    <option value="NGN">NGN (₦)</option>
+                    <option value="KES">KES (KSh)</option>
+                    <option value="ZAR">ZAR (R)</option>
                   </select>
                 </div>
 
@@ -252,31 +255,6 @@ const ShopEditModal: React.FC<ShopEditModalProps> = ({ shop, onSave, onCancel })
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-telegram-text mb-1">
-                    Operating Days
-                  </label>
-                  <select
-                    multiple
-                    value={formData.settings?.businessHours?.days || []}
-                    onChange={(e) => {
-                      const days = Array.from(e.target.selectedOptions, option => option.value)
-                      updateSettings('businessHours', {
-                        ...formData.settings?.businessHours,
-                        days
-                      })
-                    }}
-                    className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                  >
-                    <option value="monday">Monday</option>
-                    <option value="tuesday">Tuesday</option>
-                    <option value="wednesday">Wednesday</option>
-                    <option value="thursday">Thursday</option>
-                    <option value="friday">Friday</option>
-                    <option value="saturday">Saturday</option>
-                    <option value="sunday">Sunday</option>
-                  </select>
-                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
@@ -308,6 +286,42 @@ const ShopEditModal: React.FC<ShopEditModalProps> = ({ shop, onSave, onCancel })
                     })}
                     className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-telegram-text mb-2">
+                  Operating Days
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {[
+                    { value: 'monday', label: 'Mon' },
+                    { value: 'tuesday', label: 'Tue' },
+                    { value: 'wednesday', label: 'Wed' },
+                    { value: 'thursday', label: 'Thu' },
+                    { value: 'friday', label: 'Fri' },
+                    { value: 'saturday', label: 'Sat' },
+                    { value: 'sunday', label: 'Sun' }
+                  ].map((day) => (
+                    <label key={day.value} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={(formData.settings?.businessHours?.days || []).includes(day.value)}
+                        onChange={(e) => {
+                          const currentDays = formData.settings?.businessHours?.days || []
+                          const days = e.target.checked
+                            ? [...currentDays, day.value]
+                            : currentDays.filter(d => d !== day.value)
+                          updateSettings('businessHours', {
+                            ...formData.settings?.businessHours,
+                            days
+                          })
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-telegram-text">{day.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 

@@ -28,7 +28,7 @@ const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
 function App() {
-  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('shops')
+  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('admin')
   const [user, setUser] = useState<User | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
