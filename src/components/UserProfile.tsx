@@ -39,6 +39,184 @@ interface UserProfileProps {
   userData: UserData | null
 }
 
+// Order Detail Modal Component for User Profile
+interface OrderDetailModalProps {
+  order: Order
+  onClose: () => void
+}
+
+const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ 
+  order, 
+  onClose
+}) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'payment_pending':
+        return 'bg-orange-100 text-orange-800'
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-800'
+      case 'processing':
+        return 'bg-purple-100 text-purple-800'
+      case 'shipped':
+        return 'bg-indigo-100 text-indigo-800'
+      case 'delivered':
+        return 'bg-green-100 text-green-800'
+      case 'cancelled':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-4 h-4" />
+      case 'payment_pending':
+        return <DollarSign className="w-4 h-4" />
+      case 'confirmed':
+      case 'processing':
+        return <Package className="w-4 h-4" />
+      case 'shipped':
+        return <Truck className="w-4 h-4" />
+      case 'delivered':
+        return <CheckCircle className="w-4 h-4" />
+      case 'cancelled':
+        return <XCircle className="w-4 h-4" />
+      default:
+        return <Clock className="w-4 h-4" />
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-telegram-bg rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-4 border-b border-telegram-hint/20">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-telegram-text">
+              Order #{order.id.slice(-8)}
+            </h2>
+            <button 
+              onClick={onClose} 
+              className="text-telegram-hint hover:text-telegram-text p-2 rounded"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Order Status */}
+          <div className="bg-telegram-secondary-bg rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-telegram-text">Order Status</h3>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(order.status)}`}>
+                {getStatusIcon(order.status)}
+                <span className="capitalize">{order.status.replace('_', ' ')}</span>
+              </span>
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-telegram-hint">Order Date:</span>
+                <span className="text-telegram-text">{order.createdAt.toLocaleDateString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-telegram-hint">Payment Status:</span>
+                <span className={`px-2 py-1 rounded text-xs ${
+                  order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {order.paymentStatus}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-telegram-hint">Delivery Method:</span>
+                <span className="text-telegram-text capitalize">{order.deliveryMethod}</span>
+              </div>
+              {order.trackingNumber && (
+                <div className="flex justify-between">
+                  <span className="text-telegram-hint">Tracking:</span>
+                  <span className="text-telegram-text font-mono">{order.trackingNumber}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Order Items */}
+          <div className="bg-telegram-secondary-bg rounded-lg p-4">
+            <h3 className="font-medium text-telegram-text mb-3">Items Ordered</h3>
+            <div className="space-y-3">
+              {order.items.map((item, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-telegram-text">{item.productName}</h4>
+                    <p className="text-xs text-telegram-hint">
+                      ${item.price.toFixed(2)} × {item.quantity}
+                    </p>
+                  </div>
+                  <div className="text-sm font-medium text-telegram-text">
+                    ${item.total.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="border-t border-telegram-hint/20 mt-3 pt-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-telegram-hint">Subtotal:</span>
+                <span className="text-telegram-text">${order.subtotal.toFixed(2)}</span>
+              </div>
+              {order.tax > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-telegram-hint">Tax:</span>
+                  <span className="text-telegram-text">${order.tax.toFixed(2)}</span>
+                </div>
+              )}
+              {order.deliveryFee && order.deliveryFee > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-telegram-hint">Delivery Fee:</span>
+                  <span className="text-telegram-text">${order.deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-medium text-telegram-text border-t border-telegram-hint/20 pt-1">
+                <span>Total:</span>
+                <span>${order.total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Notes */}
+          {order.customerNotes && (
+            <div className="bg-telegram-secondary-bg rounded-lg p-4">
+              <h3 className="font-medium text-telegram-text mb-2">Notes</h3>
+              <p className="text-sm text-telegram-hint">{order.customerNotes}</p>
+            </div>
+          )}
+
+          {/* Delivery Address */}
+          {order.deliveryAddress && (
+            <div className="bg-telegram-secondary-bg rounded-lg p-4">
+              <h3 className="font-medium text-telegram-text mb-2">Delivery Address</h3>
+              <p className="text-sm text-telegram-hint">{order.deliveryAddress}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-telegram-hint/20">
+          <button
+            onClick={onClose}
+            className="w-full bg-telegram-button text-telegram-button-text py-3 rounded-lg font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
   const { webApp } = useTelegram()
   const { db } = useFirebase()
@@ -860,179 +1038,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
 
       {/* App Info */}
       <div className="text-center text-telegram-hint text-sm">
-// Order Detail Modal Component for User Profile
-interface OrderDetailModalProps {
-  order: Order
-  onClose: () => void
-}
-
-const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ 
-  order, 
-  onClose
-}) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'payment_pending':
-        return 'bg-orange-100 text-orange-800'
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800'
-      case 'processing':
-        return 'bg-purple-100 text-purple-800'
-      case 'shipped':
-        return 'bg-indigo-100 text-indigo-800'
-      case 'delivered':
-        return 'bg-green-100 text-green-800'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
         <p>Multi-Shop Mini App</p>
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Clock className="w-4 h-4" />
-      case 'payment_pending':
-        return <DollarSign className="w-4 h-4" />
-      case 'confirmed':
-      case 'processing':
-        return <Package className="w-4 h-4" />
-      case 'shipped':
-        return <Truck className="w-4 h-4" />
-      case 'delivered':
-        return <CheckCircle className="w-4 h-4" />
-      case 'cancelled':
-        return <XCircle className="w-4 h-4" />
-      default:
-        return <Clock className="w-4 h-4" />
-    }
-  }
         <p>Version 1.0.0</p>
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-telegram-bg rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-telegram-hint/20">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-telegram-text">
-              Order #{order.id.slice(-8)}
-            </h2>
-            <button 
-              onClick={onClose} 
-              className="text-telegram-hint hover:text-telegram-text p-2 rounded"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </div>
-        <div className="p-4 space-y-4">
-          {/* Order Status */}
-          <div className="bg-telegram-secondary-bg rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-telegram-text">Order Status</h3>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(order.status)}`}>
-                {getStatusIcon(order.status)}
-                <span className="capitalize">{order.status.replace('_', ' ')}</span>
-              </span>
-            </div>
-            
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-telegram-hint">Order Date:</span>
-                <span className="text-telegram-text">{order.createdAt.toLocaleDateString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-telegram-hint">Payment Status:</span>
-                <span className={`px-2 py-1 rounded text-xs ${
-                  order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {order.paymentStatus}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-telegram-hint">Delivery Method:</span>
-                <span className="text-telegram-text capitalize">{order.deliveryMethod}</span>
-              </div>
-              {order.trackingNumber && (
-                <div className="flex justify-between">
-                  <span className="text-telegram-hint">Tracking:</span>
-                  <span className="text-telegram-text font-mono">{order.trackingNumber}</span>
-                </div>
-              )}
-            </div>
-          </div>
-    </div>
-          {/* Order Items */}
-          <div className="bg-telegram-secondary-bg rounded-lg p-4">
-            <h3 className="font-medium text-telegram-text mb-3">Items Ordered</h3>
-            <div className="space-y-3">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-telegram-text">{item.productName}</h4>
-                    <p className="text-xs text-telegram-hint">
-                      ${item.price.toFixed(2)} × {item.quantity}
-                    </p>
-                  </div>
-                  <div className="text-sm font-medium text-telegram-text">
-                    ${item.total.toFixed(2)}
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="border-t border-telegram-hint/20 mt-3 pt-3 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-telegram-hint">Subtotal:</span>
-                <span className="text-telegram-text">${order.subtotal.toFixed(2)}</span>
-              </div>
-              {order.tax > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-telegram-hint">Tax:</span>
-                  <span className="text-telegram-text">${order.tax.toFixed(2)}</span>
-                </div>
-              )}
-              {order.deliveryFee && order.deliveryFee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-telegram-hint">Delivery Fee:</span>
-                  <span className="text-telegram-text">${order.deliveryFee.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between font-medium text-telegram-text border-t border-telegram-hint/20 pt-1">
-                <span>Total:</span>
-                <span>${order.total.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-  )
-          {/* Customer Notes */}
-          {order.customerNotes && (
-            <div className="bg-telegram-secondary-bg rounded-lg p-4">
-              <h3 className="font-medium text-telegram-text mb-2">Notes</h3>
-              <p className="text-sm text-telegram-hint">{order.customerNotes}</p>
-            </div>
-          )}
-}
-          {/* Delivery Address */}
-          {order.deliveryAddress && (
-            <div className="bg-telegram-secondary-bg rounded-lg p-4">
-              <h3 className="font-medium text-telegram-text mb-2">Delivery Address</h3>
-              <p className="text-sm text-telegram-hint">{order.deliveryAddress}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 border-t border-telegram-hint/20">
-          <button
-            onClick={onClose}
-            className="w-full bg-telegram-button text-telegram-button-text py-3 rounded-lg font-medium"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </div>
   )
