@@ -59,7 +59,7 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
     
     // Ensure all required nested objects exist
     const shopData = {
-      ...formData,
+      name: formData.name.trim(),
       slug,
       ownerId: userId,
       isActive: true,
@@ -67,6 +67,7 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
         name: formData.businessInfo.name || '',
         description: formData.businessInfo.description || '',
         address: formData.businessInfo.address || '',
+        description: formData.description.trim(),
         phone: formData.businessInfo.phone || '',
         email: formData.businessInfo.email || '',
         website: formData.businessInfo.website || ''
@@ -92,6 +93,8 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
         totalCustomers: 0
       }
     }
+
+    console.log('Creating shop with data:', shopData)
     
     onSave(shopData)
   }

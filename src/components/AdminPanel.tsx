@@ -89,7 +89,7 @@ const AdminPanel: React.FC = () => {
 
       // Find shops owned by this user (if any)
       const shopsRef = collection(db, 'shops')
-      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
+      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id), where('isActive', '==', true))
       const shopsSnapshot = await getDocs(ownerQuery)
  
       const shopsList: Shop[] = []
@@ -972,7 +972,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           onSave={async (shopData) => {
             try {
               const shopsRef = collection(db, 'shops')
-              await addDoc(shopsRef, {
+              const docRef = await addDoc(shopsRef, {
                 ...shopData,
                 createdAt: new Date(),
                 updatedAt: new Date()
@@ -980,6 +980,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               setShowCreateShop(false)
               await loadUserData()
             } catch (error) {
+              console.error('Error creating shop:', error)
               console.error('Error creating shop:', error)
               setError('Failed to create shop. Please try again.')
             }
