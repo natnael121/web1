@@ -1,6 +1,6 @@
 import React from 'react'
 import { Shop } from '../../types'
-import { Store, Package, ShoppingCart, DollarSign, Users, Edit, BarChart3, Star, Clock, MapPin, Phone } from 'lucide-react'
+import { Store, Package, ShoppingCart, DollarSign, Users, FileEdit as Edit, BarChart3, Star, Clock, MapPin, Phone } from 'lucide-react'
 
 interface ShopCardProps {
   shop: Shop
