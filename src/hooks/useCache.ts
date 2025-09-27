@@ -1,6 +1,36 @@
 import { useState, useEffect, useCallback } from 'react'
 import { cacheSyncService } from '../services/cacheSync'
+// Add these to your existing useCache.ts file
+export function useUserOrders(telegramId: string) {
+  const result = useCache<Order>('orders', undefined, { 
+    enableRealtime: true, 
+    syncOnMount: true 
+  });
+  
+  // Filter by telegramId
+  const ordersData = result.data && Array.isArray(result.data) ? result.data : [];
+  const userOrders = ordersData.filter((order: Order) => order.telegramId === telegramId);
+  
+  return {
+    ...result,
+    data: userOrders
+  };
+}
 
+export function useActiveShops() {
+  const result = useCache<Shop>('shops', undefined, { 
+    enableRealtime: true, 
+    syncOnMount: true 
+  });
+  
+  const shopsData = result.data && Array.isArray(result.data) ? result.data : [];
+  const activeShops = shopsData.filter((shop: Shop) => shop.isActive === true);
+  
+  return {
+    ...result,
+    data: activeShops
+  };
+}
 export interface UseCacheOptions {
   enableRealtime?: boolean
   fallbackToCache?: boolean
