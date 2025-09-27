@@ -218,8 +218,13 @@ const ShopList: React.FC = () => {
 
       // Query users collection by telegramId
       const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegram_id', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
+      
+      // Try both telegramId and telegram_id fields
+      let userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', parseInt(user.id))))
+      
+      if (userSnapshot.empty) {
+        userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', parseInt(user.id))))
+      }
       
       if (userSnapshot.empty) {
         // For demo purposes, show all active shops if user not found

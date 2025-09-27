@@ -88,14 +88,20 @@ function App() {
     try {
       setUserLoading(true)
       const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', telegramId))
-      const userSnapshot = await getDocs(userQuery)
+      
+      // Try both telegramId and telegram_id fields
+      let userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', telegramId)))
+      
+      if (userSnapshot.empty) {
+        userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', telegramId)))
+      }
       
       if (!userSnapshot.empty) {
         const userDoc = userSnapshot.docs[0]
         const userData = userDoc.data() as UserData
         setUserData({
           ...userData,
+          uid: userDoc.id,
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })

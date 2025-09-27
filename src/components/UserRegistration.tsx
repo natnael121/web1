@@ -40,7 +40,8 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
         phone: formData.phone,
         bio: formData.bio,
         role: formData.role,
-        telegramId: user.telegramId,
+        telegramId: user.telegramId || parseInt(user.id),
+        telegram_id: user.telegramId || parseInt(user.id), // Add both fields for compatibility
         settings: {
           notifications: {
             email: true,

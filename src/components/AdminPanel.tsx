@@ -61,18 +61,35 @@ const AdminPanel: React.FC = () => {
 
       // Get user document from Firebase using Telegram ID
       const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
-
+      // Try both telegramId and telegram_id fields to handle different data structures
+      let userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', parseInt(user.id))))
+      
       if (userSnapshot.empty) {
-        setError('User not found in database')
+        userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', parseInt(user.id))))
+      }
+      
+      // If still empty, try with string ID
+      if (userSnapshot.empty) {
+        userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', user.id)))
+      }
+      
+      if (userSnapshot.empty) {
+        userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', user.id)))
+      }
+      if (userSnapshot.empty) {
+        setError('User not found in database. Please complete your registration first.')
         setLoading(false)
         return
       }
 
       const userDoc = userSnapshot.docs[0]
       const userData = userDoc.data() as UserData
-      setUserData(userData)
+      setUserData({
+        ...userData,
+        uid: userDoc.id,
+        createdAt: userData.createdAt?.toDate?.() || new Date(),
+        updatedAt: userData.updatedAt?.toDate?.() || new Date()
+      })
 
       // Find shops owned by this user (if any)
       const shopsRef = collection(db, 'shops')
@@ -306,7 +323,7 @@ const AdminPanel: React.FC = () => {
       const shopsRef = collection(db, 'shops')
       const newShop = {
         ...shopData,
-        ownerId: userData.uid,
+        ownerId: userData.uid || userData.id,
         isActive: true,
         stats: { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
         createdAt: new Date(),
@@ -316,6 +333,11 @@ const AdminPanel: React.FC = () => {
       await addDoc(shopsRef, newShop)
       setShowAddShop(false)
       await loadUserData()
+      
+      // Show success message
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('Shop created successfully!')
+      }
     } catch (error) {
       console.error('Error creating shop:', error)
       setError('Failed to create shop. Please try again.')

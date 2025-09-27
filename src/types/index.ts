@@ -9,12 +9,14 @@ export interface User {
 
 export interface UserData {
   uid: string
+  id?: string // Add optional id field for compatibility
   email: string
   displayName?: string
   phone?: string
   bio?: string
   role: 'shop_owner' | 'admin'
   telegramId?: number
+  telegram_id?: number // Add for compatibility with different field names
   telegramBotToken?: string
   settings: {
     notifications: {

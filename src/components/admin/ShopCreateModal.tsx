@@ -46,10 +46,22 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
     // Generate slug from name if not provided
     const slug = formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert('Shop name is required')
+      return
+    }
+    
+    if (!formData.description.trim()) {
+      alert('Shop description is required')
+      return
+    }
+    
     onSave({
       ...formData,
       slug,
-      ownerId: userId
+      ownerId: userId,
+      isActive: true
     })
   }
 
