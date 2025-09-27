@@ -275,68 +275,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       setLoading(false)
     }
   }
-        const data = doc.data()
-        const order: Order = {
-          id: doc.id,
-          shopId: data.shopId,
-          customerId: data.customerId,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          customerEmail: data.customerEmail,
-          items: data.items || [],
-          subtotal: data.subtotal || 0,
-          tax: data.tax || 0,
-          total: data.total || 0,
-          status: data.status || 'pending',
-          paymentStatus: data.paymentStatus || 'pending',
-          deliveryMethod: data.deliveryMethod || 'pickup',
-          deliveryAddress: data.deliveryAddress,
-          deliveryFee: data.deliveryFee,
-          estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
-          paymentPreference: data.paymentPreference,
-          paymentPhotoUrl: data.paymentPhotoUrl,
-          requiresPaymentConfirmation: data.requiresPaymentConfirmation,
-          customerNotes: data.customerNotes,
-          source: data.source || 'web',
-          tableNumber: data.tableNumber,
-          telegramId: data.telegramId,
-          telegramUsername: data.telegramUsername,
-          trackingNumber: data.trackingNumber,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          confirmedAt: data.confirmedAt?.toDate(),
-          shippedAt: data.shippedAt?.toDate(),
-          deliveredAt: data.deliveredAt?.toDate()
-        }
-        ordersList.push(order)
-      })
-
-      setOrders(ordersList)
-      
-      // Calculate stats
-      const totalOrders = ordersList.length
-      const totalSpent = ordersList.reduce((sum, order) => sum + order.total, 0)
-      const pendingOrders = ordersList.filter(order => 
-        ['pending', 'payment_pending', 'confirmed', 'processing'].includes(order.status)
-      ).length
-      const completedOrders = ordersList.filter(order => 
-        order.status === 'delivered'
-      ).length
-
-      setStats({
-        totalOrders,
-        totalSpent,
-        pendingOrders,
-        completedOrders
-      })
-
-    } catch (error) {
-      console.error('Error fetching user orders:', error)
-      setError('Failed to load your orders. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchShops = async () => {
     try {
