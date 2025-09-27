@@ -19,6 +19,20 @@ export const telegramService = {
       const { botToken, chatId } = config
       const baseUrl = `https://api.telegram.org/bot${botToken}`
 
+      // Convert username to chat ID if needed
+      let finalChatId = chatId
+      if (chatId.startsWith('@') || !/^-?\d+$/.test(chatId)) {
+        // This is a username, try to convert it
+        const telegramApi = new (await import('./telegramApi')).TelegramApiService(botToken)
+        const convertedId = await telegramApi.getUserIdByUsername(chatId)
+        if (convertedId) {
+          finalChatId = convertedId.toString()
+        } else {
+          console.error('Could not convert username to chat ID:', chatId)
+          return false
+        }
+      }
+
       if (message.images && message.images.length > 0) {
         // Send as media group if multiple images
         if (message.images.length > 1) {
@@ -35,7 +49,7 @@ export const telegramService = {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              chat_id: chatId,
+              chat_id: finalChatId,
               media: media
             })
           })
@@ -49,7 +63,7 @@ export const telegramService = {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              chat_id: chatId,
+              chat_id: finalChatId,
               photo: message.images[0],
               caption: message.text,
               parse_mode: message.parseMode || 'HTML',
@@ -67,7 +81,7 @@ export const telegramService = {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            chat_id: chatId,
+            chat_id: finalChatId,
             text: message.text,
             parse_mode: message.parseMode || 'HTML',
             reply_markup: message.replyMarkup

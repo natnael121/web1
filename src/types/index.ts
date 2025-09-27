@@ -22,6 +22,11 @@ export interface UserData {
       push: boolean
       telegram: boolean
     }
+    telegram: {
+      chatId: string
+      username: string
+      enableNotifications: boolean
+    }
     theme: 'light' | 'dark' | 'auto'
     language: string
     timezone: string

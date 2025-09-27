@@ -4,6 +4,7 @@ import { Product, Department } from '../../types'
 import { imgbbService } from '../../services/imgbb'
 import { telegramService } from '../../services/telegram'
 import { useTelegram } from '../../contexts/TelegramContext'
+import TelegramChatInput from '../common/TelegramChatInput'
 
 interface PromotionModalProps {
   product: Product
@@ -45,6 +46,18 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
   const [previewMode, setPreviewMode] = useState(false)
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  // Custom chat input for additional recipients
+  const [customChatId, setCustomChatId] = useState('')
+  const [botToken, setBotToken] = useState('')
+
+  // Get bot token from environment
+  React.useEffect(() => {
+    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
+    if (token) {
+      setBotToken(token)
+    }
+  }, [])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -500,6 +513,24 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               </p>
             </div>
           )}
+
+          {/* Custom Chat Input */}
+          <div>
+            <label className="block text-sm font-medium text-telegram-text mb-2">
+              <MessageCircle className="w-4 h-4 inline mr-1" />
+              Additional Recipient (Optional)
+            </label>
+            <TelegramChatInput
+              value={customChatId}
+              onChange={setCustomChatId}
+              placeholder="Enter @username or chat ID for additional recipient"
+              botToken={botToken}
+              showValidation={true}
+            />
+            <p className="text-xs text-telegram-hint mt-1">
+              Send promotion to an additional chat besides selected departments
+            </p>
+          </div>
 
           {/* Schedule Options */}
           <div>

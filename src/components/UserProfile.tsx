@@ -3,6 +3,7 @@ import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'fire
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
+import TelegramChatInput from './common/TelegramChatInput'
 import { 
   User as UserIcon, 
   Globe, 
@@ -45,17 +46,24 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   const [shops, setShops] = useState<Shop[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
+  const [showTelegramSettings, setShowTelegramSettings] = useState(false)
   const [settings, setSettings] = useState({
     notifications: {
       orderUpdates: true,
       promotions: false,
       newsletter: false
     },
+    telegram: {
+      chatId: '',
+      username: '',
+      enableNotifications: true
+    },
     theme: 'auto' as 'light' | 'dark' | 'auto',
     language: 'en',
     currency: 'USD'
   })
   const [settingsLoading, setSettingsLoading] = useState(false)
+  const [botToken, setBotToken] = useState('')
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalSpent: 0,
@@ -245,6 +253,10 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
     setShowSupport(true)
   }
 
+  const handleTelegramSettingsClick = () => {
+    setShowTelegramSettings(true)
+  }
+
   const handleSaveSettings = async () => {
     try {
       setSettingsLoading(true)
@@ -292,6 +304,14 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
       } catch (error) {
         console.error('Error loading saved settings:', error)
       }
+    }
+  }, [])
+
+  // Get bot token from environment
+  useEffect(() => {
+    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
+    if (token) {
+      setBotToken(token)
     }
   }, [])
 
@@ -442,6 +462,40 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
                 <option value="ETB">ETB (Br)</option>
                 <option value="GBP">GBP (£)</option>
               </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Telegram Settings */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Telegram Integration
+          </h3>
+          <div className="space-y-3">
+            <TelegramChatInput
+              value={settings.telegram.chatId}
+              onChange={(chatId) => updateSetting('telegram', 'chatId', chatId)}
+              label="Your Telegram Chat"
+              placeholder="Enter your @username or chat ID"
+              botToken={botToken}
+              showValidation={true}
+            />
+            <p className="text-xs text-telegram-hint">
+              Link your Telegram account to receive order updates and notifications
+            </p>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="telegramNotifications"
+                checked={settings.telegram.enableNotifications}
+                onChange={(e) => updateSetting('telegram', 'enableNotifications', e.target.checked)}
+                className="mr-2"
+              />
+              <label htmlFor="telegramNotifications" className="text-sm text-telegram-text">
+                Enable Telegram notifications
+              </label>
             </div>
           </div>
         </div>
@@ -894,6 +948,20 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
             <div>
               <span className="text-telegram-text">Settings</span>
               <p className="text-xs text-telegram-hint">Notifications, theme, language</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-telegram-hint" />
+        </button>
+        
+        <button
+          onClick={handleTelegramSettingsClick}
+          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+        >
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="w-5 h-5 text-telegram-hint" />
+            <div>
+              <span className="text-telegram-text">Telegram Settings</span>
+              <p className="text-xs text-telegram-hint">Connect your Telegram account</p>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-telegram-hint" />

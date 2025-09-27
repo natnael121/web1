@@ -40,6 +40,7 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
+VITE_TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ```
 
 ### 3. Firebase Setup
@@ -92,6 +93,8 @@ vercel
 
 1. Create a new bot with [@BotFather](https://t.me/botfather)
 2. Get your bot token
+3. Add the bot token to your `.env` file as `VITE_TELEGRAM_BOT_TOKEN`
+4. For groups/channels, add the bot as an administrator
 3. Set up the Mini App:
    ```
    /newapp
@@ -121,6 +124,7 @@ In your Vercel dashboard, add these environment variables:
 | `VITE_FIREBASE_STORAGE_BUCKET` | your-project.appspot.com |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Your sender ID |
 | `VITE_FIREBASE_APP_ID` | Your app ID |
+| `VITE_TELEGRAM_BOT_TOKEN` | Your Telegram bot token |
 
 ## 📖 Usage Instructions
 
@@ -141,6 +145,12 @@ In your Vercel dashboard, add these environment variables:
 
 ### Adding New Categories:
 Edit `src/components/ShopList.tsx` and update the `categories` array.
+
+### Telegram Integration:
+- Users can enter either @username or numeric chat ID
+- The system automatically converts usernames to chat IDs
+- All Telegram communications use numeric chat IDs internally
+- Bot must be added as admin to groups/channels for proper access
 
 ### Changing Theme:
 Modify `tailwind.config.js` to customize colors and styling.
@@ -185,6 +195,12 @@ Modify `tailwind.config.js` to customize colors and styling.
    - Verify environment variables
    - Check Firebase project settings
    - Ensure Firestore is enabled
+
+3. **Telegram integration issues**:
+   - Verify bot token is correct and active
+   - Ensure bot is added as admin to groups/channels
+   - Check that usernames are public and accessible
+   - Validate chat IDs are correct format
 
 3. **Build failures on Vercel**:
    - Check all environment variables are set

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Department } from '../../types'
 import { X, Save, Users, MessageCircle, Settings } from 'lucide-react'
+import TelegramChatInput from '../common/TelegramChatInput'
 
 interface DepartmentEditModalProps {
   department?: Department
@@ -29,6 +30,7 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     userId: userId,
     shopId: shopId
   })
+  const [botToken, setBotToken] = useState('')
 
   const roles = [
     { value: 'kitchen', label: 'Kitchen', description: 'Receives order notifications for food preparation' },
@@ -70,6 +72,14 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     
     setFormData({ ...formData, notificationTypes: newTypes })
   }
+
+  // Get bot token from environment or user settings
+  React.useEffect(() => {
+    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
+    if (token) {
+      setBotToken(token)
+    }
+  }, [])
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -145,39 +155,31 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
               Telegram Configuration
             </h4>
             
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">
-                  Telegram Chat ID *
-                </label>
-                <input
-                  type="text"
-                  value={formData.telegramChatId}
-                  onChange={(e) => setFormData({...formData, telegramChatId: e.target.value})}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                  required
-                  placeholder="-1001234567890"
-                />
-                <p className="text-xs text-telegram-hint mt-1">
-                  The Telegram chat/group ID where notifications will be sent
-                </p>
-              </div>
+            <div className="space-y-4">
+              <TelegramChatInput
+                value={formData.telegramChatId}
+                onChange={(chatId) => setFormData({...formData, telegramChatId: chatId})}
+                label="Primary Telegram Chat *"
+                placeholder="Enter @username or chat ID"
+                required
+                botToken={botToken}
+                showValidation={true}
+              />
+              <p className="text-xs text-telegram-hint -mt-2">
+                The main Telegram chat/group where notifications will be sent
+              </p>
 
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">
-                  Admin Chat ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.adminChatId}
-                  onChange={(e) => setFormData({...formData, adminChatId: e.target.value})}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                  placeholder="-1001234567890"
-                />
-                <p className="text-xs text-telegram-hint mt-1">
-                  Optional admin chat for escalated notifications
-                </p>
-              </div>
+              <TelegramChatInput
+                value={formData.adminChatId}
+                onChange={(chatId) => setFormData({...formData, adminChatId: chatId})}
+                label="Admin Chat (Optional)"
+                placeholder="Enter @username or chat ID"
+                botToken={botToken}
+                showValidation={true}
+              />
+              <p className="text-xs text-telegram-hint -mt-2">
+                Optional admin chat for escalated notifications and management
+              </p>
             </div>
           </div>
 
