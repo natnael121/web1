@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
+import UserRegistration from './components/UserRegistration'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
-import { User } from './types'
+import { User, UserData } from './types'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -28,6 +30,9 @@ const db = getFirestore(app)
 function App() {
   const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('shops')
   const [user, setUser] = useState<User | null>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [userLoading, setUserLoading] = useState(true)
+  const [showRegistration, setShowRegistration] = useState(false)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -59,17 +64,89 @@ function App() {
       // Get user data from Telegram
       const telegramUser = tg.initDataUnsafe?.user
       if (telegramUser) {
-        setUser({
+        const userInfo = {
           id: telegramUser.id.toString(),
           firstName: telegramUser.first_name,
           lastName: telegramUser.last_name || '',
           username: telegramUser.username || '',
           languageCode: telegramUser.language_code || 'en',
           telegramId: telegramUser.id
-        })
+        }
+        setUser(userInfo)
+        
+        // Check if user exists in database
+        checkUserInDatabase(telegramUser.id)
+      } else {
+        setUserLoading(false)
       }
+    } else {
+      setUserLoading(false)
     }
   }, [])
+
+  const checkUserInDatabase = async (telegramId: number) => {
+    try {
+      setUserLoading(true)
+      const usersRef = collection(db, 'users')
+      const userQuery = query(usersRef, where('telegramId', '==', telegramId))
+      const userSnapshot = await getDocs(userQuery)
+      
+      if (!userSnapshot.empty) {
+        const userDoc = userSnapshot.docs[0]
+        const userData = userDoc.data() as UserData
+        setUserData({
+          ...userData,
+          createdAt: userData.createdAt?.toDate?.() || new Date(),
+          updatedAt: userData.updatedAt?.toDate?.() || new Date()
+        })
+      } else {
+        // User not found, show registration
+        setShowRegistration(true)
+      }
+    } catch (error) {
+      console.error('Error checking user in database:', error)
+    } finally {
+      setUserLoading(false)
+    }
+  }
+
+  const handleRegistrationComplete = (newUserData: UserData) => {
+    setUserData(newUserData)
+    setShowRegistration(false)
+  }
+
+  // Show loading while checking user
+  if (userLoading) {
+    return (
+      <TelegramProvider>
+        <FirebaseProvider db={db}>
+          <div className="min-h-screen bg-telegram-bg text-telegram-text flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-telegram-hint">Loading...</p>
+            </div>
+          </div>
+        </FirebaseProvider>
+      </TelegramProvider>
+    )
+  }
+
+  // Show registration if user not in database
+  if (showRegistration && user) {
+    return (
+      <TelegramProvider>
+        <FirebaseProvider db={db}>
+          <div className="min-h-screen bg-telegram-bg text-telegram-text">
+            <SyncStatus />
+            <UserRegistration 
+              user={user} 
+              onComplete={handleRegistrationComplete}
+            />
+          </div>
+        </FirebaseProvider>
+      </TelegramProvider>
+    )
+  }
 
   return (
     <TelegramProvider>
@@ -90,15 +167,17 @@ function App() {
             {/* Main Content */}
             <main className="pb-20">
               {currentView === 'shops' && <ShopList />}
-              {currentView === 'profile' && <UserProfile user={user} />}
+              {currentView === 'profile' && <UserProfile user={user} userData={userData} />}
               {currentView === 'admin' && <AdminPanel />}
             </main>
 
             {/* Bottom Navigation */}
-            <Navigation 
-              currentView={currentView} 
-              onViewChange={setCurrentView} 
-            />
+            {(userData || user) && (
+              <Navigation 
+                currentView={currentView} 
+                onViewChange={setCurrentView} 
+              />
+            )}
           </div>
         </div>
       </FirebaseProvider>

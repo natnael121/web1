@@ -3,6 +3,7 @@ import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
+import ProductDetails from './ProductDetails'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 
 // Simple IndexedDB wrapper for ShopList caching
@@ -179,6 +180,7 @@ const ShopList: React.FC = () => {
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     // Initialize cache
@@ -712,6 +714,37 @@ const ShopList: React.FC = () => {
     setError(null)
   }
 
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product)
+  }
+
+  const handleCloseProductDetails = () => {
+    setSelectedProduct(null)
+  }
+
+  const handleAddToCartFromDetails = (product: Product, quantity: number) => {
+    const existingItem = cart.find(item => item.productId === product.id)
+    if (existingItem) {
+      setCart(cart.map(item => 
+        item.productId === product.id 
+          ? { ...item, quantity: quantity, total: quantity * item.price }
+          : item
+      ))
+    } else {
+      const newItem: OrderItem = {
+        productId: product.id,
+        productName: product.name,
+        quantity: quantity,
+        price: product.price,
+        total: product.price * quantity,
+        productImage: product.images?.[0],
+        productSku: product.sku
+      }
+      setCart([...cart, newItem])
+    }
+    setSelectedProduct(null)
+  }
+
   if (loading) {
     return (
       <div className="p-4">
@@ -1054,7 +1087,10 @@ const ShopList: React.FC = () => {
                 className="bg-telegram-secondary-bg rounded-lg p-4"
               >
                 <div className="flex items-start space-x-3">
-                  <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div 
+                    className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+                    onClick={() => handleProductClick(product)}
+                  >
                     {product.images?.[0] ? (
                       <img 
                         src={product.images[0]} 
@@ -1067,7 +1103,10 @@ const ShopList: React.FC = () => {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
-                      <h3 className="font-semibold text-telegram-text truncate pr-2">
+                      <h3 
+                        className="font-semibold text-telegram-text truncate pr-2 cursor-pointer hover:text-telegram-button"
+                        onClick={() => handleProductClick(product)}
+                      >
                         {product.name}
                       </h3>
                       <div className="text-right flex-shrink-0">
@@ -1082,7 +1121,10 @@ const ShopList: React.FC = () => {
                       </div>
                     </div>
                     
-                    <p className="text-sm text-telegram-hint mt-1 line-clamp-2">
+                    <p 
+                      className="text-sm text-telegram-hint mt-1 line-clamp-2 cursor-pointer"
+                      onClick={() => handleProductClick(product)}
+                    >
                       {product.description}
                     </p>
                     
@@ -1120,6 +1162,13 @@ const ShopList: React.FC = () => {
                       ) : (
                         <span className="text-sm text-red-500">Out of Stock</span>
                       )}
+                      
+                      <button
+                        onClick={() => handleProductClick(product)}
+                        className="text-sm text-telegram-button hover:underline"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1127,6 +1176,17 @@ const ShopList: React.FC = () => {
             )
           })}
         </div>
+        
+        {/* Product Details Modal */}
+        {selectedProduct && (
+          <ProductDetails
+            product={selectedProduct}
+            onClose={handleCloseProductDetails}
+            onAddToCart={handleAddToCartFromDetails}
+            cartItem={cart.find(item => item.productId === selectedProduct.id)}
+            onUpdateCartQuantity={updateCartQuantity}
+          />
+        )}
       </div>
     )
   }
