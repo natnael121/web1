@@ -1,27 +1,15 @@
 import React, { useEffect, useState } from 'react'
-import { 
-  collection,  
-  getDocs, 
-  query, 
-  where, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  addDoc, 
-  getDoc,
-  orderBy 
-} from 'firebase/firestore'
-import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
+import { cacheSyncService } from '../services/cacheSync'
+import { useCache } from '../hooks/useCache'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
 
 const AdminPanel: React.FC = () => {
-  const { db } = useFirebase()
   const { user } = useTelegram()
+  const { data: userData, loading: userLoading, updateData: updateUserData } = useCache<UserData>('users', user?.id)
   const [loading, setLoading] = useState(true)
-  const [userData, setUserData] = useState<UserData | null>(null)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -58,52 +46,13 @@ const AdminPanel: React.FC = () => {
         return
       }
 
-      // Get user document from Firebase using Telegram ID
-      const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
-
-      if (userSnapshot.empty) {
-        setError('User not found in database')
-        setLoading(false)
-        return
-      }
-
-      const userDoc = userSnapshot.docs[0]
-      const userData = userDoc.data() as UserData
-      setUserData(userData)
-
       // Find shops owned by this user (if any)
-      const shopsRef = collection(db, 'shops')
-      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
-      const shopsSnapshot = await getDocs(ownerQuery)
- 
-      const shopsList: Shop[] = []
-      shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive !== false,
-          businessInfo: data.businessInfo || {},
-          settings: data.settings || {
-            currency: 'USD',
-            taxRate: 0,
-            businessHours: { open: '09:00', close: '18:00', days: [] },
-            orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
-          },
-          stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        shopsList.push(shop)
-      })
-
-      setOwnedShops(shopsList)
+      const cachedShops = await cacheSyncService.getCachedData<Shop>('shops')
+      const userShops = Array.isArray(cachedShops) 
+        ? cachedShops.filter(shop => shop.ownerId === user.id)
+        : []
+      
+      setOwnedShops(userShops)
       
     } catch (error) {
       console.error('Error loading user data:', error)
@@ -124,42 +73,12 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopProducts = async (shopId: string) => {
     try {
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef, 
-        where('shopId', '==', shopId),
-        orderBy('createdAt', 'desc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
+      const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
+      const shopProducts = Array.isArray(cachedProducts)
+        ? cachedProducts.filter(product => product.shopId === shopId)
+        : []
       
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name,
-          description: data.description,
-          price: data.price,
-          stock: data.stock || 0,
-          category: data.category,
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 5,
-          tags: data.tags || [],
-          featured: data.featured || false,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
+      setProducts(shopProducts)
     } catch (error) {
       console.error('Error fetching products:', error)
       setError('Failed to load products. Please try again.')
@@ -169,36 +88,12 @@ const AdminPanel: React.FC = () => {
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
-      const categoriesRef = collection(db, 'categories')
-      const categoriesQuery = query(
-        categoriesRef, 
-        where('shopId', '==', shopId),
-        
-        orderBy('order', 'asc')
-      )
-      const categoriesSnapshot = await getDocs(categoriesQuery)
+      const cachedCategories = await cacheSyncService.getCachedData<Category>('categories')
+      const shopCategories = Array.isArray(cachedCategories)
+        ? cachedCategories.filter(category => category.shopId === shopId)
+        : []
       
-      const categoriesList: Category[] = []
-      categoriesSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const category: Category = {
-          id: doc.id,
-          userId: data.userId,
-          shopId: data.shopId,
-          name: data.name,
-          description: data.description,
-          color: data.color,
-          icon: data.icon,
-          order: data.order || 0,
-          isActive: data.isActive !== false,
-          productCount: data.productCount || 0,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        categoriesList.push(category)
-      })
-
-      setCategories(categoriesList)
+      setCategories(shopCategories)
     } catch (error) {
       console.error('Error fetching categories:', error)
       setError('Failed to load categories. Please try again.')
@@ -209,39 +104,12 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopDepartments = async (shopId: string) => {
   try {
-    const departmentsRef = collection(db, "departments")
-    const departmentsQuery = query(
-      departmentsRef,
-      where("shopId", "==", shopId),
-      orderBy("order", "asc") // requires composite index!
-    )
-    const departmentsSnapshot = await getDocs(departmentsQuery)
-
-    const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
-      const data = doc.data()
-
-      return {
-        id: doc.id,
-        userId: data.userId || "",
-        shopId: data.shopId || "",
-        name: data.name || "",
-        telegramChatId: data.telegramChatId || "",
-        adminChatId: data.adminChatId || "",
-        role: data.role || "",
-        order: typeof data.order === "number" ? data.order : 0,
-        icon: data.icon || "",
-        isActive: data.isActive !== false,
-        notificationTypes: data.notificationTypes || [],
-        createdAt:
-          data.createdAt?.toDate?.() ??
-          (data.createdAt ? new Date(data.createdAt) : new Date()),
-        updatedAt:
-          data.updatedAt?.toDate?.() ??
-          (data.updatedAt ? new Date(data.updatedAt) : new Date()),
-      }
-    })
-
-    setDepartments(departmentsList)
+    const cachedDepartments = await cacheSyncService.getCachedData<Department>('departments')
+    const shopDepartments = Array.isArray(cachedDepartments)
+      ? cachedDepartments.filter(department => department.shopId === shopId)
+      : []
+    
+    setDepartments(shopDepartments)
   } catch (error) {
     console.error("Error fetching departments:", error)
     setError("Failed to load departments. Please try again.")
@@ -252,26 +120,27 @@ const AdminPanel: React.FC = () => {
   const fetchShopStats = async (shopId: string) => {
     try {
       // Get product count
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
-      const productsSnapshot = await getDocs(productsQuery)
-      const totalProducts = productsSnapshot.size
+      const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
+      const shopProducts = Array.isArray(cachedProducts)
+        ? cachedProducts.filter(product => product.shopId === shopId && product.isActive)
+        : []
+      const totalProducts = shopProducts.length
       
       // Get order stats
-      const ordersRef = collection(db, 'orders')
-      const ordersQuery = query(ordersRef, where('shopId', '==', shopId))
-      const ordersSnapshot = await getDocs(ordersQuery)
+      const cachedOrders = await cacheSyncService.getCachedData<any>('orders')
+      const shopOrders = Array.isArray(cachedOrders)
+        ? cachedOrders.filter(order => order.shopId === shopId)
+        : []
       
       let totalOrders = 0
       let totalRevenue = 0
       const customerIds = new Set<string>()
       
-      ordersSnapshot.forEach((doc) => {
-        const data = doc.data()
+      shopOrders.forEach((order) => {
         totalOrders++
-        totalRevenue += data.total || 0
-        if (data.customerId) {
-          customerIds.add(data.customerId)
+        totalRevenue += order.total || 0
+        if (order.customerId) {
+          customerIds.add(order.customerId)
         }
       })
       
@@ -301,19 +170,20 @@ const AdminPanel: React.FC = () => {
       
       if (editingProduct) {
         // Update existing product
-        const productRef = doc(db, 'products', editingProduct.id)
-        await updateDoc(productRef, {
+        await cacheSyncService.setCachedData('products', editingProduct.id, {
+          ...editingProduct,
           ...productData,
           updatedAt: new Date()
-        })
+        }, true)
       } else {
         // Add new product
-        const productsRef = collection(db, 'products')
-        await addDoc(productsRef, {
+        const productId = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        await cacheSyncService.setCachedData('products', productId, {
+          id: productId,
           ...productData,
           createdAt: new Date(),
           updatedAt: new Date()
-        })
+        }, true)
       }
       
       setEditingProduct(null)
@@ -330,8 +200,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteProduct = async (productId: string) => {
     try {
       setError(null)
-      const productRef = doc(db, 'products', productId)
-      await deleteDoc(productRef)
+      await cacheSyncService.deleteCachedData('products', productId, true)
       
       if (selectedShop) {
         await fetchShopProducts(selectedShop.id)
@@ -348,19 +217,20 @@ const AdminPanel: React.FC = () => {
       
       if (editingCategory) {
         // Update existing category
-        const categoryRef = doc(db, 'categories', editingCategory.id)
-        await updateDoc(categoryRef, {
+        await cacheSyncService.setCachedData('categories', editingCategory.id, {
+          ...editingCategory,
           ...categoryData,
           updatedAt: new Date()
-        })
+        }, true)
       } else {
         // Add new category
-        const categoriesRef = collection(db, 'categories')
-        await addDoc(categoriesRef, {
+        const categoryId = `category_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        await cacheSyncService.setCachedData('categories', categoryId, {
+          id: categoryId,
           ...categoryData,
           createdAt: new Date(),
           updatedAt: new Date()
-        })
+        }, true)
       }
       
       setEditingCategory(null)
@@ -377,8 +247,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       setError(null)
-      const categoryRef = doc(db, 'categories', categoryId)
-      await deleteDoc(categoryRef)
+      await cacheSyncService.deleteCachedData('categories', categoryId, true)
       
       if (selectedShop) {
         await fetchShopCategories(selectedShop.id)
@@ -395,19 +264,20 @@ const AdminPanel: React.FC = () => {
       
       if (editingDepartment) {
         // Update existing department
-        const departmentRef = doc(db, 'departments', editingDepartment.id)
-        await updateDoc(departmentRef, {
+        await cacheSyncService.setCachedData('departments', editingDepartment.id, {
+          ...editingDepartment,
           ...departmentData,
           updatedAt: new Date()
-        })
+        }, true)
       } else {
         // Add new department
-        const departmentsRef = collection(db, 'departments')
-        await addDoc(departmentsRef, {
+        const departmentId = `department_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        await cacheSyncService.setCachedData('departments', departmentId, {
+          id: departmentId,
           ...departmentData,
           createdAt: new Date(),
           updatedAt: new Date()
-        })
+        }, true)
       }
       
       setEditingDepartment(null)
@@ -424,8 +294,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteDepartment = async (departmentId: string) => {
     try {
       setError(null)
-      const departmentRef = doc(db, 'departments', departmentId)
-      await deleteDoc(departmentRef)
+      await cacheSyncService.deleteCachedData('departments', departmentId, true)
       
       if (selectedShop) {
         await fetchShopDepartments(selectedShop.id)
@@ -520,7 +389,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
     }
   }
 
-  if (loading) {
+  if (userLoading || loading) {
     return (
       <div className="p-4">
         <div className="animate-pulse space-y-4">
@@ -930,11 +799,10 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           shop={editingShop}
           onSave={async (updatedShop) => {
             try {
-              const shopRef = doc(db, 'shops', updatedShop.id)
-              await updateDoc(shopRef, {
+              await cacheSyncService.setCachedData('shops', updatedShop.id, {
                 ...updatedShop,
                 updatedAt: new Date()
-              })
+              }, true)
               setEditingShop(null)
               await loadUserData()
             } catch (error) {
