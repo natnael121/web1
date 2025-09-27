@@ -1,321 +1,27 @@
 import React, { useEffect, useState } from 'react'
-import { useTelegram } from '../contexts/TelegramContext'
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc, 
+  getDoc,
+  orderBy 
+} from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
+import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
 
-// Simple IndexedDB wrapper for AdminPanel caching (same as ShopList)
-class AdminPanelCache {
-  private dbName = 'AdminPanelCache'
-  private version = 1
-  private db: IDBDatabase | null = null
-
-  async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version)
-      
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => {
-        this.db = request.result
-        resolve()
-      }
-      
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result
-        
-        // Create stores
-        if (!db.objectStoreNames.contains('users')) {
-          db.createObjectStore('users', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('shops')) {
-          db.createObjectStore('shops', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('products')) {
-          db.createObjectStore('products', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('categories')) {
-          db.createObjectStore('categories', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('departments')) {
-          db.createObjectStore('departments', { keyPath: 'id' })
-        }
-      }
-    })
-  }
-
-  async getUserData(userId: string): Promise<UserData | null> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['users'], 'readonly')
-      const store = transaction.objectStore('users')
-      const request = store.get(userId)
-      
-      request.onsuccess = () => resolve(request.result || null)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async setUserData(userId: string, userData: UserData): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['users'], 'readwrite')
-      const store = transaction.objectStore('users')
-      const request = store.put({ id: userId, ...userData })
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async getShops(): Promise<Shop[]> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['shops'], 'readonly')
-      const store = transaction.objectStore('shops')
-      const request = store.getAll()
-      
-      request.onsuccess = () => resolve(request.result || [])
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async setShops(shops: Shop[]): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['shops'], 'readwrite')
-      const store = transaction.objectStore('shops')
-      
-      // Clear existing data
-      store.clear()
-      
-      // Add new data
-      shops.forEach(shop => store.add(shop))
-      
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-    })
-  }
-
-  async getProducts(shopId: string): Promise<Product[]> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['products'], 'readonly')
-      const store = transaction.objectStore('products')
-      const request = store.getAll()
-      
-      request.onsuccess = () => {
-        const allProducts = request.result || []
-        const shopProducts = allProducts.filter((p: Product) => p.shopId === shopId)
-        resolve(shopProducts)
-      }
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async setProducts(shopId: string, products: Product[]): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['products'], 'readwrite')
-      const store = transaction.objectStore('products')
-      
-      // Remove existing products for this shop
-      const getAllRequest = store.getAll()
-      getAllRequest.onsuccess = () => {
-        const allProducts = getAllRequest.result || []
-        const otherShopProducts = allProducts.filter((p: Product) => p.shopId !== shopId)
-        
-        // Clear and re-add
-        store.clear()
-        otherShopProducts.forEach(product => store.add(product))
-        products.forEach(product => store.add(product))
-        
-        transaction.oncomplete = () => resolve()
-        transaction.onerror = () => reject(transaction.error)
-      }
-    })
-  }
-
-  async getCategories(shopId: string): Promise<Category[]> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['categories'], 'readonly')
-      const store = transaction.objectStore('categories')
-      const request = store.getAll()
-      
-      request.onsuccess = () => {
-        const allCategories = request.result || []
-        const shopCategories = allCategories.filter((c: Category) => c.shopId === shopId)
-        resolve(shopCategories)
-      }
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async setCategories(shopId: string, categories: Category[]): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['categories'], 'readwrite')
-      const store = transaction.objectStore('categories')
-      
-      // Remove existing categories for this shop
-      const getAllRequest = store.getAll()
-      getAllRequest.onsuccess = () => {
-        const allCategories = getAllRequest.result || []
-        const otherShopCategories = allCategories.filter((c: Category) => c.shopId !== shopId)
-        
-        // Clear and re-add
-        store.clear()
-        otherShopCategories.forEach(category => store.add(category))
-        categories.forEach(category => store.add(category))
-        
-        transaction.oncomplete = () => resolve()
-        transaction.onerror = () => reject(transaction.error)
-      }
-    })
-  }
-
-  async getDepartments(shopId: string): Promise<Department[]> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['departments'], 'readonly')
-      const store = transaction.objectStore('departments')
-      const request = store.getAll()
-      
-      request.onsuccess = () => {
-        const allDepartments = request.result || []
-        const shopDepartments = allDepartments.filter((d: Department) => d.shopId === shopId)
-        resolve(shopDepartments)
-      }
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async setDepartments(shopId: string, departments: Department[]): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['departments'], 'readwrite')
-      const store = transaction.objectStore('departments')
-      
-      // Remove existing departments for this shop
-      const getAllRequest = store.getAll()
-      getAllRequest.onsuccess = () => {
-        const allDepartments = getAllRequest.result || []
-        const otherShopDepartments = allDepartments.filter((d: Department) => d.shopId !== shopId)
-        
-        // Clear and re-add
-        store.clear()
-        otherShopDepartments.forEach(department => store.add(department))
-        departments.forEach(department => store.add(department))
-        
-        transaction.oncomplete = () => resolve()
-        transaction.onerror = () => reject(transaction.error)
-      }
-    })
-  }
-
-  async addProduct(product: Product): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['products'], 'readwrite')
-      const store = transaction.objectStore('products')
-      const request = store.put(product)
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async updateProduct(product: Product): Promise<void> {
-    return this.addProduct(product) // Same operation in IndexedDB
-  }
-
-  async deleteProduct(productId: string): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['products'], 'readwrite')
-      const store = transaction.objectStore('products')
-      const request = store.delete(productId)
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async addCategory(category: Category): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['categories'], 'readwrite')
-      const store = transaction.objectStore('categories')
-      const request = store.put(category)
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async deleteCategory(categoryId: string): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['categories'], 'readwrite')
-      const store = transaction.objectStore('categories')
-      const request = store.delete(categoryId)
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async addDepartment(department: Department): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['departments'], 'readwrite')
-      const store = transaction.objectStore('departments')
-      const request = store.put(department)
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async deleteDepartment(departmentId: string): Promise<void> {
-    if (!this.db) await this.init()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['departments'], 'readwrite')
-      const store = transaction.objectStore('departments')
-      const request = store.delete(departmentId)
-      
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-}
-
-const adminPanelCache = new AdminPanelCache()
-
 const AdminPanel: React.FC = () => {
-  const { user } = useTelegram()
   const { db } = useFirebase()
-  const [userData, setUserData] = useState<UserData | null>(null)
-  const [userLoading, setUserLoading] = useState(true)
+  const { user } = useTelegram()
   const [loading, setLoading] = useState(true)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -333,40 +39,17 @@ const AdminPanel: React.FC = () => {
   const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
-  const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   useEffect(() => {
-    // Listen for online/offline events
-    const handleOnline = () => {
-      setIsOnline(true)
-      // Trigger sync when coming back online
-      if (user?.id) {
-        loadUserData()
-      }
-    }
-    const handleOffline = () => setIsOnline(false)
-    
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    
-    // Initialize cache
-    adminPanelCache.init().catch(console.error)
-    
     if (user?.id) {
       loadUserData()
     } else {
       setLoading(false)
     }
-    
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
   }, [user])
 
   const loadUserData = async () => {
     try {
-      setUserLoading(true)
       setLoading(true)
       setError(null)
       
@@ -375,92 +58,62 @@ const AdminPanel: React.FC = () => {
         return
       }
 
-      console.log('Loading user data for:', user.id)
-      
-      // Load user data from cache first (fast)
-      const cachedUserData = await adminPanelCache.getUserData(user.id)
-      if (cachedUserData) {
-        console.log('Found cached user data:', cachedUserData)
-        setUserData(cachedUserData)
-        setUserLoading(false)
+      // Get user document from Firebase using Telegram ID
+      const usersRef = collection(db, 'users')
+      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+      const userSnapshot = await getDocs(userQuery)
+
+      if (userSnapshot.empty) {
+        setError('User not found in database')
+        setLoading(false)
+        return
       }
-      
-      // Load shops from cache first (fast)
-      const cachedShops = await adminPanelCache.getShops()
-      if (cachedShops.length > 0) {
-        const userShops = cachedShops.filter(shop => shop.ownerId === user.id)
-        console.log('Found cached shops:', userShops.length)
-        setOwnedShops(userShops)
-      }
-      
-      // If online, sync with Firebase in background
-      if (isOnline) {
-        console.log('Online: Syncing with Firebase...')
-        try {
-          // Query users collection by telegramId
-          const usersRef = collection(db, 'users')
-          const userQuery = query(usersRef, where('telegram_id', '==', parseInt(user.id)))
-          const userSnapshot = await getDocs(userQuery)
-          
-          if (!userSnapshot.empty) {
-            const userDoc = userSnapshot.docs[0]
-            const userData = userDoc.data() as UserData
-            setUserData(userData)
-            await adminPanelCache.setUserData(user.id, userData)
-          }
-          
-          // Fetch all active shops for browsing
-          const shopsRef = collection(db, 'shops')
-          const shopsQuery = query(
-            shopsRef, 
-            where('isActive', '==', true),
-            orderBy('updatedAt', 'desc')
-          )
-          const shopsSnapshot = await getDocs(shopsQuery)
-          
-          const allShops: Shop[] = []
-          shopsSnapshot.forEach((doc) => {
-            const data = doc.data()
-            const shop: Shop = {
-              id: doc.id,
-              ownerId: data.ownerId,
-              name: data.name,
-              slug: data.slug,
-              description: data.description,
-              logo: data.logo,
-              isActive: data.isActive,
-              businessInfo: data.businessInfo,
-              settings: data.settings,
-              stats: data.stats,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date()
-            }
-            allShops.push(shop)
-          })
-          
-          await adminPanelCache.setShops(allShops)
-          const userShops = allShops.filter(shop => shop.ownerId === user.id)
-          setOwnedShops(userShops)
-          
-          console.log('Firebase sync completed')
-        } catch (syncError) {
-          console.warn('Firebase sync failed, using cached data:', syncError)
+
+      const userDoc = userSnapshot.docs[0]
+      const userData = userDoc.data() as UserData
+      setUserData(userData)
+
+      // Find shops owned by this user (if any)
+      const shopsRef = collection(db, 'shops')
+      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
+      const shopsSnapshot = await getDocs(ownerQuery)
+ 
+      const shopsList: Shop[] = []
+      shopsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const shop: Shop = {
+          id: doc.id,
+          ownerId: data.ownerId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          logo: data.logo,
+          isActive: data.isActive !== false,
+          businessInfo: data.businessInfo || {},
+          settings: data.settings || {
+            currency: 'USD',
+            taxRate: 0,
+            businessHours: { open: '09:00', close: '18:00', days: [] },
+            orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
+          },
+          stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
         }
-      } else {
-        console.log('Offline: Using cached data only')
-      }
+        shopsList.push(shop)
+      })
+
+      setOwnedShops(shopsList)
       
     } catch (error) {
       console.error('Error loading user data:', error)
       setError('Failed to load user data. Please try again.')
     } finally {
       setLoading(false)
-      setUserLoading(false)
     }
   }
 
   const fetchShopData = async (shopId: string) => {
-    console.log('Fetching shop data for:', shopId)
     await Promise.all([
       fetchShopProducts(shopId),
       fetchShopCategories(shopId),
@@ -471,67 +124,42 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopProducts = async (shopId: string) => {
     try {
-      console.log('Fetching products for shop:', shopId)
+      const productsRef = collection(db, 'products')
+      const productsQuery = query(
+        productsRef, 
+        where('shopId', '==', shopId),
+        orderBy('createdAt', 'desc')
+      )
+      const productsSnapshot = await getDocs(productsQuery)
       
-      // Load from cache first (fast)
-      if (!isOnline) {
-        console.log('Offline: Loading products from cache')
-        const cachedProducts = await adminPanelCache.getProducts(shopId)
-        if (cachedProducts.length > 0) {
-          setProducts(cachedProducts)
-          return
+      const productsList: Product[] = []
+      productsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const product: Product = {
+          id: doc.id,
+          shopId: data.shopId,
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          stock: data.stock || 0,
+          category: data.category,
+          subcategory: data.subcategory,
+          images: data.images || [],
+          sku: data.sku,
+          isActive: data.isActive !== false,
+          lowStockAlert: data.lowStockAlert || 5,
+          tags: data.tags || [],
+          featured: data.featured || false,
+          costPrice: data.costPrice,
+          weight: data.weight,
+          dimensions: data.dimensions,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
         }
-      }
-      
-      const cachedProducts = await adminPanelCache.getProducts(shopId)
-      console.log('Found cached products:', cachedProducts.length)
-      setProducts(cachedProducts)
-      
-      // If online, sync in background
-      if (isOnline) {
-        try {
-          const productsRef = collection(db, 'products')
-          const productsQuery = query(
-            productsRef, 
-            where('shopId', '==', shopId),
-            where('isActive', '==', true),
-            orderBy('name', 'asc')
-          )
-          const productsSnapshot = await getDocs(productsQuery)
-          
-          const productsList: Product[] = []
-          productsSnapshot.forEach((doc) => {
-            const data = doc.data()
-            const product: Product = {
-              id: doc.id,
-              shopId: data.shopId,
-              name: data.name || 'Unnamed Product',
-              description: data.description || 'No description available',
-              price: data.price || 0,
-              stock: data.stock || 0,
-              category: data.category || 'other',
-              subcategory: data.subcategory,
-              images: data.images || [],
-              sku: data.sku,
-              isActive: data.isActive !== false,
-              lowStockAlert: data.lowStockAlert || 0,
-              tags: data.tags,
-              featured: data.featured,
-              costPrice: data.costPrice,
-              weight: data.weight,
-              dimensions: data.dimensions,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date()
-            }
-            productsList.push(product)
-          })
+        productsList.push(product)
+      })
 
-          setProducts(productsList)
-          await adminPanelCache.setProducts(shopId, productsList)
-        } catch (syncError) {
-          console.warn('Product sync failed, using cached data:', syncError)
-        }
-      }
+      setProducts(productsList)
     } catch (error) {
       console.error('Error fetching products:', error)
       setError('Failed to load products. Please try again.')
@@ -540,144 +168,115 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopCategories = async (shopId: string) => {
     try {
-      console.log('Fetching categories for shop:', shopId)
+      setLoading(true)
+      const categoriesRef = collection(db, 'categories')
+      const categoriesQuery = query(
+        categoriesRef, 
+        where('shopId', '==', shopId),
+        
+        orderBy('order', 'asc')
+      )
+      const categoriesSnapshot = await getDocs(categoriesQuery)
       
-      // Load from cache first (fast)
-      if (!isOnline) {
-        console.log('Offline: Loading categories from cache')
-        const cachedCategories = await adminPanelCache.getCategories(shopId)
-        if (cachedCategories.length > 0) {
-          setCategories(cachedCategories)
-          return
+      const categoriesList: Category[] = []
+      categoriesSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const category: Category = {
+          id: doc.id,
+          userId: data.userId,
+          shopId: data.shopId,
+          name: data.name,
+          description: data.description,
+          color: data.color,
+          icon: data.icon,
+          order: data.order || 0,
+          isActive: data.isActive !== false,
+          productCount: data.productCount || 0,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
         }
-      }
-      
-      const cachedCategories = await adminPanelCache.getCategories(shopId)
-      console.log('Found cached categories:', cachedCategories.length)
-      setCategories(cachedCategories)
-      
-      // If online, sync in background
-      if (isOnline) {
-        try {
-          const categoriesRef = collection(db, 'categories')
-          const categoriesQuery = query(
-            categoriesRef, 
-            where('shopId', '==', shopId),
-            orderBy('order', 'asc')
-          )
-          const categoriesSnapshot = await getDocs(categoriesQuery)
-          
-          const categoriesList: Category[] = []
-          categoriesSnapshot.forEach((doc) => {
-            const data = doc.data()
-            const category: Category = {
-              id: doc.id,
-              userId: data.userId,
-              shopId: data.shopId,
-              name: data.name,
-              description: data.description,
-              image: data.image,
-              color: data.color,
-              icon: data.icon,
-              order: data.order,
-              isActive: data.isActive,
-              productCount: data.productCount,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date()
-            }
-            categoriesList.push(category)
-          })
+        categoriesList.push(category)
+      })
 
-          setCategories(categoriesList)
-          await adminPanelCache.setCategories(shopId, categoriesList)
-        } catch (syncError) {
-          console.warn('Category sync failed, using cached data:', syncError)
-        }
-      }
+      setCategories(categoriesList)
     } catch (error) {
       console.error('Error fetching categories:', error)
       setError('Failed to load categories. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
   const fetchShopDepartments = async (shopId: string) => {
-    try {
-      console.log('Fetching departments for shop:', shopId)
-      
-      // Load from cache first (fast)
-      if (!isOnline) {
-        console.log('Offline: Loading departments from cache')
-        const cachedDepartments = await adminPanelCache.getDepartments(shopId)
-        if (cachedDepartments.length > 0) {
-          setDepartments(cachedDepartments)
-          return
-        }
-      }
-      
-      const cachedDepartments = await adminPanelCache.getDepartments(shopId)
-      console.log('Found cached departments:', cachedDepartments.length)
-      setDepartments(cachedDepartments)
-      
-      // If online, sync in background
-      if (isOnline) {
-        try {
-          const departmentsRef = collection(db, 'departments')
-          const departmentsQuery = query(
-            departmentsRef, 
-            where('shopId', '==', shopId),
-            orderBy('order', 'asc')
-          )
-          const departmentsSnapshot = await getDocs(departmentsQuery)
-          
-          const departmentsList: Department[] = []
-          departmentsSnapshot.forEach((doc) => {
-            const data = doc.data()
-            const department: Department = {
-              id: doc.id,
-              userId: data.userId,
-              shopId: data.shopId,
-              name: data.name,
-              telegramChatId: data.telegramChatId,
-              adminChatId: data.adminChatId,
-              role: data.role,
-              order: data.order,
-              icon: data.icon,
-              isActive: data.isActive,
-              notificationTypes: data.notificationTypes,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date()
-            }
-            departmentsList.push(department)
-          })
+  try {
+    const departmentsRef = collection(db, "departments")
+    const departmentsQuery = query(
+      departmentsRef,
+      where("shopId", "==", shopId),
+      orderBy("order", "asc") // requires composite index!
+    )
+    const departmentsSnapshot = await getDocs(departmentsQuery)
 
-          setDepartments(departmentsList)
-          await adminPanelCache.setDepartments(shopId, departmentsList)
-        } catch (syncError) {
-          console.warn('Department sync failed, using cached data:', syncError)
-        }
+    const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
+      const data = doc.data()
+
+      return {
+        id: doc.id,
+        userId: data.userId || "",
+        shopId: data.shopId || "",
+        name: data.name || "",
+        telegramChatId: data.telegramChatId || "",
+        adminChatId: data.adminChatId || "",
+        role: data.role || "",
+        order: typeof data.order === "number" ? data.order : 0,
+        icon: data.icon || "",
+        isActive: data.isActive !== false,
+        notificationTypes: data.notificationTypes || [],
+        createdAt:
+          data.createdAt?.toDate?.() ??
+          (data.createdAt ? new Date(data.createdAt) : new Date()),
+        updatedAt:
+          data.updatedAt?.toDate?.() ??
+          (data.updatedAt ? new Date(data.updatedAt) : new Date()),
       }
-    } catch (error) {
-      console.error('Error fetching departments:', error)
-      setError('Failed to load departments. Please try again.')
-    }
+    })
+
+    setDepartments(departmentsList)
+  } catch (error) {
+    console.error("Error fetching departments:", error)
+    setError("Failed to load departments. Please try again.")
   }
+}
 
 
   const fetchShopStats = async (shopId: string) => {
     try {
-      console.log('Fetching stats for shop:', shopId)
-      
       // Get product count
-      const cachedProducts = await adminPanelCache.getProducts(shopId)
-      const totalProducts = cachedProducts.filter(p => p.isActive).length
+      const productsRef = collection(db, 'products')
+      const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
+      const productsSnapshot = await getDocs(productsQuery)
+      const totalProducts = productsSnapshot.size
       
-      // For now, we'll use mock data for orders since we don't have order caching yet
-      // In a real implementation, you'd want to add order caching too
-      const totalOrders = Math.floor(Math.random() * 100)
-      const totalRevenue = Math.floor(Math.random() * 10000)
-      const totalCustomers = Math.floor(Math.random() * 50)
+      // Get order stats
+      const ordersRef = collection(db, 'orders')
+      const ordersQuery = query(ordersRef, where('shopId', '==', shopId))
+      const ordersSnapshot = await getDocs(ordersQuery)
+      
+      let totalOrders = 0
+      let totalRevenue = 0
+      const customerIds = new Set<string>()
+      
+      ordersSnapshot.forEach((doc) => {
+        const data = doc.data()
+        totalOrders++
+        totalRevenue += data.total || 0
+        if (data.customerId) {
+          customerIds.add(data.customerId)
+        }
+      })
+      
+      const totalCustomers = customerIds.size
 
-      console.log('Calculated stats:', { totalProducts, totalOrders, totalRevenue, totalCustomers })
       setStats({
         totalProducts,
         totalOrders,
@@ -690,7 +289,6 @@ const AdminPanel: React.FC = () => {
   }
 
   const handleShopSelect = async (shop: Shop) => {
-    console.log('Selecting shop:', shop.name)
     setSelectedShop(shop)
     setActiveTab('products')
     setError(null)
@@ -700,28 +298,22 @@ const AdminPanel: React.FC = () => {
   const handleSaveProduct = async (productData: any) => {
     try {
       setError(null)
-      console.log('Saving product:', productData.name)
       
       if (editingProduct) {
         // Update existing product
-        const updatedProduct = {
-          ...editingProduct,
+        const productRef = doc(db, 'products', editingProduct.id)
+        await updateDoc(productRef, {
           ...productData,
           updatedAt: new Date()
-        }
-        await adminPanelCache.updateProduct(updatedProduct)
-        console.log('Product updated:', editingProduct.id)
+        })
       } else {
         // Add new product
-        const productId = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        const newProduct = {
-          id: productId,
+        const productsRef = collection(db, 'products')
+        await addDoc(productsRef, {
           ...productData,
           createdAt: new Date(),
           updatedAt: new Date()
-        }
-        await adminPanelCache.addProduct(newProduct)
-        console.log('Product created:', productId)
+        })
       }
       
       setEditingProduct(null)
@@ -738,8 +330,8 @@ const AdminPanel: React.FC = () => {
   const handleDeleteProduct = async (productId: string) => {
     try {
       setError(null)
-      console.log('Deleting product:', productId)
-      await adminPanelCache.deleteProduct(productId)
+      const productRef = doc(db, 'products', productId)
+      await deleteDoc(productRef)
       
       if (selectedShop) {
         await fetchShopProducts(selectedShop.id)
@@ -753,26 +345,22 @@ const AdminPanel: React.FC = () => {
   const handleSaveCategory = async (categoryData: any) => {
     try {
       setError(null)
-      console.log('Saving category:', categoryData.name)
       
       if (editingCategory) {
         // Update existing category
-        const updatedCategory = {
-          ...editingCategory,
+        const categoryRef = doc(db, 'categories', editingCategory.id)
+        await updateDoc(categoryRef, {
           ...categoryData,
           updatedAt: new Date()
-        }
-        await adminPanelCache.addCategory(updatedCategory)
+        })
       } else {
         // Add new category
-        const categoryId = `category_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        const newCategory = {
-          id: categoryId,
+        const categoriesRef = collection(db, 'categories')
+        await addDoc(categoriesRef, {
           ...categoryData,
           createdAt: new Date(),
           updatedAt: new Date()
-        }
-        await adminPanelCache.addCategory(newCategory)
+        })
       }
       
       setEditingCategory(null)
@@ -789,8 +377,8 @@ const AdminPanel: React.FC = () => {
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       setError(null)
-      console.log('Deleting category:', categoryId)
-      await adminPanelCache.deleteCategory(categoryId)
+      const categoryRef = doc(db, 'categories', categoryId)
+      await deleteDoc(categoryRef)
       
       if (selectedShop) {
         await fetchShopCategories(selectedShop.id)
@@ -804,26 +392,22 @@ const AdminPanel: React.FC = () => {
   const handleSaveDepartment = async (departmentData: any) => {
     try {
       setError(null)
-      console.log('Saving department:', departmentData.name)
       
       if (editingDepartment) {
         // Update existing department
-        const updatedDepartment = {
-          ...editingDepartment,
+        const departmentRef = doc(db, 'departments', editingDepartment.id)
+        await updateDoc(departmentRef, {
           ...departmentData,
           updatedAt: new Date()
-        }
-        await adminPanelCache.addDepartment(updatedDepartment)
+        })
       } else {
         // Add new department
-        const departmentId = `department_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        const newDepartment = {
-          id: departmentId,
+        const departmentsRef = collection(db, 'departments')
+        await addDoc(departmentsRef, {
           ...departmentData,
           createdAt: new Date(),
           updatedAt: new Date()
-        }
-        await adminPanelCache.addDepartment(newDepartment)
+        })
       }
       
       setEditingDepartment(null)
@@ -840,8 +424,8 @@ const AdminPanel: React.FC = () => {
   const handleDeleteDepartment = async (departmentId: string) => {
     try {
       setError(null)
-      console.log('Deleting department:', departmentId)
-      await adminPanelCache.deleteDepartment(departmentId)
+      const departmentRef = doc(db, 'departments', departmentId)
+      await deleteDoc(departmentRef)
       
       if (selectedShop) {
         await fetchShopDepartments(selectedShop.id)
@@ -936,13 +520,12 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
     }
   }
 
-  if (userLoading || loading) {
+  if (loading) {
     return (
       <div className="p-4">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-300 rounded w-1/2"></div>
           <div className="h-32 bg-gray-300 rounded"></div>
-          <div className="h-16 bg-gray-300 rounded"></div>
         </div>
       </div>
     )
@@ -957,17 +540,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           <p className="text-telegram-hint">
             {error || 'Unable to load user data. Please try again.'}
           </p>
-          {!isOnline && (
-            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded-lg mb-4 text-sm">
-              You're offline. Some data may be outdated.
-            </div>
-          )}
-          <button
-            onClick={loadUserData}
-            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
-          >
-            Try Again
-          </button>
         </div>
       </div>
     )
@@ -979,7 +551,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         <h1 className="text-xl font-bold text-telegram-text">Admin Panel</h1>
         <div className="text-xs text-telegram-hint">
           {userData.displayName || userData.email}
-          {!isOnline && ' (Offline)'}
         </div>
       </div>
 
@@ -989,14 +560,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         </div>
       )}
 
-      {!isOnline && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded-lg text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-            <span>Offline mode - Using cached data</span>
-          </div>
-        </div>
-      )}
       {/* User Profile Section - Show for all users */}
       <div className="bg-telegram-secondary-bg rounded-lg p-3">
         <div className="flex items-center space-x-4">
@@ -1367,8 +930,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           shop={editingShop}
           onSave={async (updatedShop) => {
             try {
-              // For now, just update the local state
-              // In a real app, you'd want to sync this to Firebase too
+              const shopRef = doc(db, 'shops', updatedShop.id)
+              await updateDoc(shopRef, {
+                ...updatedShop,
+                updatedAt: new Date()
+              })
               setEditingShop(null)
               await loadUserData()
             } catch (error) {
