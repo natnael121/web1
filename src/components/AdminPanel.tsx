@@ -1,978 +1,814 @@
-import React, { useEffect, useState } from 'react'
+// UserProfileCached.tsx
+import React, { useEffect, useState } from 'react';
+import { useUserOrders, useActiveShops } from '../hooks/useCache';
+import { useTelegram } from '../contexts/TelegramContext';
+import { User, Order, Shop } from '../types';
 import { 
-  collection, 
-  getDocs, 
-  query, 
-  where, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  addDoc, 
-  getDoc,
-  orderBy 
-} from 'firebase/firestore'
-import { useFirebase } from '../contexts/FirebaseContext'
-import { useTelegram } from '../contexts/TelegramContext'
-import { Shop, Product, Category, Department, UserData } from '../types'
-import { telegramService } from '../services/telegram'
-import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
+  User as UserIcon, 
+  Globe, 
+  MessageCircle, 
+  Settings, 
+  ShoppingCart, 
+  Package, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  Truck,
+  DollarSign,
+  Calendar,
+  ArrowRight,
+  RefreshCw,
+  Bell,
+  Moon,
+  Sun,
+  Languages,
+  Shield,
+  Phone,
+  Mail,
+  MapPin,
+  Store,
+  Save,
+  X,
+  WifiOff
+} from 'lucide-react';
 
-const AdminPanel: React.FC = () => {
-  const { db } = useFirebase()
-  const { user } = useTelegram()
-  const [loading, setLoading] = useState(true)
-  const [userData, setUserData] = useState<UserData | null>(null)
-  const [ownedShops, setOwnedShops] = useState<Shop[]>([])
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile'>('profile')
-  const [editingShop, setEditingShop] = useState<Shop | null>(null)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
-  const [showAddProduct, setShowAddProduct] = useState(false)
-  const [showAddCategory, setShowAddCategory] = useState(false)
-  const [showAddDepartment, setShowAddDepartment] = useState(false)
-  const [showPromotionModal, setShowPromotionModal] = useState(false)
-  const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState<any>(null)
-
-  useEffect(() => {
-    if (user?.id) {
-      loadUserData()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-
-  const loadUserData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      if (!user?.id) {
-        setError('No user information available')
-        return
-      }
-
-      // Get user document from Firebase using Telegram ID
-      const usersRef = collection(db, 'users')
-      const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-      const userSnapshot = await getDocs(userQuery)
-
-      if (userSnapshot.empty) {
-        setError('User not found in database')
-        setLoading(false)
-        return
-      }
-
-      const userDoc = userSnapshot.docs[0]
-      const userData = userDoc.data() as UserData
-      setUserData(userData)
-
-      // Find shops owned by this user (if any)
-      const shopsRef = collection(db, 'shops')
-      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id))
-      const shopsSnapshot = await getDocs(ownerQuery)
- 
-      const shopsList: Shop[] = []
-      shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive !== false,
-          businessInfo: data.businessInfo || {},
-          settings: data.settings || {
-            currency: 'USD',
-            taxRate: 0,
-            businessHours: { open: '09:00', close: '18:00', days: [] },
-            orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
-          },
-          stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        shopsList.push(shop)
-      })
-
-      setOwnedShops(shopsList)
-      
-    } catch (error) {
-      console.error('Error loading user data:', error)
-      setError('Failed to load user data. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchShopData = async (shopId: string) => {
-    await Promise.all([
-      fetchShopProducts(shopId),
-      fetchShopCategories(shopId),
-      fetchShopDepartments(shopId),
-      fetchShopStats(shopId)
-    ])
-  }
-
-  const fetchShopProducts = async (shopId: string) => {
-    try {
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef, 
-        where('shopId', '==', shopId),
-        orderBy('createdAt', 'desc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
-      
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name,
-          description: data.description,
-          price: data.price,
-          stock: data.stock || 0,
-          category: data.category,
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 5,
-          tags: data.tags || [],
-          featured: data.featured || false,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
-    } catch (error) {
-      console.error('Error fetching products:', error)
-      setError('Failed to load products. Please try again.')
-    }
-  }
-
-  const fetchShopCategories = async (shopId: string) => {
-    try {
-      setLoading(true)
-      const categoriesRef = collection(db, 'categories')
-      const categoriesQuery = query(
-        categoriesRef, 
-        where('shopId', '==', shopId),
-        
-        orderBy('order', 'asc')
-      )
-      const categoriesSnapshot = await getDocs(categoriesQuery)
-      
-      const categoriesList: Category[] = []
-      categoriesSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const category: Category = {
-          id: doc.id,
-          userId: data.userId,
-          shopId: data.shopId,
-          name: data.name,
-          description: data.description,
-          color: data.color,
-          icon: data.icon,
-          order: data.order || 0,
-          isActive: data.isActive !== false,
-          productCount: data.productCount || 0,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        categoriesList.push(category)
-      })
-
-      setCategories(categoriesList)
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-      setError('Failed to load categories. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchShopDepartments = async (shopId: string) => {
-  try {
-    const departmentsRef = collection(db, "departments")
-    const departmentsQuery = query(
-      departmentsRef,
-      where("shopId", "==", shopId),
-      orderBy("order", "asc") // requires composite index!
-    )
-    const departmentsSnapshot = await getDocs(departmentsQuery)
-
-    const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
-      const data = doc.data()
-
-      return {
-        id: doc.id,
-        userId: data.userId || "",
-        shopId: data.shopId || "",
-        name: data.name || "",
-        telegramChatId: data.telegramChatId || "",
-        adminChatId: data.adminChatId || "",
-        role: data.role || "",
-        order: typeof data.order === "number" ? data.order : 0,
-        icon: data.icon || "",
-        isActive: data.isActive !== false,
-        notificationTypes: data.notificationTypes || [],
-        createdAt:
-          data.createdAt?.toDate?.() ??
-          (data.createdAt ? new Date(data.createdAt) : new Date()),
-        updatedAt:
-          data.updatedAt?.toDate?.() ??
-          (data.updatedAt ? new Date(data.updatedAt) : new Date()),
-      }
-    })
-
-    setDepartments(departmentsList)
-  } catch (error) {
-    console.error("Error fetching departments:", error)
-    setError("Failed to load departments. Please try again.")
-  }
+interface UserProfileProps {
+  user: User | null;
 }
 
+const UserProfileCached: React.FC<UserProfileProps> = ({ user }) => {
+  const { webApp } = useTelegram();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
+  const [settings, setSettings] = useState({
+    notifications: {
+      orderUpdates: true,
+      promotions: false,
+      newsletter: false
+    },
+    theme: 'auto' as 'light' | 'dark' | 'auto',
+    language: 'en',
+    currency: 'USD'
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
 
-  const fetchShopStats = async (shopId: string) => {
-    try {
-      // Get product count
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
-      const productsSnapshot = await getDocs(productsQuery)
-      const totalProducts = productsSnapshot.size
-      
-      // Get order stats
-      const ordersRef = collection(db, 'orders')
-      const ordersQuery = query(ordersRef, where('shopId', '==', shopId))
-      const ordersSnapshot = await getDocs(ordersQuery)
-      
-      let totalOrders = 0
-      let totalRevenue = 0
-      const customerIds = new Set<string>()
-      
-      ordersSnapshot.forEach((doc) => {
-        const data = doc.data()
-        totalOrders++
-        totalRevenue += data.total || 0
-        if (data.customerId) {
-          customerIds.add(data.customerId)
-        }
-      })
-      
-      const totalCustomers = customerIds.size
+  // Use cached hooks
+  const { 
+    data: orders = [], 
+    loading: ordersLoading, 
+    error: ordersError, 
+    isOffline: ordersOffline,
+    refetch: refetchOrders 
+  } = useUserOrders(user?.id || '');
 
-      setStats({
-        totalProducts,
-        totalOrders,
-        totalRevenue,
-        totalCustomers
-      })
-    } catch (error) {
-      console.error('Error fetching stats:', error)
+  const { 
+    data: shops = [], 
+    loading: shopsLoading, 
+    error: shopsError,
+    isOffline: shopsOffline 
+  } = useActiveShops();
+
+  // Calculate stats from cached orders
+  const stats = React.useMemo(() => {
+    const totalOrders = orders.length;
+    const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
+    const pendingOrders = orders.filter(order => 
+      ['pending', 'payment_pending', 'confirmed', 'processing'].includes(order.status)
+    ).length;
+    const completedOrders = orders.filter(order => 
+      order.status === 'delivered'
+    ).length;
+
+    return {
+      totalOrders,
+      totalSpent,
+      pendingOrders,
+      completedOrders
+    };
+  }, [orders]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'payment_pending': return 'bg-orange-100 text-orange-800';
+      case 'confirmed': return 'bg-blue-100 text-blue-800';
+      case 'processing': return 'bg-purple-100 text-purple-800';
+      case 'shipped': return 'bg-indigo-100 text-indigo-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
-  }
+  };
 
-  const handleShopSelect = async (shop: Shop) => {
-    setSelectedShop(shop)
-    setActiveTab('products')
-    setError(null)
-    await fetchShopData(shop.id)
-  }
-
-  const handleSaveProduct = async (productData: any) => {
-    try {
-      setError(null)
-      
-      if (editingProduct) {
-        // Update existing product
-        const productRef = doc(db, 'products', editingProduct.id)
-        await updateDoc(productRef, {
-          ...productData,
-          updatedAt: new Date()
-        })
-      } else {
-        // Add new product
-        const productsRef = collection(db, 'products')
-        await addDoc(productsRef, {
-          ...productData,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-      }
-      
-      setEditingProduct(null)
-      setShowAddProduct(false)
-      if (selectedShop) {
-        await fetchShopProducts(selectedShop.id)
-      }
-    } catch (error) {
-      console.error('Error saving product:', error)
-      setError('Failed to save product. Please try again.')
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'payment_pending': return <DollarSign className="w-4 h-4" />;
+      case 'confirmed':
+      case 'processing': return <Package className="w-4 h-4" />;
+      case 'shipped': return <Truck className="w-4 h-4" />;
+      case 'delivered': return <CheckCircle className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
     }
-  }
+  };
 
-  const handleDeleteProduct = async (productId: string) => {
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  const handleSaveSettings = async () => {
     try {
-      setError(null)
-      const productRef = doc(db, 'products', productId)
-      await deleteDoc(productRef)
+      setSettingsLoading(true);
+      localStorage.setItem('userSettings', JSON.stringify(settings));
       
-      if (selectedShop) {
-        await fetchShopProducts(selectedShop.id)
+      if (webApp?.showAlert) {
+        webApp.showAlert('Settings saved successfully!');
       }
+      setShowSettings(false);
     } catch (error) {
-      console.error('Error deleting product:', error)
-      setError('Failed to delete product. Please try again.')
+      console.error('Error saving settings:', error);
+      if (webApp?.showAlert) {
+        webApp.showAlert('Failed to save settings. Please try again.');
+      }
+    } finally {
+      setSettingsLoading(false);
     }
-  }
+  };
 
-  const handleSaveCategory = async (categoryData: any) => {
-    try {
-      setError(null)
-      
-      if (editingCategory) {
-        // Update existing category
-        const categoryRef = doc(db, 'categories', editingCategory.id)
-        await updateDoc(categoryRef, {
-          ...categoryData,
-          updatedAt: new Date()
-        })
-      } else {
-        // Add new category
-        const categoriesRef = collection(db, 'categories')
-        await addDoc(categoriesRef, {
-          ...categoryData,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+  const updateSetting = (category: string, key: string, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category as keyof typeof prev],
+        [key]: value
       }
-      
-      setEditingCategory(null)
-      setShowAddCategory(false)
-      if (selectedShop) {
-        await fetchShopCategories(selectedShop.id)
+    }));
+  };
+
+  const updateDirectSetting = (key: string, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('userSettings');
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (error) {
+        console.error('Error loading saved settings:', error);
       }
-    } catch (error) {
-      console.error('Error saving category:', error)
-      setError('Failed to save category. Please try again.')
     }
-  }
+  }, []);
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    try {
-      setError(null)
-      const categoryRef = doc(db, 'categories', categoryId)
-      await deleteDoc(categoryRef)
-      
-      if (selectedShop) {
-        await fetchShopCategories(selectedShop.id)
-      }
-    } catch (error) {
-      console.error('Error deleting category:', error)
-      setError('Failed to delete category. Please try again.')
-    }
-  }
-
-  const handleSaveDepartment = async (departmentData: any) => {
-    try {
-      setError(null)
-      
-      if (editingDepartment) {
-        // Update existing department
-        const departmentRef = doc(db, 'departments', editingDepartment.id)
-        await updateDoc(departmentRef, {
-          ...departmentData,
-          updatedAt: new Date()
-        })
-      } else {
-        // Add new department
-        const departmentsRef = collection(db, 'departments')
-        await addDoc(departmentsRef, {
-          ...departmentData,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-      }
-      
-      setEditingDepartment(null)
-      setShowAddDepartment(false)
-      if (selectedShop) {
-        await fetchShopDepartments(selectedShop.id)
-      }
-    } catch (error) {
-      console.error('Error saving department:', error)
-      setError('Failed to save department. Please try again.')
-    }
-  }
-
-  const handleDeleteDepartment = async (departmentId: string) => {
-    try {
-      setError(null)
-      const departmentRef = doc(db, 'departments', departmentId)
-      await deleteDoc(departmentRef)
-      
-      if (selectedShop) {
-        await fetchShopDepartments(selectedShop.id)
-      }
-    } catch (error) {
-      console.error('Error deleting department:', error)
-      setError('Failed to delete department. Please try again.')
-    }
-  }
-
-  const handlePromoteProduct = (product: Product) => {
-    setPromotingProduct(product)
-    setShowPromotionModal(true)
-  }
-
-  const handlePromotionSubmit = async (promotionData: any) => {
-    try {
-      setError(null)
-      
-      const { 
-        product, 
-        customMessage, 
-        promotionImages, 
-        promotionTitle, 
-        discountPercentage, 
-        validUntil, 
-        tags, 
-        isScheduled, 
-        scheduledDate, 
-        selectedDepartments 
-      } = promotionData
-
-      // Generate promotion message
-      const discountText = discountPercentage > 0 ? `\n💥 <b>${discountPercentage}% OFF!</b>` : ''
-      const originalPrice = discountPercentage > 0 ? `\n~~$${product.price.toFixed(2)}~~ ` : ''
-      const discountedPrice = discountPercentage > 0 ? `<b>$${(product.price * (1 - discountPercentage / 100)).toFixed(2)}</b>` : `<b>$${product.price.toFixed(2)}</b>`
-      const validUntilText = validUntil ? `\n⏰ <b>Valid until:</b> ${validUntil.toLocaleDateString()}` : ''
-      const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
-      
-      const message = `
-🔥 <b>${promotionTitle}</b>${discountText}
-
-🛍️ <b>${product.name}</b>
-
-${customMessage || product.description}
-
-💰 <b>Price:</b> ${originalPrice}${discountedPrice}
-📦 <b>Available:</b> ${product.stock} in stock
-${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
-
-🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}
-
-<i>🚀 Limited time offer - Order today!</i>
-      `.trim()
-
-      const promotionMessage = {
-        text: message,
-        images: promotionImages.length > 0 ? promotionImages : (product.images.length > 0 ? [product.images[0]] : undefined),
-        parseMode: 'HTML' as const
-      }
-
-      // Send to selected departments or all active departments if none selected
-      const targetDepartments = selectedDepartments.length > 0 
-        ? departments.filter(d => selectedDepartments.includes(d.id))
-        : departments.filter(d => d.isActive)
-
-      const botToken = process.env.TELEGRAM_BOT_TOKEN || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
-      
-      if (!botToken) {
-        throw new Error('Telegram bot token not configured')
-      }
-
-      // Send or schedule promotion
-      for (const department of targetDepartments) {
-        const config = {
-          botToken,
-          chatId: department.telegramChatId
-        }
-
-        if (isScheduled && scheduledDate) {
-          await telegramService.scheduleMessage(config, promotionMessage, scheduledDate)
-        } else {
-          await telegramService.sendPromotionMessage(config, promotionMessage)
-        }
-      }
-
-      setShowPromotionModal(false)
-      setPromotingProduct(null)
-    } catch (error) {
-      console.error('Error promoting product:', error)
-      setError('Failed to promote product. Please check your Telegram bot configuration.')
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-300 rounded w-1/2"></div>
-          <div className="h-32 bg-gray-300 rounded"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!userData) {
+  if (!user) {
     return (
       <div className="p-4">
         <div className="text-center py-12">
-          <User className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-          <h3 className="text-lg font-medium text-telegram-text mb-2">User Not Found</h3>
+          <UserIcon className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+          <h3 className="text-lg font-medium text-telegram-text mb-2">No user data</h3>
           <p className="text-telegram-hint">
-            {error || 'Unable to load user data. Please try again.'}
+            Please open this app from Telegram to see your profile.
           </p>
         </div>
       </div>
-    )
+    );
   }
 
-  return (
-    <div className="p-3 space-y-4">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-xl font-bold text-telegram-text">Admin Panel</h1>
-        <div className="text-xs text-telegram-hint">
-          {userData.displayName || userData.email}
-        </div>
-      </div>
+  // Show offline indicator
+  const isOffline = ordersOffline || shopsOffline;
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* User Profile Section - Show for all users */}
-      <div className="bg-telegram-secondary-bg rounded-lg p-3">
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-telegram-button rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-base font-semibold text-telegram-text">
-              {userData.displayName || 'User'}
-            </h2>
-            <p className="text-sm text-telegram-hint">{userData.email}</p>
-            <p className="text-sm text-telegram-hint capitalize">Role: {userData.role}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-telegram-hint">Shops</div>
-            <div className="text-lg font-bold text-telegram-button">
-              {ownedShops.length}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Shops List - Only show if user has shops */}
-      {ownedShops.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-telegram-text">Your Shops</h2>
-          
-          {ownedShops.map((shop) => (
-            <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
-                    {shop.logo && (
-                      <img src={shop.logo} alt={shop.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                    )}
-                    <div>
-                      <h3 className="text-sm font-semibold text-telegram-text">{shop.name}</h3>
-                      <p className="text-xs text-telegram-hint mt-1 line-clamp-2">{shop.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3 mt-2 text-xs text-telegram-hint">
-                    <span className="flex items-center">
-                      <Package className="w-3 h-3 mr-1" />
-                      {shop.stats?.totalProducts || 0} products
-                    </span>
-                    <span className="flex items-center">
-                      <ShoppingCart className="w-3 h-3 mr-1" />
-                      {shop.stats?.totalOrders || 0} orders
-                    </span>
-                    <span className={`px-2 py-1 rounded-full ${
-                      shop.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {shop.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-1 ml-2">
-                  <button
-                    onClick={() => setEditingShop(shop)}
-                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
-                  >
-                    <Edit className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => handleShopSelect(shop)}
-                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
-                  >
-                    <BarChart3 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* No Shops Message */}
-      {ownedShops.length === 0 && (
-        <div className="text-center py-6">
-          <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
-          <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
-          <p className="text-sm text-telegram-hint mb-4">
-            You don't own any shops yet. Contact an administrator to get started.
-          </p>
+  // Settings Modal
+  if (showSettings) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Settings Header */}
+        <div className="flex items-center space-x-3 mb-4">
           <button
-            onClick={() => setActiveTab('profile')}
-            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+            onClick={() => setShowSettings(false)}
+            className="p-2 rounded-lg bg-telegram-secondary-bg"
           >
-            View Profile
+            <ArrowRight className="w-5 h-5 text-telegram-text rotate-180" />
           </button>
+          <div>
+            <h2 className="text-lg font-semibold text-telegram-text">Settings</h2>
+            <p className="text-sm text-telegram-hint">Customize your experience</p>
+          </div>
         </div>
-      )}
 
-      {/* Shop Management - Only show if a shop is selected */}
-      {selectedShop && (
-        <div className="space-y-4">
-          {/* Shop Header */}
-          <div className="flex items-center justify-between">
+        {/* Notifications Settings */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Bell className="w-4 h-4 mr-2" />
+            Notifications
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Order Updates</p>
+                <p className="text-xs text-telegram-hint">Get notified about order status changes</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.orderUpdates}
+                onChange={(e) => updateSetting('notifications', 'orderUpdates', e.target.checked)}
+                className="w-4 h-4"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Promotions</p>
+                <p className="text-xs text-telegram-hint">Receive special offers and discounts</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.promotions}
+                onChange={(e) => updateSetting('notifications', 'promotions', e.target.checked)}
+                className="w-4 h-4"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Newsletter</p>
+                <p className="text-xs text-telegram-hint">Weekly updates and news</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.notifications.newsletter}
+                onChange={(e) => updateSetting('notifications', 'newsletter', e.target.checked)}
+                className="w-4 h-4"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Appearance Settings */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Sun className="w-4 h-4 mr-2" />
+            Appearance
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-telegram-text mb-2">Theme</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'light', label: 'Light', icon: Sun },
+                  { value: 'dark', label: 'Dark', icon: Moon },
+                  { value: 'auto', label: 'Auto', icon: Settings }
+                ].map((theme) => (
+                  <button
+                    key={theme.value}
+                    onClick={() => updateDirectSetting('theme', theme.value)}
+                    className={`p-3 rounded-lg border text-center ${
+                      settings.theme === theme.value
+                        ? 'border-telegram-button bg-telegram-button bg-opacity-10'
+                        : 'border-telegram-hint hover:border-telegram-button'
+                    }`}
+                  >
+                    <theme.icon className="w-4 h-4 mx-auto mb-1" />
+                    <span className="text-xs">{theme.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Language & Region */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Languages className="w-4 h-4 mr-2" />
+            Language & Region
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-telegram-text mb-1">Language</label>
+              <select
+                value={settings.language}
+                onChange={(e) => updateDirectSetting('language', e.target.value)}
+                className="w-full p-2 border rounded-lg bg-telegram-bg text-telegram-text"
+              >
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="ar">العربية</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-telegram-text mb-1">Currency</label>
+              <select
+                value={settings.currency}
+                onChange={(e) => updateDirectSetting('currency', e.target.value)}
+                className="w-full p-2 border rounded-lg bg-telegram-bg text-telegram-text"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="ETB">ETB (Br)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Privacy & Security */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Shield className="w-4 h-4 mr-2" />
+            Privacy & Security
+          </h3>
+          <div className="space-y-2">
+            <button className="w-full text-left p-2 hover:bg-telegram-bg rounded-lg">
+              <p className="text-sm font-medium text-telegram-text">Clear Order History</p>
+              <p className="text-xs text-telegram-hint">Remove all your order data</p>
+            </button>
+            <button className="w-full text-left p-2 hover:bg-telegram-bg rounded-lg">
+              <p className="text-sm font-medium text-telegram-text">Export Data</p>
+              <p className="text-xs text-telegram-hint">Download your personal data</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <button
+          onClick={handleSaveSettings}
+          disabled={settingsLoading}
+          className="w-full bg-telegram-button text-telegram-button-text py-3 rounded-lg flex items-center justify-center space-x-2 disabled:opacity-50"
+        >
+          {settingsLoading ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{settingsLoading ? 'Saving...' : 'Save Settings'}</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Support Modal
+  if (showSupport) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Support Header */}
+        <div className="flex items-center space-x-3 mb-4">
+          <button
+            onClick={() => setShowSupport(false)}
+            className="p-2 rounded-lg bg-telegram-secondary-bg"
+          >
+            <ArrowRight className="w-5 h-5 text-telegram-text rotate-180" />
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-telegram-text">Support</h2>
+            <p className="text-sm text-telegram-hint">Get help and contact information</p>
+          </div>
+        </div>
+
+        {/* Contact Information */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Contact Support
+          </h3>
+          <div className="space-y-3">
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setSelectedShop(null)}
-                className="p-2 text-telegram-hint hover:text-telegram-text rounded-lg"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
+              <Mail className="w-4 h-4 text-telegram-hint" />
               <div>
-                <h2 className="text-lg font-bold text-telegram-text">{selectedShop.name}</h2>
-                <p className="text-xs text-telegram-hint">Shop Management</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex bg-telegram-secondary-bg rounded-lg p-1 overflow-x-auto">
-            {[
-              { id: 'products', label: 'Products', icon: Package },
-              { id: 'categories', label: 'Categories', icon: Tag },
-              { id: 'departments', label: 'Departments', icon: Users },
-              { id: 'analytics', label: 'Analytics', icon: BarChart3 }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md flex-1 justify-center min-w-0 ${
-                  activeTab === tab.id
-                    ? 'bg-telegram-button text-telegram-button-text'
-                    : 'text-telegram-hint hover:text-telegram-text'
-                }`}
-              >
-                <tab.icon className="w-3 h-3 flex-shrink-0" />
-                <span className="text-xs font-medium truncate">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Products Tab */}
-          {activeTab === 'products' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-telegram-text">Products</h3>
-                <button
-                  onClick={() => setShowAddProduct(true)}
-                  className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Product</span>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onEdit={setEditingProduct}
-                    onDelete={handleDeleteProduct}
-                    onPromote={handlePromoteProduct}
-                  />
-                ))}
-              </div>
-
-              {products.length === 0 && (
-                <div className="text-center py-6">
-                  <Package className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
-                  <h3 className="text-base font-medium text-telegram-text mb-2">No Products Yet</h3>
-                  <p className="text-sm text-telegram-hint mb-4">Add your first product to get started.</p>
-                  <button
-                    onClick={() => setShowAddProduct(true)}
-                    className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
-                  >
-                    Add Product
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Categories Tab */}
-          {activeTab === 'categories' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-telegram-text">Categories</h3>
-                <button
-                  onClick={() => setShowAddCategory(true)}
-                  className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Category</span>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <CategoryCard
-                    key={category.id}
-                    category={category}
-                    onEdit={setEditingCategory}
-                    onDelete={handleDeleteCategory}
-                  />
-                ))}
-              </div>
-
-              {categories.length === 0 && (
-                <div className="text-center py-6">
-                  <Tag className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
-                  <h3 className="text-base font-medium text-telegram-text mb-2">No Categories Yet</h3>
-                  <p className="text-sm text-telegram-hint mb-4">Add categories to organize your products.</p>
-                  <button
-                    onClick={() => setShowAddCategory(true)}
-                    className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
-                  >
-                    Add Category
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Departments Tab */}
-          {activeTab === 'departments' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-telegram-text">Departments</h3>
-                <button
-                  onClick={() => setShowAddDepartment(true)}
-                  className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Department</span>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {departments.map((department) => (
-                  <DepartmentCard
-                    key={department.id}
-                    department={department}
-                    onEdit={setEditingDepartment}
-                    onDelete={handleDeleteDepartment}
-                  />
-                ))}
-              </div>
-
-              {departments.length === 0 && (
-                <div className="text-center py-6">
-                  <Users className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
-                  <h3 className="text-base font-medium text-telegram-text mb-2">No Departments Yet</h3>
-                  <p className="text-sm text-telegram-hint mb-4">Add departments for Telegram notifications.</p>
-                  <button
-                    onClick={() => setShowAddDepartment(true)}
-                    className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
-                  >
-                    Add Department
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {activeTab === 'analytics' && (
-            <AnalyticsTab shop={selectedShop} stats={stats} />
-          )}
-        </div>
-      )}
-
-      {/* Profile Tab for all users */}
-      {!selectedShop && (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-telegram-text">User Profile</h2>
-          <div className="bg-telegram-secondary-bg rounded-lg p-3">
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Display Name</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                  {userData.displayName || 'Not set'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Email</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                  {userData.email}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Role</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text capitalize text-sm">
-                  {userData.role}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">User ID</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text font-mono text-xs">
-                  {userData.uid}
-                </div>
+                <p className="text-sm font-medium text-telegram-text">Email Support</p>
+                <p className="text-sm text-telegram-button">support@multishop.app</p>
               </div>
             </div>
             
-            {userData.businessInfo && (
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-telegram-text mb-2">Business Information</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-telegram-text mb-1">Business Name</label>
-                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                      {userData.businessInfo.name || 'Not set'}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-telegram-text mb-1">Phone</label>
-                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                      {userData.businessInfo.phone || 'Not set'}
+            <div className="flex items-center space-x-3">
+              <MessageCircle className="w-4 h-4 text-telegram-hint" />
+              <div>
+                <p className="text-sm font-medium text-telegram-text">Telegram Support</p>
+                <p className="text-sm text-telegram-button">@multishop_support</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Shop Contact Information */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3 flex items-center">
+            <Store className="w-4 h-4 mr-2" />
+            Shop Contacts
+          </h3>
+          {shops.length > 0 ? (
+            <div className="space-y-3">
+              {shops.map((shop) => (
+                <div key={shop.id} className="border-b border-telegram-hint/20 last:border-b-0 pb-3 last:pb-0">
+                  <div className="flex items-start space-x-3">
+                    {shop.logo ? (
+                      <img src={shop.logo} alt={shop.name} className="w-10 h-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 bg-telegram-button rounded-lg flex items-center justify-center">
+                        <Store className="w-5 h-5 text-telegram-button-text" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h4 className="font-medium text-telegram-text">{shop.name}</h4>
+                      {shop.businessInfo?.phone && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Phone className="w-3 h-3 text-telegram-hint" />
+                          <a 
+                            href={`tel:${shop.businessInfo.phone}`}
+                            className="text-sm text-telegram-button hover:underline"
+                          >
+                            {shop.businessInfo.phone}
+                          </a>
+                        </div>
+                      )}
+                      {shop.businessInfo?.email && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Mail className="w-3 h-3 text-telegram-hint" />
+                          <a 
+                            href={`mailto:${shop.businessInfo.email}`}
+                            className="text-sm text-telegram-button hover:underline"
+                          >
+                            {shop.businessInfo.email}
+                          </a>
+                        </div>
+                      )}
+                      {shop.businessInfo?.address && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <MapPin className="w-3 h-3 text-telegram-hint" />
+                          <p className="text-sm text-telegram-hint">{shop.businessInfo.address}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-telegram-hint">No shop contact information available.</p>
+          )}
+        </div>
+
+        {/* FAQ Section */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3">Frequently Asked Questions</h3>
+          <div className="space-y-2">
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-telegram-text hover:text-telegram-button">
+                How do I track my order?
+              </summary>
+              <p className="text-sm text-telegram-hint mt-2 pl-4">
+                You can track your order status in the Profile section under "Your Orders". You'll receive notifications for status updates.
+              </p>
+            </details>
+            
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-telegram-text hover:text-telegram-button">
+                How do I cancel an order?
+              </summary>
+              <p className="text-sm text-telegram-hint mt-2 pl-4">
+                Orders can be cancelled within 5 minutes of placing them. Contact the shop directly for cancellations after this period.
+              </p>
+            </details>
+            
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-telegram-text hover:text-telegram-button">
+                What payment methods are accepted?
+              </summary>
+              <p className="text-sm text-telegram-hint mt-2 pl-4">
+                Payment methods vary by shop. Most shops accept cash on delivery, mobile money, and bank transfers.
+              </p>
+            </details>
+          </div>
+        </div>
+
+        {/* App Information */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3">App Information</h3>
+          <div className="space-y-2 text-sm text-telegram-hint">
+            <div className="flex justify-between">
+              <span>Version:</span>
+              <span>1.0.0</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Last Updated:</span>
+              <span>Dec 2024</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Platform:</span>
+              <span>Telegram Mini App</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Order Details View
+  if (selectedOrder) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Order Details Header */}
+        <div className="flex items-center space-x-3 mb-4">
+          <button
+            onClick={() => setSelectedOrder(null)}
+            className="p-2 rounded-lg bg-telegram-secondary-bg"
+          >
+            <ArrowRight className="w-5 h-5 text-telegram-text rotate-180" />
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-telegram-text">Order Details</h2>
+            <p className="text-sm text-telegram-hint">#{selectedOrder.id.slice(-8)}</p>
+          </div>
+        </div>
+
+        {/* Order Status */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-telegram-text">Order Status</h3>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(selectedOrder.status)}`}>
+              {getStatusIcon(selectedOrder.status)}
+              <span className="capitalize">{selectedOrder.status.replace('_', ' ')}</span>
+            </span>
+          </div>
+          
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-telegram-hint">Order Date:</span>
+              <span className="text-telegram-text">{formatDate(selectedOrder.createdAt)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-telegram-hint">Payment Status:</span>
+              <span className={`px-2 py-1 rounded text-xs ${
+                selectedOrder.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {selectedOrder.paymentStatus}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-telegram-hint">Delivery Method:</span>
+              <span className="text-telegram-text capitalize">{selectedOrder.deliveryMethod}</span>
+            </div>
+            {selectedOrder.trackingNumber && (
+              <div className="flex justify-between">
+                <span className="text-telegram-hint">Tracking:</span>
+                <span className="text-telegram-text font-mono">{selectedOrder.trackingNumber}</span>
               </div>
             )}
           </div>
         </div>
+
+        {/* Order Items */}
+        <div className="bg-telegram-secondary-bg rounded-lg p-4">
+          <h3 className="font-medium text-telegram-text mb-3">Items Ordered</h3>
+          <div className="space-y-3">
+            {selectedOrder.items.map((item, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-telegram-text">{item.productName}</h4>
+                  <p className="text-xs text-telegram-hint">
+                    ${item.price.toFixed(2)} × {item.quantity}
+                  </p>
+                </div>
+                <div className="text-sm font-medium text-telegram-text">
+                  ${item.total.toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="border-t border-telegram-hint/20 mt-3 pt-3 space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-telegram-hint">Subtotal:</span>
+              <span className="text-telegram-text">${selectedOrder.subtotal.toFixed(2)}</span>
+            </div>
+            {selectedOrder.tax > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-telegram-hint">Tax:</span>
+                <span className="text-telegram-text">${selectedOrder.tax.toFixed(2)}</span>
+              </div>
+            )}
+            {selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-telegram-hint">Delivery Fee:</span>
+                <span className="text-telegram-text">${selectedOrder.deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-medium text-telegram-text border-t border-telegram-hint/20 pt-1">
+              <span>Total:</span>
+              <span>${selectedOrder.total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer Notes */}
+        {selectedOrder.customerNotes && (
+          <div className="bg-telegram-secondary-bg rounded-lg p-4">
+            <h3 className="font-medium text-telegram-text mb-2">Notes</h3>
+            <p className="text-sm text-telegram-hint">{selectedOrder.customerNotes}</p>
+          </div>
+        )}
+
+        {/* Delivery Address */}
+        {selectedOrder.deliveryAddress && (
+          <div className="bg-telegram-secondary-bg rounded-lg p-4">
+            <h3 className="font-medium text-telegram-text mb-2">Delivery Address</h3>
+            <p className="text-sm text-telegram-hint">{selectedOrder.deliveryAddress}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-6">
+      {/* Offline Indicator */}
+      {isOffline && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded-lg flex items-center space-x-2">
+          <WifiOff className="w-4 h-4" />
+          <span className="text-sm">You are currently offline</span>
+        </div>
       )}
 
-      {/* Product Edit Modal */}
-      {(editingProduct || showAddProduct) && (
-        <ProductEditModal
-          product={editingProduct || undefined}
-          shopId={selectedShop?.id || ''}
-          categories={categories}
-          onSave={handleSaveProduct}
-          onCancel={() => {
-            setEditingProduct(null)
-            setShowAddProduct(false)
-          }}
-        />
-      )}
+      {/* User Info Card */}
+      <div className="bg-telegram-secondary-bg rounded-lg p-6">
+        <div className="flex items-center space-x-4">
+          <div className="w-16 h-16 bg-telegram-button rounded-full flex items-center justify-center">
+            <UserIcon className="w-8 h-8 text-telegram-button-text" />
+          </div>
+          
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-telegram-text">
+              {user.firstName} {user.lastName}
+            </h2>
+            {user.username && (
+              <p className="text-telegram-hint">@{user.username}</p>
+            )}
+            <div className="flex items-center space-x-1 mt-2">
+              <Globe className="w-4 h-4 text-telegram-hint" />
+              <span className="text-sm text-telegram-hint">
+                {user.languageCode.toUpperCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {/* Category Edit Modal */}
-      {(editingCategory || showAddCategory) && userData && selectedShop && (
-        <CategoryEditModal
-          category={editingCategory || undefined}
-          userId={userData.uid}
-          shopId={selectedShop.id}
-          onSave={handleSaveCategory}
-          onCancel={() => {
-            setEditingCategory(null)
-            setShowAddCategory(false)
-          }}
-        />
-      )}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-telegram-secondary-bg rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-telegram-text">{stats.totalOrders}</div>
+          <div className="text-sm text-telegram-hint">Total Orders</div>
+        </div>
+        
+        <div className="bg-telegram-secondary-bg rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-telegram-text">${stats.totalSpent.toFixed(0)}</div>
+          <div className="text-sm text-telegram-hint">Total Spent</div>
+        </div>
+        
+        <div className="bg-telegram-secondary-bg rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-telegram-text">{stats.pendingOrders}</div>
+          <div className="text-sm text-telegram-hint">Pending</div>
+        </div>
+        
+        <div className="bg-telegram-secondary-bg rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-telegram-text">{stats.completedOrders}</div>
+          <div className="text-sm text-telegram-hint">Completed</div>
+        </div>
+      </div>
 
-      {/* Department Edit Modal */}
-      {(editingDepartment || showAddDepartment) && userData && selectedShop && (
-        <DepartmentEditModal
-          department={editingDepartment || undefined}
-          userId={userData.uid}
-          shopId={selectedShop.id}
-          onSave={handleSaveDepartment}
-          onCancel={() => {
-            setEditingDepartment(null)
-            setShowAddDepartment(false)
-          }}
-        />
-      )}
+      {/* Orders Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-telegram-text">Your Orders</h3>
+          <button
+            onClick={() => refetchOrders()}
+            disabled={ordersLoading}
+            className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
 
-      {/* Shop Edit Modal */}
-      {editingShop && (
-        <ShopEditModal
-          shop={editingShop}
-          onSave={async (updatedShop) => {
-            try {
-              const shopRef = doc(db, 'shops', updatedShop.id)
-              await updateDoc(shopRef, {
-                ...updatedShop,
-                updatedAt: new Date()
-              })
-              setEditingShop(null)
-              await loadUserData()
-            } catch (error) {
-              console.error('Error updating shop:', error)
-              setError('Failed to update shop. Please try again.')
-            }
-          }}
-          onCancel={() => setEditingShop(null)}
-        />
-      )}
+        {ordersError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {ordersError}
+          </div>
+        )}
 
-      {/* Promotion Modal */}
-      {showPromotionModal && promotingProduct && (
-        <PromotionModal
-          product={promotingProduct}
-          departments={departments}
-          onClose={() => {
-            setShowPromotionModal(false)
-            setPromotingProduct(null)
-          }}
-          onPromote={handlePromotionSubmit}
-        />
-      )}
+        {ordersLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-telegram-secondary-bg rounded-lg p-4 animate-pulse">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                    <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                  </div>
+                  <div className="h-6 bg-gray-300 rounded w-20"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-8">
+            <ShoppingCart className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+            <h3 className="text-lg font-medium text-telegram-text mb-2">No Orders Yet</h3>
+            <p className="text-telegram-hint">Start shopping to see your orders here!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {orders.map((order) => (
+              <div
+                key={order.id}
+                onClick={() => setSelectedOrder(order)}
+                className="bg-telegram-secondary-bg rounded-lg p-4 cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h4 className="font-medium text-telegram-text">
+                        Order #{order.id.slice(-8)}
+                      </h4>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(order.status)}`}>
+                        {getStatusIcon(order.status)}
+                        <span className="capitalize">{order.status.replace('_', ' ')}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-4 text-sm text-telegram-hint">
+                      <span className="flex items-center space-x-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{formatDate(order.createdAt)}</span>
+                      </span>
+                      <span className="flex items-center space-x-1">
+                        <Package className="w-3 h-3" />
+                        <span>{order.items.length} item{order.items.length !== 1 ? 's' : ''}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-telegram-text">
+                      ${order.total.toFixed(2)}
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-telegram-hint ml-auto mt-1" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Menu Items */}
+      <div className="space-y-2">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+        >
+          <div className="flex items-center space-x-3">
+            <Settings className="w-5 h-5 text-telegram-hint" />
+            <div>
+              <span className="text-telegram-text">Settings</span>
+              <p className="text-xs text-telegram-hint">Notifications, theme, language</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-telegram-hint" />
+        </button>
+        
+        <button
+          onClick={() => setShowSupport(true)}
+          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+        >
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="w-5 h-5 text-telegram-hint" />
+            <div>
+              <span className="text-telegram-text">Support</span>
+              <p className="text-xs text-telegram-hint">Help, contact info, FAQ</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-telegram-hint" />
+        </button>
+      </div>
+
+      {/* App Info */}
+      <div className="text-center text-telegram-hint text-sm">
+        <p>Multi-Shop Mini App</p>
+        <p>Version 1.0.0</p>
+      </div>
     </div>
-  )
-} 
+  );
+};
 
-// Import required components
-import ProductCard from './admin/ProductCard'
-import ProductEditModal from './admin/ProductEditModal'
-import { PromotionModal } from './admin/PromotionModal'
-import CategoryCard from './admin/CategoryCard'
-import CategoryEditModal from './admin/CategoryEditModal'
-import DepartmentCard from './admin/DepartmentCard'
-import DepartmentEditModal from './admin/DepartmentEditModal'
-import ShopCard from './admin/ShopCard'
-import ShopEditModal from './admin/ShopEditModal'
-import AnalyticsTab from './admin/AnalyticsTab'
-import { ArrowLeft } from 'lucide-react'
-
-export default AdminPanel
+export default UserProfileCached;
