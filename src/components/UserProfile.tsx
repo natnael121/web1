@@ -980,6 +980,20 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
           </div>
           <ArrowRight className="w-4 h-4 text-telegram-hint" />
         </button>
+        
+        <button
+          onClick={handleLogout}
+          className="w-full bg-red-500 text-white rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+        >
+          <div className="flex items-center space-x-3">
+            <LogOut className="w-5 h-5" />
+            <div>
+              <span className="text-white">Sign Out</span>
+              <p className="text-xs text-red-100">Log out of your account</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-red-100" />
+        </button>
       </div>
 
       {/* App Info */}

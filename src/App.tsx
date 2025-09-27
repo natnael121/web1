@@ -1,33 +1,39 @@
 import React, { useEffect, useState } from 'react'
-import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { db } from './config/firebase'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
+import { AuthProvider } from './contexts/AuthContext'
+import { useAuth } from './hooks/useAuth'
 import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
+import AuthForm from './components/AuthForm'
 import { User } from './types'
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-}
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig)
-const db = getFirestore(app)
-
-function App() {
+function AppContent() {
+  const { user: firebaseUser, userData, loading: authLoading } = useAuth()
   const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('shops')
   const [user, setUser] = useState<User | null>(null)
+
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-telegram-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-telegram-hint">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show auth form if user is not authenticated
+  if (!firebaseUser) {
+    return <AuthForm />
+  }
 
   useEffect(() => {
     // Initialize cache sync service
@@ -67,39 +73,65 @@ function App() {
           languageCode: telegramUser.language_code || 'en',
           telegramId: telegramUser.id
         })
+      } else if (userData) {
+        // Fallback to Firebase user data if no Telegram data
+        setUser({
+          id: userData.uid,
+          firstName: userData.displayName?.split(' ')[0] || 'User',
+          lastName: userData.displayName?.split(' ').slice(1).join(' ') || '',
+          username: userData.email?.split('@')[0] || '',
+          languageCode: userData.settings?.language || 'en',
+          telegramId: userData.telegramId
+        })
       }
     }
-  }, [])
+  }, [userData])
 
+  return (
+    <div className="min-h-screen bg-telegram-bg text-telegram-text">
+      <SyncStatus />
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
+          <h1 className="text-xl font-bold text-center">Shop Directory</h1>
+          {user && (
+            <p className="text-sm text-center opacity-80 mt-1">
+              Welcome, {user.firstName}!
+            </p>
+          )}
+        </header>
+
+        {/* Main Content */}
+        <main className="pb-20">
+          {currentView === 'shops' && <ShopList />}
+          {currentView === 'profile' && <UserProfile user={user} />}
+          {currentView === 'admin' && <AdminPanel />}
+        </main>
+
+        {/* Bottom Navigation */}
+        <Navigation 
+          currentView={currentView} 
+          onViewChange={setCurrentView} 
+        />
+      </div>
+    </div>
+  )
+}
+
+function App() {
   return (
     <TelegramProvider>
       <FirebaseProvider db={db}>
-        <div className="min-h-screen bg-telegram-bg text-telegram-text">
-          <SyncStatus />
-          <div className="max-w-md mx-auto">
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
-              <h1 className="text-xl font-bold text-center">Shop Directory</h1>
-              {user && (
-                <p className="text-sm text-center opacity-80 mt-1">
-                  Welcome, {user.firstName}!
-                </p>
-              )}
-            </header>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </FirebaseProvider>
+    </TelegramProvider>
+  )
+}
 
-            {/* Main Content */}
-            <main className="pb-20">
-              {currentView === 'shops' && <ShopList />}
-              {currentView === 'profile' && <UserProfile user={user} />}
-              {currentView === 'admin' && <AdminPanel />}
-            </main>
+export default App
 
-            {/* Bottom Navigation */}
-            <Navigation 
-              currentView={currentView} 
-              onViewChange={setCurrentView} 
-            />
-          </div>
         </div>
       </FirebaseProvider>
     </TelegramProvider>
