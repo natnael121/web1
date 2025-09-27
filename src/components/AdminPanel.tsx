@@ -15,7 +15,7 @@ import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
-import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
+import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft } from 'lucide-react'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
@@ -27,7 +27,7 @@ const AdminPanel: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile'>('profile')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics'>('products')
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -35,6 +35,7 @@ const AdminPanel: React.FC = () => {
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showAddDepartment, setShowAddDepartment] = useState(false)
+  const [showAddShop, setShowAddShop] = useState(false)
   const [showPromotionModal, setShowPromotionModal] = useState(false)
   const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -173,7 +174,6 @@ const AdminPanel: React.FC = () => {
       const categoriesQuery = query(
         categoriesRef, 
         where('shopId', '==', shopId),
-        
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
@@ -208,46 +208,45 @@ const AdminPanel: React.FC = () => {
   }
 
   const fetchShopDepartments = async (shopId: string) => {
-  try {
-    const departmentsRef = collection(db, "departments")
-    const departmentsQuery = query(
-      departmentsRef,
-      where("shopId", "==", shopId),
-      orderBy("order", "asc") // requires composite index!
-    )
-    const departmentsSnapshot = await getDocs(departmentsQuery)
+    try {
+      const departmentsRef = collection(db, "departments")
+      const departmentsQuery = query(
+        departmentsRef,
+        where("shopId", "==", shopId),
+        orderBy("order", "asc")
+      )
+      const departmentsSnapshot = await getDocs(departmentsQuery)
 
-    const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
-      const data = doc.data()
+      const departmentsList: Department[] = departmentsSnapshot.docs.map((doc) => {
+        const data = doc.data()
 
-      return {
-        id: doc.id,
-        userId: data.userId || "",
-        shopId: data.shopId || "",
-        name: data.name || "",
-        telegramChatId: data.telegramChatId || "",
-        adminChatId: data.adminChatId || "",
-        role: data.role || "",
-        order: typeof data.order === "number" ? data.order : 0,
-        icon: data.icon || "",
-        isActive: data.isActive !== false,
-        notificationTypes: data.notificationTypes || [],
-        createdAt:
-          data.createdAt?.toDate?.() ??
-          (data.createdAt ? new Date(data.createdAt) : new Date()),
-        updatedAt:
-          data.updatedAt?.toDate?.() ??
-          (data.updatedAt ? new Date(data.updatedAt) : new Date()),
-      }
-    })
+        return {
+          id: doc.id,
+          userId: data.userId || "",
+          shopId: data.shopId || "",
+          name: data.name || "",
+          telegramChatId: data.telegramChatId || "",
+          adminChatId: data.adminChatId || "",
+          role: data.role || "",
+          order: typeof data.order === "number" ? data.order : 0,
+          icon: data.icon || "",
+          isActive: data.isActive !== false,
+          notificationTypes: data.notificationTypes || [],
+          createdAt:
+            data.createdAt?.toDate?.() ??
+            (data.createdAt ? new Date(data.createdAt) : new Date()),
+          updatedAt:
+            data.updatedAt?.toDate?.() ??
+            (data.updatedAt ? new Date(data.updatedAt) : new Date()),
+        }
+      })
 
-    setDepartments(departmentsList)
-  } catch (error) {
-    console.error("Error fetching departments:", error)
-    setError("Failed to load departments. Please try again.")
+      setDepartments(departmentsList)
+    } catch (error) {
+      console.error("Error fetching departments:", error)
+      setError("Failed to load departments. Please try again.")
+    }
   }
-}
-
 
   const fetchShopStats = async (shopId: string) => {
     try {
@@ -293,6 +292,34 @@ const AdminPanel: React.FC = () => {
     setActiveTab('products')
     setError(null)
     await fetchShopData(shop.id)
+  }
+
+  const handleCreateShop = async (shopData: any) => {
+    try {
+      setError(null)
+      
+      if (!userData) {
+        setError('User data not available')
+        return
+      }
+
+      const shopsRef = collection(db, 'shops')
+      const newShop = {
+        ...shopData,
+        ownerId: userData.uid,
+        isActive: true,
+        stats: { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      await addDoc(shopsRef, newShop)
+      setShowAddShop(false)
+      await loadUserData()
+    } catch (error) {
+      console.error('Error creating shop:', error)
+      setError('Failed to create shop. Please try again.')
+    }
   }
 
   const handleSaveProduct = async (productData: any) => {
@@ -546,9 +573,9 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
   }
 
   return (
-    <div className="p-3 space-y-4">
+    <div className="p-3 space-y-4 pb-20">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-xl font-bold text-telegram-text">Admin Panel</h1>
+        <h1 className="text-xl font-bold text-telegram-text">Shop Manager</h1>
         <div className="text-xs text-telegram-hint">
           {userData.displayName || userData.email}
         </div>
@@ -560,105 +587,52 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         </div>
       )}
 
-      {/* User Profile Section - Show for all users */}
-      <div className="bg-telegram-secondary-bg rounded-lg p-3">
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-telegram-button rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-base font-semibold text-telegram-text">
-              {userData.displayName || 'User'}
-            </h2>
-            <p className="text-sm text-telegram-hint">{userData.email}</p>
-            <p className="text-sm text-telegram-hint capitalize">Role: {userData.role}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-telegram-hint">Shops</div>
-            <div className="text-lg font-bold text-telegram-button">
-              {ownedShops.length}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Shops List - Only show if user has shops */}
-      {ownedShops.length > 0 && (
-        <div className="space-y-3">
+      {/* Shops Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-telegram-text">Your Shops</h2>
-          
-          {ownedShops.map((shop) => (
-            <div key={shop.id} className="bg-telegram-secondary-bg rounded-lg p-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
-                    {shop.logo && (
-                      <img src={shop.logo} alt={shop.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                    )}
-                    <div>
-                      <h3 className="text-sm font-semibold text-telegram-text">{shop.name}</h3>
-                      <p className="text-xs text-telegram-hint mt-1 line-clamp-2">{shop.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3 mt-2 text-xs text-telegram-hint">
-                    <span className="flex items-center">
-                      <Package className="w-3 h-3 mr-1" />
-                      {shop.stats?.totalProducts || 0} products
-                    </span>
-                    <span className="flex items-center">
-                      <ShoppingCart className="w-3 h-3 mr-1" />
-                      {shop.stats?.totalOrders || 0} orders
-                    </span>
-                    <span className={`px-2 py-1 rounded-full ${
-                      shop.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {shop.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-1 ml-2">
-                  <button
-                    onClick={() => setEditingShop(shop)}
-                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
-                  >
-                    <Edit className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => handleShopSelect(shop)}
-                    className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded-lg"
-                  >
-                    <BarChart3 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* No Shops Message */}
-      {ownedShops.length === 0 && (
-        <div className="text-center py-6">
-          <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
-          <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
-          <p className="text-sm text-telegram-hint mb-4">
-            You don't own any shops yet. Contact an administrator to get started.
-          </p>
           <button
-            onClick={() => setActiveTab('profile')}
-            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+            onClick={() => setShowAddShop(true)}
+            className="bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg flex items-center space-x-1 text-sm"
           >
-            View Profile
+            <Plus className="w-4 h-4" />
+            <span>New Shop</span>
           </button>
         </div>
-      )}
+        
+        {ownedShops.length > 0 ? (
+          <div className="grid gap-3">
+            {ownedShops.map((shop) => (
+              <ShopCard
+                key={shop.id}
+                shop={shop}
+                onEdit={setEditingShop}
+                onSelect={handleShopSelect}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-telegram-secondary-bg rounded-lg">
+            <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
+            <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
+            <p className="text-sm text-telegram-hint mb-4">
+              Create your first shop to start managing products and orders.
+            </p>
+            <button
+              onClick={() => setShowAddShop(true)}
+              className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+            >
+              Create Shop
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Shop Management - Only show if a shop is selected */}
       {selectedShop && (
         <div className="space-y-4">
           {/* Shop Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between bg-telegram-secondary-bg rounded-lg p-3">
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setSelectedShop(null)}
@@ -827,61 +801,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         </div>
       )}
 
-      {/* Profile Tab for all users */}
-      {!selectedShop && (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-telegram-text">User Profile</h2>
-          <div className="bg-telegram-secondary-bg rounded-lg p-3">
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Display Name</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                  {userData.displayName || 'Not set'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Email</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                  {userData.email}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">Role</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text capitalize text-sm">
-                  {userData.role}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-telegram-text mb-1">User ID</label>
-                <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text font-mono text-xs">
-                  {userData.uid}
-                </div>
-              </div>
-            </div>
-            
-            {userData.businessInfo && (
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-telegram-text mb-2">Business Information</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-telegram-text mb-1">Business Name</label>
-                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                      {userData.businessInfo.name || 'Not set'}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-telegram-text mb-1">Phone</label>
-                    <div className="p-2 bg-telegram-bg rounded-lg text-telegram-text text-sm">
-                      {userData.businessInfo.phone || 'Not set'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Product Edit Modal */}
       {(editingProduct || showAddProduct) && (
         <ProductEditModal
@@ -946,6 +865,15 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         />
       )}
 
+      {/* Add Shop Modal */}
+      {showAddShop && userData && (
+        <ShopCreateModal
+          userId={userData.uid}
+          onSave={handleCreateShop}
+          onCancel={() => setShowAddShop(false)}
+        />
+      )}
+
       {/* Promotion Modal */}
       {showPromotionModal && promotingProduct && (
         <PromotionModal
@@ -972,7 +900,7 @@ import DepartmentCard from './admin/DepartmentCard'
 import DepartmentEditModal from './admin/DepartmentEditModal'
 import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
+import ShopCreateModal from './admin/ShopCreateModal'
 import AnalyticsTab from './admin/AnalyticsTab'
-import { ArrowLeft } from 'lucide-react'
 
 export default AdminPanel
