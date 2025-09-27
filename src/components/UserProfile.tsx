@@ -3,12 +3,8 @@ import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'fire
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
-import TelegramChatInput from './common/TelegramChatInput'
 import { 
   User as UserIcon, 
-  Globe,  
-  MessageCircle, 
-  Settings, 
   ShoppingCart, 
   Package, 
   Clock, 
@@ -19,16 +15,6 @@ import {
   Calendar,
   ArrowRight,
   RefreshCw,
-  Bell,
-  Moon,
-  Sun,
-  Languages,
-  Shield,
-  Phone,
-  Mail,
-  MapPin,
-  Store,
-  Save,
   X,
   Eye
 } from 'lucide-react'
@@ -221,7 +207,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
   const { db } = useFirebase()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [shops, setShops] = useState<Shop[]>([])
   const [showOrders, setShowOrders] = useState(false)
@@ -230,18 +215,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       orderUpdates: true,
       promotions: false,
       newsletter: false
-    },
-    telegram: {
-      chatId: '',
-      username: '',
-      enableNotifications: true
-    },
-    theme: 'auto' as 'light' | 'dark' | 'auto',
-    language: 'en',
-    currency: 'USD'
+    }
   })
-  const [settingsLoading, setSettingsLoading] = useState(false)
-  const [botToken, setBotToken] = useState('')
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalSpent: 0,
@@ -252,7 +227,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
   useEffect(() => {
     if (user?.id && userData) {
       fetchUserOrders()
-      fetchShops()
     }
   }, [user, userData])
 
@@ -453,42 +427,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
     }
   }
 
-  const fetchShops = async () => {
-    try {
-      const shopsRef = collection(db, 'shops')
-      const shopsQuery = query(
-        shopsRef,
-        where('isActive', '==', true),
-        orderBy('name', 'asc')
-      )
-      const shopsSnapshot = await getDocs(shopsQuery)
-      
-      const shopsList: Shop[] = []
-      shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive,
-          businessInfo: data.businessInfo,
-          settings: data.settings,
-          stats: data.stats,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        shopsList.push(shop)
-      })
-      
-      setShops(shopsList)
-    } catch (error) {
-      console.error('Error fetching shops:', error)
-    }
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -539,76 +477,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
     }).format(date)
   }
 
-  const handleSettingsClick = () => {
-    setShowSettings(true)
-  }
-
-  const handleSupportClick = () => {
-    setShowSupport(true)
-  }
-
-  const handleTelegramSettingsClick = () => {
-    setShowTelegramSettings(true)
-  }
-
-  const handleSaveSettings = async () => {
-    try {
-      setSettingsLoading(true)
-      // In a real app, you would save settings to user profile in Firebase
-      // For now, we'll just simulate saving to localStorage
-      localStorage.setItem('userSettings', JSON.stringify(settings))
-      
-      if (webApp?.showAlert) {
-        webApp.showAlert('Settings saved successfully!')
-      }
-      setShowSettings(false)
-    } catch (error) {
-      console.error('Error saving settings:', error)
-      if (webApp?.showAlert) {
-        webApp.showAlert('Failed to save settings. Please try again.')
-      }
-    } finally {
-      setSettingsLoading(false)
-    }
-  }
-
-  const updateSetting = (category: string, key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category as keyof typeof prev],
-        [key]: value
-      }
-    }))
-  }
-
-  const updateDirectSetting = (key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }))
-  }
-
-  // Load settings from localStorage on component mount
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('userSettings')
-    if (savedSettings) {
-      try {
-        setSettings(JSON.parse(savedSettings))
-      } catch (error) {
-        console.error('Error loading saved settings:', error)
-      }
-    }
-  }, [])
-
-  // Get bot token from environment
-  useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
-    if (token) {
-      setBotToken(token)
-    }
-  }, [])
-
   if (!user || !userData) {
     return (
       <div className="p-4">
@@ -622,6 +490,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       </div>
     )
   }
+
   // Show orders view
   if (showOrders) {
     return (
@@ -721,7 +590,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       </div>
     )
   }
-
+  
   if (selectedOrder) {
     return (
       <div className="p-4 space-y-4">
@@ -836,7 +705,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       </div>
     )
   }
-
+  
   return (
     <div className="p-4 space-y-6">
       {/* User Info Card */}
@@ -888,7 +757,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       </div>
 
       {/* Orders Section */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-telegram-text">Your Orders</h3>
           <button
@@ -969,69 +838,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
         )}
       </div>
 
-      {/* Menu Items */}
-      <div className="space-y-2">
+      {/* View All Orders Button */}
+      <div className="text-center">
         <button
           onClick={() => setShowOrders(true)}
-          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+          className="bg-telegram-button text-telegram-button-text px-6 py-3 rounded-lg font-medium hover:opacity-80 transition-opacity"
         >
-          <div className="flex items-center space-x-3">
-            <ShoppingCart className="w-5 h-5 text-telegram-hint" />
-            <div>
-              <span className="text-telegram-text">Orders</span>
-              <p className="text-xs text-telegram-hint">View your order history</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            {stats.totalOrders > 0 && (
-              <span className="bg-telegram-button text-telegram-button-text text-xs px-2 py-1 rounded-full">
-                {stats.totalOrders}
-              </span>
-            )}
-            <ArrowRight className="w-4 h-4 text-telegram-hint" />
-          </div>
-        </button>
-        
-        <button
-          onClick={() => {}}
-          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
-        >
-          <div className="flex items-center space-x-3">
-            <Settings className="w-5 h-5 text-telegram-hint" />
-            <div>
-              <span className="text-telegram-text">Settings</span>
-              <p className="text-xs text-telegram-hint">Notifications, theme, language</p>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-telegram-hint" />
-        </button>
-        
-        <button
-          onClick={() => {}}
-          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
-        >
-          <div className="flex items-center space-x-3">
-            <MessageCircle className="w-5 h-5 text-telegram-hint" />
-            <div>
-              <span className="text-telegram-text">Telegram Settings</span>
-              <p className="text-xs text-telegram-hint">Connect your Telegram account</p>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-telegram-hint" />
-        </button>
-        
-        <button
-          onClick={() => {}}
-          className="w-full bg-telegram-secondary-bg rounded-lg p-4 flex items-center justify-between text-left hover:opacity-80 transition-opacity"
-        >
-          <div className="flex items-center space-x-3">
-            <MessageCircle className="w-5 h-5 text-telegram-hint" />
-            <div>
-              <span className="text-telegram-text">Support</span>
-              <p className="text-xs text-telegram-hint">Help, contact info, FAQ</p>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-telegram-hint" />
+          View All Orders
         </button>
       </div>
 
