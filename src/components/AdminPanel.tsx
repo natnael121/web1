@@ -18,6 +18,16 @@ import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft } from 'lucide-react'
 import OrderManagement from './admin/OrderManagement'
 import ShopCreateModal from './admin/ShopCreateModal'
+import ProductCard from './admin/ProductCard'
+import ProductEditModal from './admin/ProductEditModal'
+import { PromotionModal } from './admin/PromotionModal'
+import CategoryCard from './admin/CategoryCard'
+import CategoryEditModal from './admin/CategoryEditModal'
+import DepartmentCard from './admin/DepartmentCard'
+import DepartmentEditModal from './admin/DepartmentEditModal'
+import ShopCard from './admin/ShopCard'
+import ShopEditModal from './admin/ShopEditModal'
+import AnalyticsTab from './admin/AnalyticsTab'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
@@ -1021,18 +1031,5 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
     </div>
   )
 } 
-
-// Import required components
-import ProductCard from './admin/ProductCard'
-import ProductEditModal from './admin/ProductEditModal'
-import { PromotionModal } from './admin/PromotionModal'
-import CategoryCard from './admin/CategoryCard'
-import CategoryEditModal from './admin/CategoryEditModal'
-import DepartmentCard from './admin/DepartmentCard'
-import DepartmentEditModal from './admin/DepartmentEditModal'
-import ShopCard from './admin/ShopCard'
-import ShopEditModal from './admin/ShopEditModal'
-import AnalyticsTab from './admin/AnalyticsTab'
-
 
 export default AdminPanel
