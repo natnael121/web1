@@ -4,7 +4,6 @@ import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
 import TelegramChatInput from './common/TelegramChatInput'
-import OrderDetailModal from './admin/OrderManagement'
 import { 
   User as UserIcon, 
   Globe,  
