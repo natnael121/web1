@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { useTelegram } from '../contexts/TelegramContext'
 import { cacheSyncService } from '../services/cacheSync'
-import { useCache } from '../hooks/useCache'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
 
 const AdminPanel: React.FC = () => {
   const { user } = useTelegram()
-  const { data: userData, loading: userLoading, updateData: updateUserData } = useCache<UserData>('users', user?.id)
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [userLoading, setUserLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
@@ -27,17 +27,37 @@ const AdminPanel: React.FC = () => {
   const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   useEffect(() => {
+    // Listen for online/offline events
+    const handleOnline = () => {
+      setIsOnline(true)
+      // Trigger sync when coming back online
+      if (user?.id) {
+        loadUserData()
+      }
+    }
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
     if (user?.id) {
       loadUserData()
     } else {
       setLoading(false)
     }
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
   }, [user])
 
   const loadUserData = async () => {
     try {
+      setUserLoading(true)
       setLoading(true)
       setError(null)
       
@@ -46,23 +66,61 @@ const AdminPanel: React.FC = () => {
         return
       }
 
-      // Find shops owned by this user (if any)
-      const cachedShops = await cacheSyncService.getCachedData<Shop>('shops')
-      const userShops = Array.isArray(cachedShops) 
-        ? cachedShops.filter(shop => shop.ownerId === user.id)
-        : []
+      console.log('Loading user data for:', user.id)
       
-      setOwnedShops(userShops)
+      // Load user data from cache first (fast)
+      const cachedUserData = await cacheSyncService.getCachedData<UserData>('users', user.id)
+      if (cachedUserData) {
+        console.log('Found cached user data:', cachedUserData)
+        setUserData(cachedUserData as UserData)
+        setUserLoading(false)
+      }
+      
+      // Load shops from cache first (fast)
+      const cachedShops = await cacheSyncService.getCachedData<Shop>('shops')
+      if (Array.isArray(cachedShops)) {
+        const userShops = cachedShops.filter(shop => shop.ownerId === user.id)
+        console.log('Found cached shops:', userShops.length)
+        setOwnedShops(userShops)
+      }
+      
+      // If online, sync with Firebase in background
+      if (isOnline) {
+        console.log('Online: Syncing with Firebase...')
+        try {
+          await cacheSyncService.forcSync()
+          
+          // Reload data after sync
+          const updatedUserData = await cacheSyncService.getCachedData<UserData>('users', user.id)
+          if (updatedUserData) {
+            setUserData(updatedUserData as UserData)
+          }
+          
+          const updatedShops = await cacheSyncService.getCachedData<Shop>('shops')
+          if (Array.isArray(updatedShops)) {
+            const userShops = updatedShops.filter(shop => shop.ownerId === user.id)
+            setOwnedShops(userShops)
+          }
+          
+          console.log('Firebase sync completed')
+        } catch (syncError) {
+          console.warn('Firebase sync failed, using cached data:', syncError)
+        }
+      } else {
+        console.log('Offline: Using cached data only')
+      }
       
     } catch (error) {
       console.error('Error loading user data:', error)
       setError('Failed to load user data. Please try again.')
     } finally {
       setLoading(false)
+      setUserLoading(false)
     }
   }
 
   const fetchShopData = async (shopId: string) => {
+    console.log('Fetching shop data for:', shopId)
     await Promise.all([
       fetchShopProducts(shopId),
       fetchShopCategories(shopId),
@@ -73,12 +131,30 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopProducts = async (shopId: string) => {
     try {
+      console.log('Fetching products for shop:', shopId)
+      
+      // Load from cache first (fast)
       const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
       const shopProducts = Array.isArray(cachedProducts)
         ? cachedProducts.filter(product => product.shopId === shopId)
         : []
       
+      console.log('Found cached products:', shopProducts.length)
       setProducts(shopProducts)
+      
+      // If online, sync in background
+      if (isOnline) {
+        try {
+          await cacheSyncService.forcSync()
+          const updatedProducts = await cacheSyncService.getCachedData<Product>('products')
+          const updatedShopProducts = Array.isArray(updatedProducts)
+            ? updatedProducts.filter(product => product.shopId === shopId)
+            : []
+          setProducts(updatedShopProducts)
+        } catch (syncError) {
+          console.warn('Product sync failed, using cached data:', syncError)
+        }
+      }
     } catch (error) {
       console.error('Error fetching products:', error)
       setError('Failed to load products. Please try again.')
@@ -87,38 +163,73 @@ const AdminPanel: React.FC = () => {
 
   const fetchShopCategories = async (shopId: string) => {
     try {
-      setLoading(true)
+      console.log('Fetching categories for shop:', shopId)
+      
+      // Load from cache first (fast)
       const cachedCategories = await cacheSyncService.getCachedData<Category>('categories')
       const shopCategories = Array.isArray(cachedCategories)
         ? cachedCategories.filter(category => category.shopId === shopId)
         : []
       
+      console.log('Found cached categories:', shopCategories.length)
       setCategories(shopCategories)
+      
+      // If online, sync in background
+      if (isOnline) {
+        try {
+          await cacheSyncService.forcSync()
+          const updatedCategories = await cacheSyncService.getCachedData<Category>('categories')
+          const updatedShopCategories = Array.isArray(updatedCategories)
+            ? updatedCategories.filter(category => category.shopId === shopId)
+            : []
+          setCategories(updatedShopCategories)
+        } catch (syncError) {
+          console.warn('Category sync failed, using cached data:', syncError)
+        }
+      }
     } catch (error) {
       console.error('Error fetching categories:', error)
       setError('Failed to load categories. Please try again.')
-    } finally {
-      setLoading(false)
     }
   }
 
   const fetchShopDepartments = async (shopId: string) => {
-  try {
-    const cachedDepartments = await cacheSyncService.getCachedData<Department>('departments')
-    const shopDepartments = Array.isArray(cachedDepartments)
-      ? cachedDepartments.filter(department => department.shopId === shopId)
-      : []
-    
-    setDepartments(shopDepartments)
-  } catch (error) {
-    console.error("Error fetching departments:", error)
-    setError("Failed to load departments. Please try again.")
+    try {
+      console.log('Fetching departments for shop:', shopId)
+      
+      // Load from cache first (fast)
+      const cachedDepartments = await cacheSyncService.getCachedData<Department>('departments')
+      const shopDepartments = Array.isArray(cachedDepartments)
+        ? cachedDepartments.filter(department => department.shopId === shopId)
+        : []
+      
+      console.log('Found cached departments:', shopDepartments.length)
+      setDepartments(shopDepartments)
+      
+      // If online, sync in background
+      if (isOnline) {
+        try {
+          await cacheSyncService.forcSync()
+          const updatedDepartments = await cacheSyncService.getCachedData<Department>('departments')
+          const updatedShopDepartments = Array.isArray(updatedDepartments)
+            ? updatedDepartments.filter(department => department.shopId === shopId)
+            : []
+          setDepartments(updatedShopDepartments)
+        } catch (syncError) {
+          console.warn('Department sync failed, using cached data:', syncError)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error)
+      setError('Failed to load departments. Please try again.')
+    }
   }
-}
 
 
   const fetchShopStats = async (shopId: string) => {
     try {
+      console.log('Fetching stats for shop:', shopId)
+      
       // Get product count
       const cachedProducts = await cacheSyncService.getCachedData<Product>('products')
       const shopProducts = Array.isArray(cachedProducts)
@@ -146,6 +257,7 @@ const AdminPanel: React.FC = () => {
       
       const totalCustomers = customerIds.size
 
+      console.log('Calculated stats:', { totalProducts, totalOrders, totalRevenue, totalCustomers })
       setStats({
         totalProducts,
         totalOrders,
@@ -158,6 +270,7 @@ const AdminPanel: React.FC = () => {
   }
 
   const handleShopSelect = async (shop: Shop) => {
+    console.log('Selecting shop:', shop.name)
     setSelectedShop(shop)
     setActiveTab('products')
     setError(null)
@@ -167,6 +280,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveProduct = async (productData: any) => {
     try {
       setError(null)
+      console.log('Saving product:', productData.name)
       
       if (editingProduct) {
         // Update existing product
@@ -175,6 +289,7 @@ const AdminPanel: React.FC = () => {
           ...productData,
           updatedAt: new Date()
         }, true)
+        console.log('Product updated:', editingProduct.id)
       } else {
         // Add new product
         const productId = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -184,6 +299,7 @@ const AdminPanel: React.FC = () => {
           createdAt: new Date(),
           updatedAt: new Date()
         }, true)
+        console.log('Product created:', productId)
       }
       
       setEditingProduct(null)
@@ -200,6 +316,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteProduct = async (productId: string) => {
     try {
       setError(null)
+      console.log('Deleting product:', productId)
       await cacheSyncService.deleteCachedData('products', productId, true)
       
       if (selectedShop) {
@@ -214,6 +331,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveCategory = async (categoryData: any) => {
     try {
       setError(null)
+      console.log('Saving category:', categoryData.name)
       
       if (editingCategory) {
         // Update existing category
@@ -247,6 +365,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       setError(null)
+      console.log('Deleting category:', categoryId)
       await cacheSyncService.deleteCachedData('categories', categoryId, true)
       
       if (selectedShop) {
@@ -261,6 +380,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveDepartment = async (departmentData: any) => {
     try {
       setError(null)
+      console.log('Saving department:', departmentData.name)
       
       if (editingDepartment) {
         // Update existing department
@@ -294,6 +414,7 @@ const AdminPanel: React.FC = () => {
   const handleDeleteDepartment = async (departmentId: string) => {
     try {
       setError(null)
+      console.log('Deleting department:', departmentId)
       await cacheSyncService.deleteCachedData('departments', departmentId, true)
       
       if (selectedShop) {
@@ -395,6 +516,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-300 rounded w-1/2"></div>
           <div className="h-32 bg-gray-300 rounded"></div>
+          <div className="h-16 bg-gray-300 rounded"></div>
         </div>
       </div>
     )
@@ -409,6 +531,17 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           <p className="text-telegram-hint">
             {error || 'Unable to load user data. Please try again.'}
           </p>
+          {!isOnline && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded-lg mb-4 text-sm">
+              You're offline. Some data may be outdated.
+            </div>
+          )}
+          <button
+            onClick={loadUserData}
+            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     )
@@ -420,6 +553,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         <h1 className="text-xl font-bold text-telegram-text">Admin Panel</h1>
         <div className="text-xs text-telegram-hint">
           {userData.displayName || userData.email}
+          {!isOnline && ' (Offline)'}
         </div>
       </div>
 
@@ -429,6 +563,14 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         </div>
       )}
 
+      {!isOnline && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded-lg text-sm">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+            <span>Offline mode - Using cached data</span>
+          </div>
+        </div>
+      )}
       {/* User Profile Section - Show for all users */}
       <div className="bg-telegram-secondary-bg rounded-lg p-3">
         <div className="flex items-center space-x-4">
