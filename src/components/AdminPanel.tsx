@@ -16,6 +16,8 @@ import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User } from 'lucide-react'
+import OrderManagement from './admin/OrderManagement'
+import ShopCreateModal from './admin/ShopCreateModal'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
@@ -27,7 +29,7 @@ const AdminPanel: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile'>('profile')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders'>('profile')
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -36,6 +38,7 @@ const AdminPanel: React.FC = () => {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showAddDepartment, setShowAddDepartment] = useState(false)
   const [showPromotionModal, setShowPromotionModal] = useState(false)
+  const [showCreateShop, setShowCreateShop] = useState(false)
   const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
@@ -645,12 +648,20 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           <p className="text-sm text-telegram-hint mb-4">
             You don't own any shops yet. Contact an administrator to get started.
           </p>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
-          >
-            View Profile
-          </button>
+          <div className="space-x-3">
+            <button
+              onClick={() => setShowCreateShop(true)}
+              className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+            >
+              Create Shop
+            </button>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="bg-telegram-hint text-white px-4 py-2 rounded-lg text-sm"
+            >
+              View Profile
+            </button>
+          </div>
         </div>
       )}
 
@@ -679,7 +690,8 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               { id: 'products', label: 'Products', icon: Package },
               { id: 'categories', label: 'Categories', icon: Tag },
               { id: 'departments', label: 'Departments', icon: Users },
-              { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+              { id: 'orders', label: 'Orders', icon: ShoppingCart }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -824,6 +836,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           {activeTab === 'analytics' && (
             <AnalyticsTab shop={selectedShop} stats={stats} />
           )}
+
+          {/* Orders Tab */}
+          {activeTab === 'orders' && (
+            <OrderManagement selectedShopId={selectedShop.id} />
+          )}
         </div>
       )}
 
@@ -956,6 +973,29 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             setPromotingProduct(null)
           }}
           onPromote={handlePromotionSubmit}
+        />
+      )}
+
+      {/* Shop Create Modal */}
+      {showCreateShop && userData && (
+        <ShopCreateModal
+          userId={userData.uid}
+          onSave={async (shopData) => {
+            try {
+              const shopsRef = collection(db, 'shops')
+              await addDoc(shopsRef, {
+                ...shopData,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              })
+              setShowCreateShop(false)
+              await loadUserData()
+            } catch (error) {
+              console.error('Error creating shop:', error)
+              setError('Failed to create shop. Please try again.')
+            }
+          }}
+          onCancel={() => setShowCreateShop(false)}
         />
       )}
     </div>

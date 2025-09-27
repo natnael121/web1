@@ -219,7 +219,7 @@ export interface Order {
   subtotal: number
   tax: number
   total: number
-  status: 'pending' | 'payment_pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered'
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'confirmation_required'
   deliveryMethod: 'pickup' | 'delivery'
   deliveryAddress?: string
