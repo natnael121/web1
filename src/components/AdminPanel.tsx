@@ -1034,7 +1034,7 @@ import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
 import { ArrowLeft } from 'lucide-react'
-import { deleteDoc } from 'firebase/firestore'
+
 import { Trash2, Plus } from 'lucide-react'
 
 export default AdminPanel
