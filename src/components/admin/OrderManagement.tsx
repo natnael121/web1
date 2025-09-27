@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Clock, CheckCircle, XCircle, Eye, Filter, Download, MessageSquare, AlertCircle, Truck, Package } from 'lucide-react'
-import { collection, query, where, getDocs, doc, updateDoc, orderBy } from 'firebase/firestore'
+import { Clock, CheckCircle, XCircle, Eye, Filter, Download, MessageSquare, AlertCircle, Truck, Package, Bell, X } from 'lucide-react'
+import { collection, query, where, getDocs, doc, updateDoc, orderBy, onSnapshot, addDoc } from 'firebase/firestore'
 import { useFirebase } from '../../contexts/FirebaseContext'
 import { useTelegram } from '../../contexts/TelegramContext'
 import { Order, Department } from '../../types'
@@ -9,7 +9,7 @@ interface OrderManagementProps {
   selectedShopId?: string
 }
 
-type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered'
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
 
 const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => {
   const { db } = useFirebase()
@@ -22,19 +22,26 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [processingOrders, setProcessingOrders] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [newOrderNotifications, setNewOrderNotifications] = useState<Order[]>([])
 
   useEffect(() => {
     if (selectedShopId) {
-      loadOrders()
       loadDepartments()
+      setupOrdersListener()
+    }
+    
+    return () => {
+      // Cleanup listeners when component unmounts
     }
   }, [selectedShopId])
 
-  const loadOrders = async () => {
-    if (!selectedShopId) return
+  const setupOrdersListener = () => {
+    if (!selectedShopId || !db) return
 
     try {
       setLoading(true)
+      setError(null)
+
       const ordersRef = collection(db, 'orders')
       const ordersQuery = query(
         ordersRef,
@@ -42,51 +49,79 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
         orderBy('createdAt', 'desc')
       )
       
-      const ordersSnapshot = await getDocs(ordersQuery)
-      const ordersList: Order[] = []
-      
-      ordersSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const order: Order = {
-          id: doc.id,
-          shopId: data.shopId,
-          customerId: data.customerId,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          customerEmail: data.customerEmail,
-          items: data.items || [],
-          subtotal: data.subtotal || 0,
-          tax: data.tax || 0,
-          total: data.total || 0,
-          status: data.status || 'pending',
-          paymentStatus: data.paymentStatus || 'pending',
-          deliveryMethod: data.deliveryMethod || 'pickup',
-          deliveryAddress: data.deliveryAddress,
-          deliveryFee: data.deliveryFee,
-          estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
-          paymentPreference: data.paymentPreference,
-          paymentPhotoUrl: data.paymentPhotoUrl,
-          requiresPaymentConfirmation: data.requiresPaymentConfirmation,
-          customerNotes: data.customerNotes,
-          source: data.source || 'web',
-          tableNumber: data.tableNumber,
-          telegramId: data.telegramId,
-          telegramUsername: data.telegramUsername,
-          trackingNumber: data.trackingNumber,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          confirmedAt: data.confirmedAt?.toDate(),
-          shippedAt: data.shippedAt?.toDate(),
-          deliveredAt: data.deliveredAt?.toDate()
-        }
-        ordersList.push(order)
-      })
+      // Setup real-time listener
+      const unsubscribe = onSnapshot(
+        ordersQuery,
+        (snapshot) => {
+          const ordersList: Order[] = []
+          const newOrders: Order[] = []
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data()
+            const order: Order = {
+              id: doc.id,
+              shopId: data.shopId || '',
+              customerId: data.customerId || '',
+              customerName: data.customerName || 'Unknown Customer',
+              customerPhone: data.customerPhone,
+              customerEmail: data.customerEmail,
+              items: data.items || [],
+              subtotal: data.subtotal || 0,
+              tax: data.tax || 0,
+              total: data.total || 0,
+              status: data.status || 'pending',
+              paymentStatus: data.paymentStatus || 'pending',
+              deliveryMethod: data.deliveryMethod || 'pickup',
+              deliveryAddress: data.deliveryAddress,
+              deliveryFee: data.deliveryFee,
+              estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
+              paymentPreference: data.paymentPreference,
+              paymentPhotoUrl: data.paymentPhotoUrl,
+              requiresPaymentConfirmation: data.requiresPaymentConfirmation,
+              customerNotes: data.customerNotes,
+              source: data.source || 'web',
+              tableNumber: data.tableNumber,
+              telegramId: data.telegramId,
+              telegramUsername: data.telegramUsername,
+              trackingNumber: data.trackingNumber,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date(),
+              confirmedAt: data.confirmedAt?.toDate(),
+              shippedAt: data.shippedAt?.toDate(),
+              deliveredAt: data.deliveredAt?.toDate()
+            }
+            ordersList.push(order)
 
-      setOrders(ordersList)
+            // Check if this is a new pending order (created in last 30 seconds)
+            const isNewOrder = order.status === 'pending' && 
+              (Date.now() - order.createdAt.getTime()) < 30000
+            
+            if (isNewOrder) {
+              newOrders.push(order)
+            }
+          })
+
+          setOrders(ordersList)
+          
+          // Show notifications for new orders
+          if (newOrders.length > 0) {
+            setNewOrderNotifications(prev => [...prev, ...newOrders])
+          }
+          
+          setLoading(false)
+          setError(null)
+        },
+        (error) => {
+          console.error('Error in orders listener:', error)
+          setError('Failed to load orders. Please try again.')
+          setLoading(false)
+        }
+      )
+
+      return unsubscribe
     } catch (error) {
-      console.error('Error loading orders:', error)
-      setError('Failed to load orders. Please try again.')
-    } finally {
+      console.error('Error setting up orders listener:', error)
+      setError('Failed to setup orders listener. Please try again.')
       setLoading(false)
     }
   }
@@ -109,12 +144,12 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
         const data = doc.data()
         const department: Department = {
           id: doc.id,
-          userId: data.userId,
-          shopId: data.shopId,
-          name: data.name,
-          telegramChatId: data.telegramChatId,
-          adminChatId: data.adminChatId,
-          role: data.role,
+          userId: data.userId || '',
+          shopId: data.shopId || '',
+          name: data.name || '',
+          telegramChatId: data.telegramChatId || '',
+          adminChatId: data.adminChatId || '',
+          role: data.role || 'shop',
           order: data.order || 0,
           icon: data.icon || '👥',
           isActive: data.isActive !== false,
@@ -146,10 +181,14 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
       // Add timestamp for specific status changes
       if (newStatus === 'confirmed') {
         updateData.confirmedAt = new Date()
+      } else if (newStatus === 'processing') {
+        updateData.processingAt = new Date()
       } else if (newStatus === 'shipped') {
         updateData.shippedAt = new Date()
       } else if (newStatus === 'delivered') {
         updateData.deliveredAt = new Date()
+      } else if (newStatus === 'cancelled') {
+        updateData.cancelledAt = new Date()
       }
 
       await updateDoc(orderRef, updateData)
@@ -160,6 +199,11 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
           ? { ...order, status: newStatus, updatedAt: new Date() }
           : order
       ))
+
+      // Remove from new order notifications if confirmed or cancelled
+      if (newStatus === 'confirmed' || newStatus === 'cancelled') {
+        setNewOrderNotifications(prev => prev.filter(order => order.id !== orderId))
+      }
 
       // Send Telegram notification if departments are configured
       const order = orders.find(o => o.id === orderId)
@@ -189,11 +233,17 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
     // await telegramService.sendOrderStatusUpdate(order, status, departments)
   }
 
+  const dismissNotification = (orderId: string) => {
+    setNewOrderNotifications(prev => prev.filter(order => order.id !== orderId))
+  }
+
   const statusConfig = {
     pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
     confirmed: { label: 'Confirmed', color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
+    processing: { label: 'Processing', color: 'bg-purple-100 text-purple-800', icon: Package },
     shipped: { label: 'Shipped', color: 'bg-indigo-100 text-indigo-800', icon: Truck },
-    delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800', icon: CheckCircle }
+    delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+    cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: XCircle }
   }
 
   const getStatusColor = (status: OrderStatus) => {
@@ -286,6 +336,49 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
 
   return (
     <div className="space-y-4">
+      {/* New Order Notifications */}
+      {newOrderNotifications.length > 0 && (
+        <div className="space-y-2">
+          {newOrderNotifications.map((order) => (
+            <div key={order.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Bell className="w-5 h-5 text-yellow-600" />
+                  <div>
+                    <h4 className="font-medium text-yellow-800">New Order Received!</h4>
+                    <p className="text-sm text-yellow-700">
+                      Order #{order.id.slice(-6)} from {order.customerName} - ${order.total.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                    disabled={processingOrders.has(order.id)}
+                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                    disabled={processingOrders.has(order.id)}
+                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => dismissNotification(order.id)}
+                    className="text-yellow-600 hover:text-yellow-800 p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
@@ -307,7 +400,7 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-telegram-secondary-bg rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-telegram-text">{orders.length}</div>
           <div className="text-xs text-telegram-hint">Total Orders</div>
@@ -320,9 +413,15 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
         </div>
         <div className="bg-telegram-secondary-bg rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-blue-600">
-            {orders.filter(o => ['confirmed', 'shipped'].includes(o.status)).length}
+            {orders.filter(o => ['confirmed', 'processing'].includes(o.status)).length}
           </div>
           <div className="text-xs text-telegram-hint">Processing</div>
+        </div>
+        <div className="bg-telegram-secondary-bg rounded-lg p-3 text-center">
+          <div className="text-lg font-bold text-indigo-600">
+            {orders.filter(o => o.status === 'shipped').length}
+          </div>
+          <div className="text-xs text-telegram-hint">Shipped</div>
         </div>
         <div className="bg-telegram-secondary-bg rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-green-600">
@@ -345,8 +444,10 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
+            <option value="processing">Processing</option>
             <option value="shipped">Shipped</option>
             <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           <select
@@ -408,21 +509,42 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
                   
                   {/* Status Action Buttons */}
                   {order.status === 'pending' && (
-                    <button
-                      onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                      disabled={isProcessing}
-                      className="p-2 text-green-600 hover:bg-green-600 hover:text-white rounded disabled:opacity-50"
-                      title="Confirm Order"
-                    >
-                      {isProcessing ? (
-                        <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4" />
-                      )}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                        disabled={isProcessing}
+                        className="p-2 text-green-600 hover:bg-green-600 hover:text-white rounded disabled:opacity-50"
+                        title="Confirm Order"
+                      >
+                        {isProcessing ? (
+                          <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                        disabled={isProcessing}
+                        className="p-2 text-red-600 hover:bg-red-600 hover:text-white rounded disabled:opacity-50"
+                        title="Cancel Order"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </>
                   )}
                   
                   {order.status === 'confirmed' && (
+                    <button
+                      onClick={() => updateOrderStatus(order.id, 'processing')}
+                      disabled={isProcessing}
+                      className="p-2 text-purple-600 hover:bg-purple-600 hover:text-white rounded disabled:opacity-50"
+                      title="Start Processing"
+                    >
+                      <Package className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  {order.status === 'processing' && (
                     <button
                       onClick={() => updateOrderStatus(order.id, 'shipped')}
                       disabled={isProcessing}
@@ -450,7 +572,7 @@ const OrderManagement: React.FC<OrderManagementProps> = ({ selectedShopId }) => 
         })}
       </div>
       
-      {filteredOrders.length === 0 && (
+      {filteredOrders.length === 0 && !loading && (
         <div className="text-center py-12">
           <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
           <h3 className="text-lg font-medium text-telegram-text mb-2">
@@ -489,7 +611,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   onClose, 
   onUpdateStatus
 }) => {
-  const statusOptions: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered']
+  const statusOptions: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

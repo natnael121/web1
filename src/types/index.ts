@@ -220,7 +220,7 @@ export interface Order {
   tax: number
   total: number
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered'
-  paymentStatus: 'pending' | 'paid' | 'refunded' | 'confirmation_required'
+  paymentStatus: 'pending' | 'paid' | 'refunded' | 'confirmation_required' | 'cancelled'
   deliveryMethod: 'pickup' | 'delivery'
   deliveryAddress?: string
   deliveryFee?: number

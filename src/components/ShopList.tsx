@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
@@ -693,8 +693,8 @@ const ShopList: React.FC = () => {
       const ordersRef = collection(db, 'orders')
       await addDoc(ordersRef, {
         ...orderData,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       })
       
       // Clear cart and show success
