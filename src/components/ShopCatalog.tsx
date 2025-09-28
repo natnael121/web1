@@ -170,7 +170,7 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
 
   const shareShop = () => {
     const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shareUrl = `https://t.me/${botUsername}?start=${shop.slug || shop.id}`
+    const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
     const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
     
     if (webApp?.openTelegramLink) {

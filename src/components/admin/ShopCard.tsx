@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Shop } from '../../types'
-import { Store, Package, ShoppingCart, DollarSign, Users, FileEdit as Edit, BarChart3, Star, Clock, MapPin, Phone, Share2, Copy } from 'lucide-react'
+import { Store, Package, ShoppingCart, DollarSign, Users, FileEdit as Edit, BarChart3, Star, Clock, MapPin, Phone, Share2, Copy, ExternalLink, Link } from 'lucide-react'
+import ShopLinkManager from './ShopLinkManager'
 
 interface ShopCardProps {
   shop: Shop
@@ -9,6 +10,8 @@ interface ShopCardProps {
 }
 
 const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
+  const [showLinkManager, setShowLinkManager] = useState(false)
+
   const formatCurrency = (amount: number) => {
     const currency = shop.settings?.currency || 'USD'
     const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'ETB' ? 'Br' : '$'
@@ -34,24 +37,78 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
   const shareShop = (e: React.MouseEvent) => {
     e.stopPropagation()
     const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shareUrl = `https://t.me/${botUsername}?start=${shop.slug || shop.id}`
+    const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
     const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
     
+    // Try Telegram WebApp share first
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)
+    } else if (navigator.share) {
+      navigator.share({
+        title: shop.name,
+        text: shareText,
+        url: shareUrl
+      }).catch(() => {
+        // Fallback to clipboard
+        copyToClipboard(shareText)
+      })
+    } else {
+      copyToClipboard(shareText)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareText).then(() => {
-        alert('Shop link copied to clipboard!')
+      navigator.clipboard.writeText(text).then(() => {
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
+        } else {
+          alert('Shop link copied to clipboard!')
+        }
       }).catch(() => {
         // Fallback for older browsers
         const textArea = document.createElement('textarea')
-        textArea.value = shareText
+        textArea.value = text
         document.body.appendChild(textArea)
         textArea.select()
         document.execCommand('copy')
         document.body.removeChild(textArea)
-        alert('Shop link copied to clipboard!')
+        
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
+        } else {
+          alert('Shop link copied to clipboard!')
+        }
       })
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
+      } else {
+        alert('Shop link copied to clipboard!')
+      }
     }
   }
+
+  const openShopLink = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const shopUrl = `https://t.me/${botUsername}?start=${shop.id}`
+    
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(shopUrl)
+    } else {
+      window.open(shopUrl, '_blank')
+    }
+  }
+
   return (
     <div className="bg-telegram-secondary-bg rounded-xl p-4 border border-telegram-hint/10 hover:border-telegram-button/30 transition-all duration-200">
       {/* Header Section */}
@@ -115,14 +172,24 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
         </div>
         
         {/* Action Buttons */}
-        <div className="flex space-x-1 ml-2">
+        <div className="flex flex-col space-y-1 ml-2">
           <button
-            onClick={shareShop}
-            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
-            title="Share Shop Link"
+            onClick={openShopLink}
+            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+            title="Open Shop Link"
           >
-            <Share2 className="w-4 h-4" />
+            <ExternalLink className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => setShowLinkManager(true)}
+            className="p-2 text-telegram-button hover:text-telegram-button/80 hover:bg-telegram-button/10 rounded-lg transition-colors"
+            title="Manage Shop Links"
+          >
+            <Link className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="flex space-x-1 ml-2">
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -191,7 +258,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
 
       {/* Footer Section */}
       <div className="flex items-center justify-between pt-3 border-t border-telegram-hint/10">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
             shop.isActive 
               ? 'bg-green-100 text-green-700' 
@@ -208,6 +275,14 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
               </span>
             </div>
           )}
+          
+          {/* Shop Link Display */}
+          <div className="flex items-center space-x-1 text-xs text-telegram-hint">
+            <Link className="w-3 h-3" />
+            <span className="font-mono">
+              t.me/{import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'bot'}?start={shop.id}
+            </span>
+          </div>
         </div>
         
         <button
@@ -217,6 +292,14 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
           Manage
         </button>
       </div>
+
+      {/* Shop Link Manager Modal */}
+      {showLinkManager && (
+        <ShopLinkManager
+          shop={shop}
+          onClose={() => setShowLinkManager(false)}
+        />
+      )}
     </div>
   )
 }

@@ -48,7 +48,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           }`}
         >
           <Settings className="w-6 h-6" />
-          <span className="text-xs font-medium">Shops</span>
+          <span className="text-xs font-medium">Admin</span>
         </button>
       </div>
     </nav>

@@ -107,8 +107,8 @@ function App() {
     try {
       console.log('Handling start parameter:', param)
       
-      // Try to find shop by slug or ID
-      const shopDoc = await getDoc(doc(db, 'shops', param))
+      // First try to find shop by ID
+      let shopDoc = await getDoc(doc(db, 'shops', param))
       
       if (shopDoc.exists()) {
         const shopData = shopDoc.data()
@@ -167,6 +167,7 @@ function App() {
       console.error('Error handling start parameter:', error)
     }
   }
+
   const checkUserInDatabase = async (telegramId: number) => {
     try {
       setUserLoading(true)

@@ -328,7 +328,7 @@ const ShopList: React.FC = () => {
 
   const shareShop = (shop: Shop) => {
     const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shareUrl = `https://t.me/${botUsername}?start=${shop.slug || shop.id}`
+    const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
     const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
     
     if (window.Telegram?.WebApp?.openTelegramLink) {
