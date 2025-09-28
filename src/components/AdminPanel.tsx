@@ -16,6 +16,7 @@ import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import OrderManagement from './admin/OrderManagement'
 import ShopCreateModal from './admin/ShopCreateModal'
 import ProductCard from './admin/ProductCard'
@@ -28,6 +29,7 @@ import DepartmentEditModal from './admin/DepartmentEditModal'
 import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
+import TelegramBotSettings from './admin/TelegramBotSettings'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
@@ -50,9 +52,11 @@ const AdminPanel: React.FC = () => {
   const [showPromotionModal, setShowPromotionModal] = useState(false)
   const [showCreateShop, setShowCreateShop] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [showBotSettings, setShowBotSettings] = useState(false)
   const [promotingProduct, setPromotingProduct] = useState<Product | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
+  const [botToken, setBotToken] = useState('')
 
   useEffect(() => {
     if (user?.id) {
@@ -88,6 +92,9 @@ const AdminPanel: React.FC = () => {
       setUserData(userData)
 
       // Find shops owned by this user (if any)
+      // Also load bot token
+      setBotToken(userData.telegramBotToken || '')
+      
       const shopsRef = collection(db, 'shops')
       const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id), where('isActive', '==', true))
       const shopsSnapshot = await getDocs(ownerQuery)
@@ -735,7 +742,8 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               { id: 'categories', label: 'Categories', icon: Tag },
               { id: 'departments', label: 'Departments', icon: Users },
               { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-              { id: 'orders', label: 'Orders', icon: ShoppingCart }
+              { id: 'orders', label: 'Orders', icon: ShoppingCart },
+              { id: 'settings', label: 'Settings', icon: Settings }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -885,6 +893,20 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           {activeTab === 'orders' && (
             <OrderManagement selectedShopId={selectedShop.id} />
           )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-telegram-text">Shop Settings</h3>
+              
+              {userData && (
+                <TelegramBotSettings 
+                  userId={userData.uid} 
+                  onTokenUpdate={(token) => setBotToken(token)}
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -957,6 +979,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         <PromotionModal
           product={promotingProduct}
           departments={departments}
+          botToken={botToken}
           onClose={() => {
             setShowPromotionModal(false)
             setPromotingProduct(null)

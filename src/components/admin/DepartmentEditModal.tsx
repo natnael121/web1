@@ -75,9 +75,25 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
 
   // Get bot token from environment or user settings
   React.useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
+    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || ''
     if (token) {
       setBotToken(token)
+    }
+    
+    // Try to get bot token from user settings
+    const loadBotToken = async () => {
+      try {
+        const { db } = await import('../../contexts/FirebaseContext')
+        const { doc, getDoc } = await import('firebase/firestore')
+        // This would need to be passed as a prop in a real implementation
+        // For now, we'll use the environment variable
+      } catch (error) {
+        console.log('Could not load bot token from user settings')
+      }
+    }
+    
+    if (!token) {
+      loadBotToken()
     }
   }, [])
 

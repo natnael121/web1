@@ -18,6 +18,7 @@ export interface UserData {
   telegramId?: number
   telegram_id?: number // Add for compatibility with different field names
   telegramBotToken?: string
+  telegramBotToken?: string
   settings: {
     notifications: {
       email: boolean

@@ -9,6 +9,7 @@ import TelegramChatInput from '../common/TelegramChatInput'
 interface PromotionModalProps {
   product: Product
   departments: Department[]
+  botToken?: string
   onClose: () => void
   onPromote: (promotionData: {
     product: Product
@@ -27,6 +28,7 @@ interface PromotionModalProps {
 export const PromotionModal: React.FC<PromotionModalProps> = ({
   product,
   departments,
+  botToken: propBotToken,
   onClose,
   onPromote,
 }) => {
@@ -53,11 +55,11 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
   // Get bot token from environment
   React.useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
+    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
     if (token) {
       setBotToken(token)
     }
-  }, [])
+  }, [propBotToken])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files

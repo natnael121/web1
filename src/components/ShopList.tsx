@@ -661,10 +661,10 @@ const ShopList: React.FC = () => {
 
   const placeOrder = async () => {
     if (!selectedShop || !user || cart.length === 0) {
-  console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
-  setError("Cannot place order: missing information or empty cart.")
-  return
-}
+      console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
+      setError("Cannot place order: missing information or empty cart.")
+      return
+    }
     
     try {
       setOrderPlacing(true)
@@ -677,7 +677,7 @@ const ShopList: React.FC = () => {
       const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
         shopId: selectedShop.id,
         customerId: user.id,
-        customerName: `${user.firstName} ${user.lastName}`.trim(),
+        customerName: `${user.firstName} ${user.lastName || ''}`.trim(),
         items: cart,
         subtotal,
         tax,
@@ -686,7 +686,7 @@ const ShopList: React.FC = () => {
         paymentStatus: 'pending',
         deliveryMethod: 'pickup',
         source: 'web',
-        telegramId: user.id,
+        telegramId: user.id.toString(),
         telegramUsername: user.username
       }
       
@@ -700,6 +700,8 @@ const ShopList: React.FC = () => {
       // Clear cart and show success
       setCart([])
       setShowOrderSuccess(true)
+      
+      console.log('Order placed successfully:', orderData)
       setTimeout(() => setShowOrderSuccess(false), 3000)
     } catch (error) {
       console.error('Error placing order:', error)
