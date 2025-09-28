@@ -16,7 +16,9 @@ import {
   ArrowRight,
   RefreshCw,
   X,
-  Eye
+  Eye,
+  Globe,
+  MessageCircle
 } from 'lucide-react'
 
 interface UserProfileProps {
@@ -210,6 +212,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [shops, setShops] = useState<Shop[]>([])
   const [showOrders, setShowOrders] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [settings, setSettings] = useState({
     notifications: {
       orderUpdates: true,
