@@ -19,7 +19,7 @@ const TelegramChatInput: React.FC<TelegramChatInputProps> = ({
   label = "Telegram Chat",
   placeholder = "Enter @username or chat ID",
   required = false,
-  botToken,
+  botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '',
   showValidation = true,
   className = ""
 }) => {

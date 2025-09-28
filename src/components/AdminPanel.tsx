@@ -538,7 +538,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       // Send or schedule promotion
       for (const department of targetDepartments) {
         const config = {
-          botToken,
+          botToken: import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '',
           chatId: department.telegramChatId
         }
 

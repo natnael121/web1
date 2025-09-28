@@ -49,15 +49,9 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
   // Custom chat input for additional recipients
   const [customChatId, setCustomChatId] = useState('')
-  const [botToken, setBotToken] = useState('')
 
   // Get bot token from environment
-  React.useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
-    if (token) {
-      setBotToken(token)
-    }
-  }, [])
+  const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || ''
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files

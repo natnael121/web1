@@ -30,7 +30,6 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     userId: userId,
     shopId: shopId
   })
-  const [botToken, setBotToken] = useState('')
 
   const roles = [
     { value: 'kitchen', label: 'Kitchen', description: 'Receives order notifications for food preparation' },
@@ -55,6 +54,9 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     '🔔', '📊', '💼', '🏪', '📦', '🛒', '💳', '📱'
   ]
 
+  // Get bot token from environment
+  const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || ''
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -72,14 +74,6 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     
     setFormData({ ...formData, notificationTypes: newTypes })
   }
-
-  // Get bot token from environment or user settings
-  React.useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
-    if (token) {
-      setBotToken(token)
-    }
-  }, [])
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
