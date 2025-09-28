@@ -27,21 +27,23 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
       // Get current timestamp
       const now = new Date()
       
-      const userData = {
+      const usersRef = collection(db, 'users')
+      const docRef = await addDoc(usersRef, {
         createdAt: now,
         displayName: formData.displayName,
         email: formData.email,
         telegramId: user.telegramId || parseInt(user.id),
         updatedAt: now,
-      }
-
-      const usersRef = collection(db, 'users')
-      const docRef = await addDoc(usersRef, userData)
+      })
 
       // Create the complete user data with the UID
       const completeUserData: UserData = {
-        ...userData,
-        uid: docRef.id // This will be the auto-generated Firestore document ID
+        uid: docRef.id,
+        createdAt: now,
+        displayName: formData.displayName,
+        email: formData.email,
+        telegramId: user.telegramId || parseInt(user.id),
+        updatedAt: now,
       }
 
       onComplete(completeUserData)
