@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { collection, addDoc } from 'firebase/firestore'
+import { collection, doc, setDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
 import { Store, User as UserIcon, Mail, Save, Loader2 } from 'lucide-react'
@@ -24,25 +24,31 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     setError(null)
 
     try {
-      // Get current timestamp
       const now = new Date()
-      
       const usersRef = collection(db, 'users')
-      const docRef = await addDoc(usersRef, {
+
+      // Use Telegram ID as UID (document ID)
+      if (!user.telegramId) throw new Error('Telegram ID is required')
+      const uid = user.telegramId.toString()
+
+      const userDocRef = doc(usersRef, uid)
+
+      // Save the user in Firestore with UID = Telegram ID
+      await setDoc(userDocRef, {
+        uid,
         createdAt: now,
         displayName: formData.displayName,
         email: formData.email,
-        telegramId: user.telegramId || parseInt(user.id),
+        telegramId: user.telegramId,
         updatedAt: now,
       })
 
-      // Create the complete user data with the UID
       const completeUserData: UserData = {
-        uid: docRef.id,
+        uid,
         createdAt: now,
         displayName: formData.displayName,
         email: formData.email,
-        telegramId: user.telegramId || parseInt(user.id),
+        telegramId: user.telegramId,
         updatedAt: now,
       }
 
