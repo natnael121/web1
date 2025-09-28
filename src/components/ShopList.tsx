@@ -4,7 +4,6 @@ import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
 import ProductDetails from './ProductDetails'
-import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle, Share2, ExternalLink } from 'lucide-react'
 
 // Simple IndexedDB wrapper for ShopList caching
