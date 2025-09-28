@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { collection, addDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
-import { Store, User as UserIcon, Mail, Phone, MapPin, Save, Loader2 } from 'lucide-react'
+import { Store, User as UserIcon, Mail, Save, Loader2 } from 'lucide-react'
 
 interface UserRegistrationProps {
   user: User
@@ -16,16 +16,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
   const [formData, setFormData] = useState({
     displayName: `${user.firstName} ${user.lastName}`.trim(),
     email: '',
-    phone: '',
-    bio: '',
-    role: 'shop_owner' as 'shop_owner' | 'admin',
-    businessInfo: {
-      name: '',
-      description: '',
-      address: '',
-      phone: '',
-      email: ''
-    }
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,38 +28,11 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
       const now = new Date()
       
       const userData = {
-        // Required fields from your structure
         createdAt: now,
         displayName: formData.displayName,
         email: formData.email,
         telegramId: user.telegramId || parseInt(user.id),
         updatedAt: now,
-        
-        // Additional fields you might want to keep
-        phone: formData.phone,
-        bio: formData.bio,
-        role: formData.role,
-        telegram_id: user.telegramId || parseInt(user.id), // For compatibility
-        
-        // Settings (optional - remove if not needed)
-        settings: {
-          notifications: {
-            email: true,
-            push: true,
-            telegram: true
-          },
-          telegram: {
-            chatId: user.id,
-            username: user.username,
-            enableNotifications: true
-          },
-          theme: 'auto',
-          language: user.languageCode || 'en',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-        
-        // Business info (optional - remove if not needed)
-        businessInfo: formData.businessInfo
       }
 
       const usersRef = collection(db, 'users')
@@ -88,16 +51,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     } finally {
       setLoading(false)
     }
-  }
-
-  const updateBusinessInfo = (field: string, value: string) => {
-    setFormData({
-      ...formData,
-      businessInfo: {
-        ...formData.businessInfo,
-        [field]: value
-      }
-    })
   }
 
   return (
@@ -124,10 +77,7 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
             </div>
           )}
 
-          {/* Personal Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-telegram-text">Personal Information</h3>
-            
             <div>
               <label htmlFor="displayName" className="block text-sm font-medium text-telegram-text mb-2">
                 Full Name
@@ -166,128 +116,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
                   placeholder="Enter your email"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-telegram-text mb-2">
-                Phone Number (Optional)
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-telegram-hint" />
-                </div>
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                  placeholder="Enter your phone number"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="bio" className="block text-sm font-medium text-telegram-text mb-2">
-                Bio (Optional)
-              </label>
-              <textarea
-                id="bio"
-                name="bio"
-                rows={3}
-                value={formData.bio}
-                onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                className="block w-full px-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                placeholder="Tell us about yourself..."
-              />
-            </div>
-          </div>
-
-          {/* Business Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-telegram-text">Business Information (Optional)</h3>
-            
-            <div>
-              <label htmlFor="businessName" className="block text-sm font-medium text-telegram-text mb-2">
-                Business Name
-              </label>
-              <input
-                id="businessName"
-                name="businessName"
-                type="text"
-                value={formData.businessInfo.name}
-                onChange={(e) => updateBusinessInfo('name', e.target.value)}
-                className="block w-full px-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                placeholder="Enter your business name"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="businessDescription" className="block text-sm font-medium text-telegram-text mb-2">
-                Business Description
-              </label>
-              <textarea
-                id="businessDescription"
-                name="businessDescription"
-                rows={3}
-                value={formData.businessInfo.description}
-                onChange={(e) => updateBusinessInfo('description', e.target.value)}
-                className="block w-full px-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                placeholder="Describe your business..."
-              />
-            </div>
-
-            <div>
-              <label htmlFor="businessAddress" className="block text-sm font-medium text-telegram-text mb-2">
-                Business Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-telegram-hint" />
-                </div>
-                <input
-                  id="businessAddress"
-                  name="businessAddress"
-                  type="text"
-                  value={formData.businessInfo.address}
-                  onChange={(e) => updateBusinessInfo('address', e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                  placeholder="Enter your business address"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="businessPhone" className="block text-sm font-medium text-telegram-text mb-2">
-                  Business Phone
-                </label>
-                <input
-                  id="businessPhone"
-                  name="businessPhone"
-                  type="tel"
-                  value={formData.businessInfo.phone}
-                  onChange={(e) => updateBusinessInfo('phone', e.target.value)}
-                  className="block w-full px-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                  placeholder="Business phone"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="businessEmail" className="block text-sm font-medium text-telegram-text mb-2">
-                  Business Email
-                </label>
-                <input
-                  id="businessEmail"
-                  name="businessEmail"
-                  type="email"
-                  value={formData.businessInfo.email}
-                  onChange={(e) => updateBusinessInfo('email', e.target.value)}
-                  className="block w-full px-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
-                  placeholder="Business email"
                 />
               </div>
             </div>
