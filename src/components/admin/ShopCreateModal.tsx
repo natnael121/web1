@@ -61,13 +61,14 @@ const ShopCreateModal: React.FC<ShopCreateModalProps> = ({ userId, onSave, onCan
     const shopData = {
       name: formData.name.trim(),
       slug,
+      description: formData.description.trim(),
+      logo: formData.logo || '',
       ownerId: userId,
       isActive: true,
       businessInfo: {
         name: formData.businessInfo.name || '',
         description: formData.businessInfo.description || '',
         address: formData.businessInfo.address || '',
-        description: formData.description.trim(),
         phone: formData.businessInfo.phone || '',
         email: formData.businessInfo.email || '',
         website: formData.businessInfo.website || ''

@@ -971,8 +971,9 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           userId={userData.uid}
           onSave={async (shopData) => {
             try {
+              setError(null)
               const shopsRef = collection(db, 'shops')
-              const docRef = await addDoc(shopsRef, {
+              await addDoc(shopsRef, {
                 ...shopData,
                 createdAt: new Date(),
                 updatedAt: new Date()
@@ -980,7 +981,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               setShowCreateShop(false)
               await loadUserData()
             } catch (error) {
-              console.error('Error creating shop:', error)
               console.error('Error creating shop:', error)
               setError('Failed to create shop. Please try again.')
             }
