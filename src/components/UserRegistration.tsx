@@ -34,14 +34,24 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     setError(null)
 
     try {
-      const userData: Omit<UserData, 'uid' | 'createdAt' | 'updatedAt'> = {
-        email: formData.email,
+      // Get current timestamp
+      const now = new Date()
+      
+      const userData = {
+        // Required fields from your structure
+        createdAt: now,
         displayName: formData.displayName,
+        email: formData.email,
+        telegramId: user.telegramId || parseInt(user.id),
+        updatedAt: now,
+        
+        // Additional fields you might want to keep
         phone: formData.phone,
         bio: formData.bio,
         role: formData.role,
-        telegramId: user.telegramId || parseInt(user.id),
-        telegram_id: user.telegramId || parseInt(user.id), // Add both fields for compatibility
+        telegram_id: user.telegramId || parseInt(user.id), // For compatibility
+        
+        // Settings (optional - remove if not needed)
         settings: {
           notifications: {
             email: true,
@@ -57,21 +67,18 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
           language: user.languageCode || 'en',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         },
+        
+        // Business info (optional - remove if not needed)
         businessInfo: formData.businessInfo
       }
 
       const usersRef = collection(db, 'users')
-      const docRef = await addDoc(usersRef, {
-        ...userData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
+      const docRef = await addDoc(usersRef, userData)
 
+      // Create the complete user data with the UID
       const completeUserData: UserData = {
         ...userData,
-        uid: docRef.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        uid: docRef.id // This will be the auto-generated Firestore document ID
       }
 
       onComplete(completeUserData)
