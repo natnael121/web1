@@ -944,6 +944,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           department={editingDepartment || undefined}
           userId={userData.uid}
           shopId={selectedShop.id}
+          botToken={botToken}
           onSave={handleSaveDepartment}
           onCancel={() => {
             setEditingDepartment(null)

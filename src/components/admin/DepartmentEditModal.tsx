@@ -7,6 +7,7 @@ interface DepartmentEditModalProps {
   department?: Department
   userId: string
   shopId: string
+  botToken?: string
   onSave: (department: any) => void
   onCancel: () => void
 }
@@ -15,6 +16,7 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
   department, 
   userId, 
   shopId, 
+  botToken: propBotToken,
   onSave, 
   onCancel 
 }) => {
@@ -75,7 +77,7 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
 
   // Get bot token from environment or user settings
   React.useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || ''
+    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || ''
     if (token) {
       setBotToken(token)
     }
@@ -95,7 +97,7 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     if (!token) {
       loadBotToken()
     }
-  }, [])
+  }, [propBotToken])
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
