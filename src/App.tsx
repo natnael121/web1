@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import { cacheSyncService } from './services/cacheSync'
@@ -9,9 +9,10 @@ import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
 import UserRegistration from './components/UserRegistration'
+import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
-import { User, UserData } from './types'
+import { User, UserData, Shop } from './types'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -28,11 +29,13 @@ const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
 function App() {
-  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('admin')
+  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin' | 'catalog'>('shops')
   const [user, setUser] = useState<User | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const [showRegistration, setShowRegistration] = useState(false)
+  const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
+  const [startParam, setStartParam] = useState<string | null>(null)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -63,6 +66,11 @@ function App() {
       
       // Get user data from Telegram
       const telegramUser = tg.initDataUnsafe?.user
+      const startParameter = tg.initDataUnsafe?.start_param
+      
+      console.log('Telegram start parameter:', startParameter)
+      setStartParam(startParameter || null)
+      
       if (telegramUser) {
         const userInfo = {
           id: telegramUser.id.toString(),
@@ -77,13 +85,88 @@ function App() {
         // Check if user exists in database
         checkUserInDatabase(telegramUser.id)
       } else {
+        // For development/testing - check for start param even without user
+        if (startParameter) {
+          handleStartParam(startParameter)
+        }
         setUserLoading(false)
       }
     } else {
+      // For development/testing outside Telegram
+      const urlParams = new URLSearchParams(window.location.search)
+      const shopParam = urlParams.get('shop')
+      if (shopParam) {
+        setStartParam(shopParam)
+        handleStartParam(shopParam)
+      }
       setUserLoading(false)
     }
   }, [])
 
+  const handleStartParam = async (param: string) => {
+    try {
+      console.log('Handling start parameter:', param)
+      
+      // Try to find shop by slug or ID
+      const shopDoc = await getDoc(doc(db, 'shops', param))
+      
+      if (shopDoc.exists()) {
+        const shopData = shopDoc.data()
+        const shop: Shop = {
+          id: shopDoc.id,
+          ownerId: shopData.ownerId,
+          name: shopData.name,
+          slug: shopData.slug,
+          description: shopData.description,
+          logo: shopData.logo,
+          isActive: shopData.isActive,
+          businessInfo: shopData.businessInfo,
+          settings: shopData.settings,
+          stats: shopData.stats,
+          createdAt: shopData.createdAt?.toDate() || new Date(),
+          updatedAt: shopData.updatedAt?.toDate() || new Date()
+        }
+        
+        console.log('Found shop:', shop)
+        setSelectedShopForCatalog(shop)
+        setCurrentView('catalog')
+        return
+      }
+      
+      // If not found by ID, try to find by slug
+      const shopsRef = collection(db, 'shops')
+      const slugQuery = query(shopsRef, where('slug', '==', param), where('isActive', '==', true))
+      const slugSnapshot = await getDocs(slugQuery)
+      
+      if (!slugSnapshot.empty) {
+        const shopDoc = slugSnapshot.docs[0]
+        const shopData = shopDoc.data()
+        const shop: Shop = {
+          id: shopDoc.id,
+          ownerId: shopData.ownerId,
+          name: shopData.name,
+          slug: shopData.slug,
+          description: shopData.description,
+          logo: shopData.logo,
+          isActive: shopData.isActive,
+          businessInfo: shopData.businessInfo,
+          settings: shopData.settings,
+          stats: shopData.stats,
+          createdAt: shopData.createdAt?.toDate() || new Date(),
+          updatedAt: shopData.updatedAt?.toDate() || new Date()
+        }
+        
+        console.log('Found shop by slug:', shop)
+        setSelectedShopForCatalog(shop)
+        setCurrentView('catalog')
+        return
+      }
+      
+      console.log('Shop not found for parameter:', param)
+    } catch (error) {
+      console.error('Error handling start parameter:', error)
+    }
+  }
   const checkUserInDatabase = async (telegramId: number) => {
     try {
       setUserLoading(true)
@@ -108,6 +191,11 @@ function App() {
       } else {
         // User not found, show registration
         setShowRegistration(true)
+      }
+      
+      // After user check, handle start param if present
+      if (startParam) {
+        await handleStartParam(startParam)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
@@ -172,6 +260,15 @@ function App() {
 
             {/* Main Content */}
             <main className="pb-20">
+              {currentView === 'catalog' && selectedShopForCatalog && (
+                <ShopCatalog 
+                  shop={selectedShopForCatalog} 
+                  onBack={() => {
+                    setCurrentView('shops')
+                    setSelectedShopForCatalog(null)
+                  }}
+                />
+              )}
               {currentView === 'shops' && <ShopList />}
               {currentView === 'profile' && <UserProfile user={user} userData={userData} />}
               {currentView === 'admin' && <AdminPanel />}
@@ -181,7 +278,12 @@ function App() {
             {(userData || user) && (
               <Navigation 
                 currentView={currentView} 
-                onViewChange={setCurrentView} 
+                onViewChange={(view) => {
+                  if (view !== 'catalog') {
+                    setSelectedShopForCatalog(null)
+                  }
+                  setCurrentView(view)
+                }}
               />
             )}
           </div>

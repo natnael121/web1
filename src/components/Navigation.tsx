@@ -2,11 +2,16 @@ import React from 'react'
 import { Store, User, Settings } from 'lucide-react'
 
 interface NavigationProps {
-  currentView: 'shops' | 'profile' | 'admin'
-  onViewChange: (view: 'shops' | 'profile' | 'admin') => void
+  currentView: 'shops' | 'profile' | 'admin' | 'catalog'
+  onViewChange: (view: 'shops' | 'profile' | 'admin' | 'catalog') => void
 }
 
 const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) => {
+  // Don't show navigation when viewing catalog
+  if (currentView === 'catalog') {
+    return null
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-telegram-secondary-bg border-t border-gray-200">
       <div className="max-w-md mx-auto flex">

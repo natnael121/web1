@@ -5,6 +5,7 @@ import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
 import ProductDetails from './ProductDetails'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
+import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle, Share2, ExternalLink } from 'lucide-react'
 
 // Simple IndexedDB wrapper for ShopList caching
 class ShopListCache {
@@ -326,6 +327,44 @@ const ShopList: React.FC = () => {
     }
   }
 
+  const shareShop = (shop: Shop) => {
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const shareUrl = `https://t.me/${botUsername}?start=${shop.slug || shop.id}`
+    const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
+    
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)
+    } else if (navigator.share) {
+      navigator.share({
+        title: shop.name,
+        text: shareText,
+        url: shareUrl
+      }).catch(console.error)
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(shareText).then(() => {
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
+        } else {
+          alert('Shop link copied to clipboard!')
+        }
+      }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea')
+        textArea.value = shareText
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
+        } else {
+          alert('Shop link copied to clipboard!')
+        }
+      })
+    }
+  }
 
   const fetchShopCategories = async (shopId: string) => {
     try {
@@ -1125,6 +1164,17 @@ const ShopList: React.FC = () => {
                             Out of Stock
                           </span>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            shareShop(shop)
+                          }}
+                          className="text-xs bg-green-500 text-white px-2 py-1 rounded-full flex items-center space-x-1"
+                          title="Share Shop"
+                        >
+                          <Share2 className="w-3 h-3" />
+                          <span>Share</span>
+                        </button>
                       </div>
                     </div>
                     

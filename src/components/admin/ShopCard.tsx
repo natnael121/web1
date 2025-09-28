@@ -1,6 +1,6 @@
 import React from 'react'
 import { Shop } from '../../types'
-import { Store, Package, ShoppingCart, DollarSign, Users, FileEdit as Edit, BarChart3, Star, Clock, MapPin, Phone } from 'lucide-react'
+import { Store, Package, ShoppingCart, DollarSign, Users, FileEdit as Edit, BarChart3, Star, Clock, MapPin, Phone, Share2, Copy } from 'lucide-react'
 
 interface ShopCardProps {
   shop: Shop
@@ -31,6 +31,27 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
 
   const operatingStatus = getOperatingStatus()
 
+  const shareShop = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const shareUrl = `https://t.me/${botUsername}?start=${shop.slug || shop.id}`
+    const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
+    
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareText).then(() => {
+        alert('Shop link copied to clipboard!')
+      }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea')
+        textArea.value = shareText
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        alert('Shop link copied to clipboard!')
+      })
+    }
+  }
   return (
     <div className="bg-telegram-secondary-bg rounded-xl p-4 border border-telegram-hint/10 hover:border-telegram-button/30 transition-all duration-200">
       {/* Header Section */}
@@ -95,6 +116,13 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
         
         {/* Action Buttons */}
         <div className="flex space-x-1 ml-2">
+          <button
+            onClick={shareShop}
+            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+            title="Share Shop Link"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
