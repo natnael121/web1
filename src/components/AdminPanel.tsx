@@ -701,7 +701,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             You don't own any shops yet. Create your first shop to get started.
           </p>
           <button
-            onClick={() => setShowCreateShop(true)}
+            
             className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
           >
             Create Your First Shop
