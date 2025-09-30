@@ -143,6 +143,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
       </div>
     </div>
   )
-}
+} 
 
 export default UserRegistration
