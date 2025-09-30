@@ -145,5 +145,5 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     </div>
   )
 }
-
+ 
 export default UserRegistration
