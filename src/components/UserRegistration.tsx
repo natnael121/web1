@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { collection, doc, setDoc } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
 import { Store, User as UserIcon, Mail, Save, Loader2 } from 'lucide-react'
@@ -24,32 +24,26 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     setError(null)
 
     try {
-      const now = new Date()
+      if (!user.telegramId) throw new Error('Telegram ID is required')
+
       const usersRef = collection(db, 'users')
 
-      // Use Telegram ID as UID (document ID)
-      if (!user.telegramId) throw new Error('Telegram ID is required')
-      const uid = user.telegramId.toString()
-
-      const userDocRef = doc(usersRef, uid)
-
-      // Save the user in Firestore with UID = Telegram ID
-      await setDoc(userDocRef, {
-        uid,
-        createdAt: now,
+      // Firestore generates the UID automatically
+      const docRef = await addDoc(usersRef, {
+        telegramId: user.telegramId,
         displayName: formData.displayName,
         email: formData.email,
-        telegramId: user.telegramId,
-        updatedAt: now,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       })
 
       const completeUserData: UserData = {
-        uid,
-        createdAt: now,
+        uid: docRef.id, // Firestore auto-generated ID
+        telegramId: user.telegramId,
         displayName: formData.displayName,
         email: formData.email,
-        telegramId: user.telegramId,
-        updatedAt: now,
+        createdAt: new Date(), // local fallback (not exactly server time)
+        updatedAt: new Date(),
       }
 
       onComplete(completeUserData)
@@ -100,7 +94,7 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
                   type="text"
                   required
                   value={formData.displayName}
-                  onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                   className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
                   placeholder="Enter your full name"
                 />
@@ -121,7 +115,7 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
                   type="email"
                   required
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
                   placeholder="Enter your email"
                 />
