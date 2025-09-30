@@ -77,12 +77,13 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
       
       setCategories(categoriesList)
       
-      // Load products
+      // Load all products for the shop
       const productsRef = collection(db, 'products')
       const productsQuery = query(
         productsRef,
         where('shopId', '==', shop.id),
         where('isActive', '==', true),
+        orderBy('featured', 'desc'),
         orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)

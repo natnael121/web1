@@ -618,18 +618,21 @@ const ShopList: React.FC = () => {
   }
 
   const handleShopClick = (shop: Shop) => {
-    setSelectedShop(shop)
-    setCurrentView('categories')
-    setError(null)
-    fetchShopCategories(shop.id)
+    // Navigate to shop catalog directly
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const shopUrl = `https://t.me/${botUsername}?start=${shop.id}`
+    
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(shopUrl)
+    } else {
+      // For testing outside Telegram, we can simulate the shop selection
+      window.location.href = `${window.location.origin}?shop=${shop.id}`
+    }
   }
 
   const handleShopClickFeatured = (shop: Shop) => {
-    setSelectedShop(shop)
-    setCurrentView('products')
-    setSelectedCategory('Featured')
-    setError(null)
-    fetchFeaturedProducts(shop.id)
+    // Same as regular shop click - navigate to shop catalog
+    handleShopClick(shop)
   }
 
   const handleCategoryClick = (category: string) => {
