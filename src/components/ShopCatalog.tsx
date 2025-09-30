@@ -233,7 +233,7 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
           <p className="text-telegram-hint mb-4">{error}</p>
           <button
             onClick={loadShopData}
-            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg"
+            className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg" 
           >
             Try Again
           </button>
