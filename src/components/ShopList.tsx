@@ -7,7 +7,7 @@ import ProductDetails from './ProductDetails'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle, Share2, ExternalLink } from 'lucide-react'
 
 // Simple IndexedDB wrapper for ShopList caching
-class ShopListCache {
+class ShopListCache { 
   private dbName = 'ShopListCache'
   private version = 1
   private db: IDBDatabase | null = null
