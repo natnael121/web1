@@ -2,21 +2,23 @@ import React, { useEffect, useState } from 'react'
 import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
-import { Shop, Product, UserData, Order, OrderItem } from '../types'
+import { Shop, Product, UserData, Order, OrderItem, Category } from '../types'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
+import ProductDetails from './ProductDetails'
 
 const ShopList: React.FC = () => {
   const { db } = useFirebase()
   const { user } = useTelegram()
   const [shops, setShops] = useState<Shop[]>([])
   const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<string[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userData, setUserData] = useState<any>(null)
-  const [currentView, setCurrentView] = useState<'shops' | 'categories' | 'products' | 'cart'>('shops')
+  const [currentView, setCurrentView] = useState<'shops' | 'products' | 'cart'>('shops')
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [cart, setCart] = useState<OrderItem[]>([])
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
@@ -110,120 +112,72 @@ const ShopList: React.FC = () => {
   }
 
 
-  const fetchShopCategories = async (shopId: string) => {
+  const fetchShopData = async (shopId: string) => {
     try {
       setLoading(true)
+      setError(null)
+
+      // Load categories
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
-        categoriesRef, 
+        categoriesRef,
         where('shopId', '==', shopId),
-        
+        where('isActive', '==', true),
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
-      
-      const categoriesList: string[] = []
+
+      const categoriesList: Category[] = []
       categoriesSnapshot.forEach((doc) => {
         const data = doc.data()
-        if (data.name) {
-          categoriesList.push(data.name)
-        }
+        categoriesList.push({
+          id: doc.id,
+          userId: data.userId,
+          shopId: data.shopId,
+          name: data.name,
+          description: data.description,
+          image: data.image,
+          color: data.color,
+          icon: data.icon,
+          order: data.order || 0,
+          isActive: data.isActive !== false,
+          productCount: data.productCount || 0,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        })
       })
 
       setCategories(categoriesList)
-      
-      if (categoriesList.length === 0) {
-        setError('No categories found for this shop.')
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-      setError('Failed to load categories. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  const fetchCategoryProducts = async (shopId: string, category: string) => {
-    try {
-      setLoading(true)
+      // Load all products
       const productsRef = collection(db, 'products')
       const productsQuery = query(
-        productsRef, 
+        productsRef,
         where('shopId', '==', shopId),
-        where('category', '==', category),
         where('isActive', '==', true),
         orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)
-      
+
       const productsList: Product[] = []
       productsSnapshot.forEach((doc) => {
         const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name || 'Unnamed Product',
-          description: data.description || 'No description available',
-          price: data.price || 0,
-          stock: data.stock || 0,
-          category: data.category || 'other',
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 0,
-          tags: data.tags,
-          featured: data.featured,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
+        productsList.push(createProductFromData(doc.id, data))
       })
 
       setProducts(productsList)
-      
-      if (productsList.length === 0) {
-        setError(`No products found in the ${category} category.`)
-      }
     } catch (error) {
-      console.error('Error fetching products:', error)
-      setError('Failed to load products. Please try again.')
+      console.error('Error fetching shop data:', error)
+      setError('Failed to load shop catalog. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchFeaturedProducts = async (shopId: string) => {
-    try {
-      setLoading(true)
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef, 
-        where('shopId', '==', shopId),
-        where('isActive', '==', true),
-        where('featured', '==', true),
-        orderBy('updatedAt', 'desc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
-      
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product = createProductFromData(doc.id, data)
-        productsList.push(product)
-      })
+  const filteredProducts = selectedCategory === 'all'
+    ? products
+    : products.filter(product => product.category === selectedCategory)
 
-      setProducts(productsList)
-    } catch (error) {
-      console.error('Error fetching featured products:', error)
-      setError('Failed to load featured products. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const createProductFromData = (id: string, data: any): Product => {
     return {
@@ -251,38 +205,17 @@ const ShopList: React.FC = () => {
 
   const handleShopClick = (shop: Shop) => {
     setSelectedShop(shop)
-    setCurrentView('categories')
-    setError(null)
-    fetchShopCategories(shop.id)
-  }
-
-  const handleShopClickFeatured = (shop: Shop) => {
-    setSelectedShop(shop)
     setCurrentView('products')
-    setSelectedCategory('Featured')
+    setSelectedCategory('all')
     setError(null)
-    fetchFeaturedProducts(shop.id)
-  }
-
-  const handleCategoryClick = (category: string) => {
-    if (selectedShop) {
-      setSelectedCategory(category)
-      setCurrentView('products')
-      setError(null)
-      fetchCategoryProducts(selectedShop.id, category)
-    }
+    fetchShopData(shop.id)
   }
 
   const handleBackToShops = () => {
     setCurrentView('shops')
     setSelectedShop(null)
+    setSelectedCategory('all')
     setCategories([])
-    setError(null)
-  }
-
-  const handleBackToCategories = () => {
-    setCurrentView('categories')
-    setSelectedCategory('')
     setProducts([])
     setError(null)
   }
@@ -486,17 +419,6 @@ const ShopList: React.FC = () => {
                       <span className="text-xs bg-telegram-button text-telegram-button-text px-2 py-1 rounded-full">
                         {shop.stats?.totalProducts || 0} Products
                       </span>
-                      {shop.stats && shop.stats.totalProducts > 0 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleShopClickFeatured(shop)
-                          }}
-                          className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full"
-                        >
-                          Featured
-                        </button>
-                      )}
                     </div>
                     
                     <span className="text-xs text-telegram-hint">
@@ -512,55 +434,6 @@ const ShopList: React.FC = () => {
     )
   }
 
-  // Render categories view
-  if (currentView === 'categories') {
-    return (
-      <div className="p-4 space-y-4">
-        <div className="flex items-center space-x-3 mb-4">
-          <button
-            onClick={handleBackToShops}
-            className="p-2 rounded-lg bg-telegram-secondary-bg"
-          >
-            <ArrowLeft className="w-5 h-5 text-telegram-text" />
-          </button>
-          <div>
-            <h2 className="text-lg font-semibold text-telegram-text">
-              {selectedShop?.name}
-            </h2>
-            <p className="text-sm text-telegram-hint">Select a category</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => handleCategoryClick(category)}
-              className="bg-telegram-secondary-bg rounded-lg p-4 text-left hover:shadow-md transition-all active:scale-95"
-            >
-              <div className="text-center">
-                <Package className="w-8 h-8 mx-auto text-telegram-button mb-2" />
-                <h3 className="font-medium text-telegram-text capitalize">
-                  {category}
-                </h3>
-                <p className="text-xs text-telegram-hint mt-1">
-                  Browse {category.toLowerCase()}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-        
-        {categories.length === 0 && !loading && (
-          <div className="text-center py-8">
-            <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-            <h3 className="text-lg font-medium text-telegram-text mb-2">No Categories</h3>
-            <p className="text-telegram-hint">This shop hasn't set up categories yet.</p>
-          </div>
-        )}
-      </div>
-    )
-  }
 
   // Render cart view
   if (currentView === 'cart') {
@@ -665,120 +538,197 @@ const ShopList: React.FC = () => {
   // Render products view
   if (currentView === 'products') {
     return (
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="bg-telegram-secondary-bg p-4">
+          <div className="flex items-center space-x-3 mb-3">
             <button
-              onClick={handleBackToCategories}
-              className="p-2 rounded-lg bg-telegram-secondary-bg"
+              onClick={handleBackToShops}
+              className="p-2 rounded-lg bg-telegram-bg"
             >
               <ArrowLeft className="w-5 h-5 text-telegram-text" />
             </button>
-            <div>
-              <h2 className="text-lg font-semibold text-telegram-text capitalize">
-                {selectedCategory}
-              </h2>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-telegram-text">{selectedShop?.name}</h1>
               <p className="text-sm text-telegram-hint">
-                {selectedShop?.name} • {products.length} product{products.length !== 1 ? 's' : ''}
+                {products.length} product{products.length !== 1 ? 's' : ''}
               </p>
             </div>
+
+            {cart.length > 0 && (
+              <button
+                onClick={handleViewCart}
+                className="relative p-2 rounded-lg bg-telegram-button text-telegram-button-text"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {getCartItemCount()}
+                </span>
+              </button>
+            )}
           </div>
-          
-          {cart.length > 0 && (
-            <button
-              onClick={handleViewCart}
-              className="relative p-2 rounded-lg bg-telegram-button text-telegram-button-text"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {getCartItemCount()}
-              </span>
-            </button>
+
+          {selectedShop?.description && (
+            <p className="text-telegram-hint text-sm">{selectedShop.description}</p>
           )}
         </div>
 
-        <div className="space-y-3">
-          {products.map((product) => {
-            const cartItem = cart.find(item => item.productId === product.id)
-            return (
-              <div
-                key={product.id}
-                className="bg-telegram-secondary-bg rounded-lg p-4"
+        {/* Category Filters */}
+        <div className="px-3 py-2 sticky top-0 bg-telegram-bg z-10 border-b border-telegram-hint/10">
+          <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                selectedCategory === 'all'
+                  ? 'bg-telegram-button text-telegram-button-text shadow-md'
+                  : 'bg-telegram-secondary-bg text-telegram-text'
+              }`}
+            >
+              All ({products.length})
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.name)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center space-x-1.5 transition-all ${
+                  selectedCategory === category.name
+                    ? 'bg-telegram-button text-telegram-button-text shadow-md'
+                    : 'bg-telegram-secondary-bg text-telegram-text'
+                }`}
               >
-                <div className="flex items-start space-x-3">
-                  <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+                <span className="text-xs opacity-70">({products.filter(p => p.category === category.name).length})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        <div className="px-3 py-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {filteredProducts.map((product) => {
+              const cartItem = cart.find(item => item.productId === product.id)
+              const isOutOfStock = product.stock === 0
+
+              return (
+                <div
+                  key={product.id}
+                  className="bg-telegram-secondary-bg rounded-lg overflow-hidden flex flex-col shadow-sm"
+                >
+                  <div
+                    className="relative w-full pt-[100%] bg-gray-300 cursor-pointer overflow-hidden"
+                    onClick={() => setSelectedProduct(product)}
+                  >
                     {product.images?.[0] ? (
-                      <img 
-                        src={product.images[0]} 
+                      <img
+                        src={product.images[0]}
                         alt={product.name}
-                        className="w-full h-full object-cover rounded-lg"
+                        className="absolute top-0 left-0 w-full h-full object-cover"
                       />
-                    ) : null}
-                    {!product.images?.[0] && <Package className="w-8 h-8 text-telegram-hint" />}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <h3 className="font-semibold text-telegram-text truncate pr-2">
-                        {product.name}
-                      </h3>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-lg font-bold text-telegram-button">
-                          ${product.price.toFixed(2)}
-                        </div>
-                        {product.stock === 0 && (
-                          <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
-                            Out of Stock
-                          </span>
-                        )}
+                    ) : (
+                      <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                        <Package className="w-10 h-10 text-telegram-hint" />
                       </div>
-                    </div>
-                    
-                    <p className="text-sm text-telegram-hint mt-1 line-clamp-2">
-                      {product.description}
-                    </p>
-                    
-                    {/* Add to Cart Controls */}
-                    <div className="flex items-center justify-between mt-3">
-                      {product.stock > 0 ? (
-                        cartItem ? (
-                          <div className="flex items-center space-x-2">
+                    )}
+                    {product.featured && (
+                      <div className="absolute top-1.5 right-1.5 bg-yellow-500 rounded-full p-1">
+                        <Star className="w-3 h-3 text-white fill-current" />
+                      </div>
+                    )}
+                    {isOutOfStock && (
+                      <div className="absolute top-1.5 left-1.5 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                        Out
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-2 flex flex-col flex-1">
+                    <h3
+                      className="font-semibold text-telegram-text text-xs line-clamp-2 cursor-pointer mb-1 min-h-[2rem]"
+                      onClick={() => setSelectedProduct(product)}
+                    >
+                      {product.name}
+                    </h3>
+
+                    <div className="mt-auto space-y-1.5">
+                      <div className="text-base font-bold text-telegram-button">
+                        ${product.price.toFixed(2)}
+                      </div>
+
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          onClick={() => setSelectedProduct(product)}
+                          className="flex-1 bg-telegram-secondary-bg text-telegram-text px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-telegram-hint hover:bg-opacity-10 transition-colors"
+                        >
+                          Details
+                        </button>
+
+                        {!isOutOfStock ? (
+                          cartItem ? (
+                            <div className="flex items-center bg-telegram-bg rounded-lg">
+                              <button
+                                onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
+                                className="w-7 h-7 rounded-l-lg bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-telegram-text font-medium text-xs px-2">{cartItem.quantity}</span>
+                              <button
+                                onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
+                                className="w-7 h-7 rounded-r-lg bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
-                              className="w-8 h-8 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <span className="text-telegram-text font-medium">{cartItem.quantity}</span>
-                            <button
-                              onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
-                              className="w-8 h-8 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                              onClick={() => addToCart(product)}
+                              className="w-7 h-7 rounded-lg bg-telegram-button text-telegram-button-text flex items-center justify-center"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
-                            <span className="text-sm text-telegram-hint ml-2">
-                              ${(cartItem.quantity * product.price).toFixed(2)}
-                            </span>
-                          </div>
+                          )
                         ) : (
                           <button
-                            onClick={() => addToCart(product)}
-                            className="flex items-center space-x-2 bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg"
+                            disabled
+                            className="w-7 h-7 rounded-lg bg-gray-300 text-gray-500 flex items-center justify-center cursor-not-allowed"
                           >
                             <Plus className="w-4 h-4" />
-                            <span>Add to Cart</span>
                           </button>
-                        )
-                      ) : (
-                        <span className="text-sm text-red-500">Out of Stock</span>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
+
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+            <h3 className="text-lg font-medium text-telegram-text mb-2">No Products Found</h3>
+            <p className="text-telegram-hint">
+              {selectedCategory === 'all'
+                ? 'This shop has no products yet.'
+                : `No products found in the ${selectedCategory} category.`
+              }
+            </p>
+          </div>
+        )}
+
+        {/* Product Details Modal */}
+        {selectedProduct && (
+          <ProductDetails
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+            onAddToCart={addToCart}
+            cartItem={cart.find(item => item.productId === selectedProduct.id)}
+            onUpdateCartQuantity={updateCartQuantity}
+          />
+        )}
       </div>
     )
   }
