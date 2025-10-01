@@ -248,7 +248,7 @@ function App() {
       <FirebaseProvider db={db}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
           <SyncStatus />
-          <div className={currentView === 'catalog' ? 'w-full' : 'max-w-md mx-auto'}>
+          <div className={currentView === 'catalog' ? 'w-full max-w-7xl mx-auto' : 'max-w-md mx-auto'}>
             {/* Header */}
             {currentView !== 'catalog' && (
             <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
@@ -262,7 +262,7 @@ function App() {
             )}
 
             {/* Main Content */}
-            <main className={currentView === 'catalog' ? '' : 'pb-20'}>
+            <main className={currentView === 'catalog' ? 'pb-4' : 'pb-20'}>
               {currentView === 'catalog' && selectedShopForCatalog && (
                 <ShopCatalog 
                   shop={selectedShopForCatalog} 

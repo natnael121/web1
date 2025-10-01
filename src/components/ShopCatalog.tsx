@@ -429,14 +429,14 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
       </div>
 
       {/* Categories - Sticky at top */}
-      <div className="sticky top-0 z-10 bg-telegram-bg px-4 py-3 border-b border-telegram-secondary-bg">
-        <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
+      <div className="sticky top-0 z-10 bg-telegram-bg px-3 py-2 border-b border-telegram-secondary-bg shadow-sm">
+        <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-1">
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
               selectedCategory === 'all'
                 ? 'bg-telegram-button text-telegram-button-text shadow-md'
-                : 'bg-telegram-secondary-bg text-telegram-text hover:bg-telegram-button hover:bg-opacity-10'
+                : 'bg-telegram-secondary-bg text-telegram-text'
             }`}
           >
             All ({products.length})
@@ -445,10 +445,10 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.name)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center space-x-1 transition-all ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center space-x-1 transition-all ${
                 selectedCategory === category.name
                   ? 'bg-telegram-button text-telegram-button-text shadow-md'
-                  : 'bg-telegram-secondary-bg text-telegram-text hover:bg-telegram-button hover:bg-opacity-10'
+                  : 'bg-telegram-secondary-bg text-telegram-text'
               }`}
             >
               <span>{category.icon}</span>
@@ -460,8 +460,8 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
       </div>
 
       {/* Products Grid */}
-      <div className="px-4 py-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="px-3 py-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {filteredProducts.map((product) => {
             const cartItem = cart.find(item => item.productId === product.id)
             const isOutOfStock = product.stock === 0
@@ -469,7 +469,7 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
             return (
               <div
                 key={product.id}
-                className="bg-telegram-secondary-bg rounded-lg overflow-hidden flex flex-col hover:shadow-lg transition-shadow"
+                className="bg-telegram-secondary-bg rounded-lg overflow-hidden flex flex-col shadow-sm"
               >
                 <div
                   className="relative w-full pt-[100%] bg-gray-300 cursor-pointer overflow-hidden"
@@ -479,41 +479,35 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
                     <img
                       src={product.images[0]}
                       alt={product.name}
-                      className="absolute top-0 left-0 w-full h-full object-cover hover:scale-105 transition-transform"
+                      className="absolute top-0 left-0 w-full h-full object-cover"
                     />
                   ) : (
                     <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                      <Package className="w-12 h-12 text-telegram-hint" />
+                      <Package className="w-10 h-10 text-telegram-hint" />
                     </div>
                   )}
                   {product.featured && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 rounded-full p-1">
-                      <Star className="w-4 h-4 text-white fill-current" />
+                    <div className="absolute top-1.5 right-1.5 bg-yellow-500 rounded-full p-1">
+                      <Star className="w-3 h-3 text-white fill-current" />
                     </div>
                   )}
                   {isOutOfStock && (
-                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                      Out of Stock
+                    <div className="absolute top-1.5 left-1.5 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      Out
                     </div>
                   )}
                 </div>
 
-                <div className="p-3 flex flex-col flex-1">
+                <div className="p-2 flex flex-col flex-1">
                   <h3
-                    className="font-semibold text-telegram-text text-sm line-clamp-2 cursor-pointer hover:text-telegram-button mb-1"
+                    className="font-semibold text-telegram-text text-xs line-clamp-2 cursor-pointer mb-1 min-h-[2rem]"
                     onClick={() => setSelectedProduct(product)}
                   >
                     {product.name}
                   </h3>
-                  <p
-                    className="text-xs text-telegram-hint line-clamp-2 mb-2 flex-1 cursor-pointer"
-                    onClick={() => setSelectedProduct(product)}
-                  >
-                    {product.description}
-                  </p>
 
                   <div className="mt-auto">
-                    <div className="text-lg font-bold text-telegram-button mb-2">
+                    <div className="text-base font-bold text-telegram-button mb-1.5">
                       ${product.price.toFixed(2)}
                     </div>
 
@@ -522,14 +516,14 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
                         <div className="flex items-center justify-between bg-telegram-bg rounded-lg p-1">
                           <button
                             onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
-                            className="w-7 h-7 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center hover:opacity-80"
+                            className="w-6 h-6 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="text-telegram-text font-medium text-sm">{cartItem.quantity}</span>
+                          <span className="text-telegram-text font-medium text-xs">{cartItem.quantity}</span>
                           <button
                             onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
-                            className="w-7 h-7 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center hover:opacity-80"
+                            className="w-6 h-6 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -537,18 +531,18 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
                       ) : (
                         <button
                           onClick={() => addToCart(product)}
-                          className="w-full flex items-center justify-center space-x-1 bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90"
+                          className="w-full flex items-center justify-center space-x-1 bg-telegram-button text-telegram-button-text px-2 py-1.5 rounded-lg text-xs font-medium"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-3 h-3" />
                           <span>Add</span>
                         </button>
                       )
                     ) : (
                       <button
                         disabled
-                        className="w-full bg-gray-300 text-gray-500 px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+                        className="w-full bg-gray-300 text-gray-500 px-2 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed"
                       >
-                        Out of Stock
+                        Unavailable
                       </button>
                     )}
                   </div>
