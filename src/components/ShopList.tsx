@@ -7,7 +7,7 @@ import ProductDetails from './ProductDetails'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle, Share2, ExternalLink } from 'lucide-react'
 
 // Simple IndexedDB wrapper for ShopList caching
-class ShopListCache { 
+class ShopListCache {
   private dbName = 'ShopListCache'
   private version = 1
   private db: IDBDatabase | null = null
@@ -618,21 +618,18 @@ const ShopList: React.FC = () => {
   }
 
   const handleShopClick = (shop: Shop) => {
-    // Navigate to shop catalog directly
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shopUrl = `https://t.me/${botUsername}?start=${shop.id}`
-    
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink(shopUrl)
-    } else {
-      // For testing outside Telegram, we can simulate the shop selection
-      window.location.href = `${window.location.origin}?shop=${shop.id}`
-    }
+    setSelectedShop(shop)
+    setCurrentView('categories')
+    setError(null)
+    fetchShopCategories(shop.id)
   }
 
   const handleShopClickFeatured = (shop: Shop) => {
-    // Same as regular shop click - navigate to shop catalog
-    handleShopClick(shop)
+    setSelectedShop(shop)
+    setCurrentView('products')
+    setSelectedCategory('Featured')
+    setError(null)
+    fetchFeaturedProducts(shop.id)
   }
 
   const handleCategoryClick = (category: string) => {
@@ -1166,6 +1163,17 @@ const ShopList: React.FC = () => {
                             Out of Stock
                           </span>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            shareShop(shop)
+                          }}
+                          className="text-xs bg-green-500 text-white px-2 py-1 rounded-full flex items-center space-x-1"
+                          title="Share Shop"
+                        >
+                          <Share2 className="w-3 h-3" />
+                          <span>Share</span>
+                        </button>
                       </div>
                     </div>
                     

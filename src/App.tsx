@@ -52,30 +52,25 @@ function App() {
         console.error('Failed to initialize cache sync service:', error)
       }
     }
-
+    
     initializeCache()
 
-    // Check URL parameters first
-    const urlParams = new URLSearchParams(window.location.search)
-    const shopParam = urlParams.get('shop')
-    const productParam = urlParams.get('product')
-
-    // Initialize Telegram WebApp if available
+    // Initialize Telegram WebApp
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
       tg.ready()
       tg.expand()
-
+      
       // Set header color to match theme
       tg.setHeaderColor('#2481cc')
-
+      
       // Get user data from Telegram
       const telegramUser = tg.initDataUnsafe?.user
-      const startParameter = tg.initDataUnsafe?.start_param || shopParam
-
+      const startParameter = tg.initDataUnsafe?.start_param
+      
       console.log('Telegram start parameter:', startParameter)
       setStartParam(startParameter || null)
-
+      
       if (telegramUser) {
         const userInfo = {
           id: telegramUser.id.toString(),
@@ -86,7 +81,7 @@ function App() {
           telegramId: telegramUser.id
         }
         setUser(userInfo)
-
+        
         // Check if user exists in database
         checkUserInDatabase(telegramUser.id)
       } else {
@@ -97,11 +92,12 @@ function App() {
         setUserLoading(false)
       }
     } else {
-      // Running outside Telegram - handle URL parameters
+      // For development/testing outside Telegram
+      const urlParams = new URLSearchParams(window.location.search)
+      const shopParam = urlParams.get('shop')
       if (shopParam) {
-        const param = productParam ? `${shopParam}_product_${productParam}` : shopParam
-        setStartParam(param)
-        handleStartParam(param)
+        setStartParam(shopParam)
+        handleStartParam(shopParam)
       }
       setUserLoading(false)
     }
@@ -110,37 +106,6 @@ function App() {
   const handleStartParam = async (param: string) => {
     try {
       console.log('Handling start parameter:', param)
-      
-      // Check if it's a product-specific link
-      if (param.includes('_product_')) {
-        const [shopId, , productId] = param.split('_')
-        
-        // Load shop first
-        let shopDoc = await getDoc(doc(db, 'shops', shopId))
-        
-        if (shopDoc.exists()) {
-          const shopData = shopDoc.data()
-          const shop: Shop = {
-            id: shopDoc.id,
-            ownerId: shopData.ownerId,
-            name: shopData.name,
-            slug: shopData.slug,
-            description: shopData.description,
-            logo: shopData.logo,
-            isActive: shopData.isActive,
-            businessInfo: shopData.businessInfo,
-            settings: shopData.settings,
-            stats: shopData.stats,
-            createdAt: shopData.createdAt?.toDate() || new Date(),
-            updatedAt: shopData.updatedAt?.toDate() || new Date()
-          }
-          
-          console.log('Found shop for product link:', shop)
-          setSelectedShopForCatalog(shop)
-          setCurrentView('catalog')
-          return
-        }
-      }
       
       // First try to find shop by ID
       let shopDoc = await getDoc(doc(db, 'shops', param))
@@ -310,10 +275,10 @@ function App() {
               {currentView === 'admin' && <AdminPanel />}
             </main>
 
-            {/* Bottom Navigation - Show always when not in catalog view */}
-            {currentView !== 'catalog' && (
-              <Navigation
-                currentView={currentView}
+            {/* Bottom Navigation */}
+            {(userData || user) && (
+              <Navigation 
+                currentView={currentView} 
                 onViewChange={(view) => {
                   if (view !== 'catalog') {
                     setSelectedShopForCatalog(null)
