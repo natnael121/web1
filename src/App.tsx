@@ -278,7 +278,7 @@ function App() {
             {/* Bottom Navigation */}
             {(userData || user) && (
               <Navigation 
-                currentView={currentView}  
+                currentView={currentView} 
                 onViewChange={(view) => {
                   if (view !== 'catalog') {
                     setSelectedShopForCatalog(null)
