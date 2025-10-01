@@ -22,9 +22,10 @@ import {
 interface ShopCatalogProps {
   shop: Shop
   onBack: () => void
+  deepLinkedProductId?: string | null
 }
 
-const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
+const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack, deepLinkedProductId }) => {
   const { db } = useFirebase()
   const { webApp } = useTelegram()
   const [products, setProducts] = useState<Product[]>([])
@@ -39,6 +40,23 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
   useEffect(() => {
     loadShopData()
   }, [shop.id])
+
+  useEffect(() => {
+    if (deepLinkedProductId && products.length > 0) {
+      const product = products.find(p => p.id === deepLinkedProductId)
+      if (product) {
+        console.log('Opening deep-linked product:', product)
+        setSelectedProduct(product)
+
+        setTimeout(() => {
+          const productElement = document.getElementById(`product-${deepLinkedProductId}`)
+          if (productElement) {
+            productElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 300)
+      }
+    }
+  }, [deepLinkedProductId, products])
 
   const loadShopData = async () => {
     try {
@@ -170,9 +188,9 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
 
   const shareShop = () => {
     const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
+    const shareUrl = `https://t.me/${botUsername}?startapp=${shop.id}`
     const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
-    
+
     if (webApp?.openTelegramLink) {
       webApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)
     } else if (navigator.share) {
@@ -182,7 +200,6 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
         url: shareUrl
       })
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(shareText).then(() => {
         if (webApp?.showAlert) {
           webApp.showAlert('Shop link copied to clipboard!')
@@ -469,6 +486,7 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
             return (
               <div
                 key={product.id}
+                id={`product-${product.id}`}
                 className="bg-telegram-secondary-bg rounded-lg overflow-hidden flex flex-col shadow-sm"
               >
                 <div
@@ -582,6 +600,8 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
           onAddToCart={addToCart}
           cartItem={cart.find(item => item.productId === selectedProduct.id)}
           onUpdateCartQuantity={updateCartQuantity}
+          shopId={shop.id}
+          shopName={shop.name}
         />
       )}
     </div>

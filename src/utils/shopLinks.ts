@@ -6,6 +6,7 @@ export interface ShopLinkOptions {
   botUsername?: string
   includeDescription?: boolean
   customMessage?: string
+  productId?: string
 }
 
 export const shopLinkUtils = {
@@ -17,7 +18,8 @@ export const shopLinkUtils = {
    */
   generateShopLink(shopId: string, options: ShopLinkOptions = {}): string {
     const botUsername = options.botUsername || import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    return `https://t.me/${botUsername}?start=${shopId}`
+    const startParam = options.productId ? `${shopId}_${options.productId}` : shopId
+    return `https://t.me/${botUsername}?startapp=${startParam}`
   },
 
   /**
@@ -69,18 +71,27 @@ export const shopLinkUtils = {
   },
 
   /**
-   * Parse shop ID from a Mini App link
+   * Parse shop ID and optional product ID from a Mini App link
    * @param link - The Telegram Mini App link
-   * @returns The shop ID or null if not found
+   * @returns Object with shopId and optional productId
    */
-  parseShopIdFromLink(link: string): string | null {
+  parseIdsFromLink(link: string): { shopId: string | null; productId: string | null } {
     try {
       const url = new URL(link)
-      const startParam = url.searchParams.get('start')
-      return startParam || null
+      const startParam = url.searchParams.get('startapp') || url.searchParams.get('start')
+
+      if (!startParam) {
+        return { shopId: null, productId: null }
+      }
+
+      const parts = startParam.split('_')
+      return {
+        shopId: parts[0],
+        productId: parts[1] || null
+      }
     } catch (error) {
       console.error('Error parsing shop link:', error)
-      return null
+      return { shopId: null, productId: null }
     }
   },
 
@@ -92,7 +103,7 @@ export const shopLinkUtils = {
   isValidShopLink(link: string): boolean {
     try {
       const url = new URL(link)
-      return url.hostname === 't.me' && url.searchParams.has('start')
+      return url.hostname === 't.me' && (url.searchParams.has('startapp') || url.searchParams.has('start'))
     } catch (error) {
       return false
     }
@@ -101,7 +112,7 @@ export const shopLinkUtils = {
   /**
    * Generate QR code URL for a shop link (using a free QR service)
    * @param shopId - The shop ID
-   * @param options - Additional options
+   * @param options - Additional options including optional productId
    * @returns QR code image URL
    */
   generateQRCodeUrl(shopId: string, options: ShopLinkOptions = {}): string {
@@ -113,16 +124,16 @@ export const shopLinkUtils = {
    * Copy shop link to clipboard with fallback
    * @param shopId - The shop ID
    * @param shopName - The shop name for success message
-   * @param options - Additional options
+   * @param options - Additional options including optional productId
    */
   async copyShopLinkToClipboard(shopId: string, shopName: string, options: ShopLinkOptions = {}): Promise<void> {
     const link = this.generateShopLink(shopId, options)
-    
+    const itemType = options.productId ? 'Product link' : `${shopName} link`
+
     try {
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(link)
       } else {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea')
         textArea.value = link
         document.body.appendChild(textArea)
@@ -130,16 +141,54 @@ export const shopLinkUtils = {
         document.execCommand('copy')
         document.body.removeChild(textArea)
       }
-      
-      // Show success message
+
       if (window.Telegram?.WebApp?.showAlert) {
-        window.Telegram.WebApp.showAlert(`${shopName} link copied to clipboard!`)
+        window.Telegram.WebApp.showAlert(`${itemType} copied to clipboard!`)
       } else {
-        alert(`${shopName} link copied to clipboard!`)
+        alert(`${itemType} copied to clipboard!`)
       }
     } catch (error) {
       console.error('Error copying to clipboard:', error)
       throw error
     }
+  },
+
+  /**
+   * Generate shareable message for a product
+   * @param product - The product object
+   * @param shop - The shop object
+   * @param options - Additional options
+   * @returns The formatted share message
+   */
+  generateProductShareMessage(product: any, shop: any, options: ShopLinkOptions = {}): string {
+    const link = this.generateShopLink(shop.id, { ...options, productId: product.id })
+    const customMessage = options.customMessage || ''
+
+    let message = `🛍️ **${product.name}**\n\n`
+
+    if (product.description) {
+      const shortDesc = product.description.length > 100
+        ? `${product.description.substring(0, 100)}...`
+        : product.description
+      message += `${shortDesc}\n\n`
+    }
+
+    message += `💰 Price: $${product.price.toFixed(2)}\n`
+
+    if (product.stock > 0) {
+      message += `📦 In Stock\n`
+    } else {
+      message += `❌ Out of Stock\n`
+    }
+
+    message += `\n🏪 From: ${shop.name}\n`
+
+    if (customMessage) {
+      message += `\n${customMessage}\n`
+    }
+
+    message += `\n🔗 View product: ${link}`
+
+    return message
   }
 }

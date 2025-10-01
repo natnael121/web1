@@ -1,20 +1,22 @@
 import React, { useState } from 'react'
 import { Product, OrderItem } from '../types'
-import { 
-  X, 
-  Star, 
-  Package, 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
-  ArrowLeft, 
+import {
+  X,
+  Star,
+  Package,
+  ShoppingCart,
+  Plus,
+  Minus,
+  ArrowLeft,
   ArrowRight,
   Heart,
   Info,
   Truck,
   Shield,
-  Clock
+  Clock,
+  Share2
 } from 'lucide-react'
+import { shopLinkUtils } from '../utils/shopLinks'
 
 interface ProductDetailsProps {
   product: Product
@@ -22,14 +24,18 @@ interface ProductDetailsProps {
   onAddToCart: (product: Product, quantity: number) => void
   cartItem?: OrderItem
   onUpdateCartQuantity?: (productId: string, quantity: number) => void
+  shopId?: string
+  shopName?: string
 }
 
-const ProductDetails: React.FC<ProductDetailsProps> = ({ 
-  product, 
-  onClose, 
+const ProductDetails: React.FC<ProductDetailsProps> = ({
+  product,
+  onClose,
   onAddToCart,
   cartItem,
-  onUpdateCartQuantity
+  onUpdateCartQuantity,
+  shopId,
+  shopName
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(cartItem?.quantity || 1)
@@ -77,6 +83,32 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     return null
   }
 
+  const handleShareProduct = () => {
+    if (!shopId || !shopName) return
+
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const productLink = shopLinkUtils.generateShopLink(shopId, { productId: product.id })
+    const shareMessage = shopLinkUtils.generateProductShareMessage(product, { id: shopId, name: shopName }, {})
+
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`)
+    } else if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: shareMessage,
+        url: productLink
+      })
+    } else {
+      navigator.clipboard.writeText(`${shareMessage}\n\n${productLink}`).then(() => {
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
+        } else {
+          alert('Product link copied to clipboard!')
+        }
+      })
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
       <div className="bg-telegram-bg rounded-t-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -93,6 +125,15 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
             <button className="p-2 rounded-full bg-telegram-secondary-bg">
               <Heart className="w-5 h-5 text-telegram-hint" />
             </button>
+            {shopId && shopName && (
+              <button
+                onClick={handleShareProduct}
+                className="p-2 rounded-full bg-telegram-secondary-bg hover:bg-telegram-button hover:text-telegram-button-text transition-colors"
+                title="Share Product"
+              >
+                <Share2 className="w-5 h-5 text-telegram-button" />
+              </button>
+            )}
           </div>
         </div>
 

@@ -36,6 +36,7 @@ function App() {
   const [showRegistration, setShowRegistration] = useState(false)
   const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
   const [startParam, setStartParam] = useState<string | null>(null)
+  const [deepLinkedProductId, setDeepLinkedProductId] = useState<string | null>(null)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -106,9 +107,18 @@ function App() {
   const handleStartParam = async (param: string) => {
     try {
       console.log('Handling start parameter:', param)
-      
-      // First try to find shop by ID
-      let shopDoc = await getDoc(doc(db, 'shops', param))
+
+      const parts = param.split('_')
+      const shopId = parts[0]
+      const productId = parts[1] || null
+
+      console.log('Parsed IDs:', { shopId, productId })
+
+      if (productId) {
+        setDeepLinkedProductId(productId)
+      }
+
+      let shopDoc = await getDoc(doc(db, 'shops', shopId))
       
       if (shopDoc.exists()) {
         const shopData = shopDoc.data()
@@ -264,11 +274,13 @@ function App() {
             {/* Main Content */}
             <main className={currentView === 'catalog' ? 'pb-4' : 'pb-20'}>
               {currentView === 'catalog' && selectedShopForCatalog && (
-                <ShopCatalog 
-                  shop={selectedShopForCatalog} 
+                <ShopCatalog
+                  shop={selectedShopForCatalog}
+                  deepLinkedProductId={deepLinkedProductId}
                   onBack={() => {
                     setCurrentView('shops')
                     setSelectedShopForCatalog(null)
+                    setDeepLinkedProductId(null)
                   }}
                 />
               )}

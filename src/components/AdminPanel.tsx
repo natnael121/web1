@@ -30,6 +30,7 @@ import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
 import TelegramBotSettings from './admin/TelegramBotSettings'
+import { shopLinkUtils } from '../utils/shopLinks'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
@@ -486,21 +487,10 @@ const AdminPanel: React.FC = () => {
   }
 
   const handleShareProduct = (product: Product) => {
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const productLink = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+    if (!selectedShop) return
 
-    const shareMessage = `
-🛍️ Check out this product!
-
-📦 ${product.name}
-
-${product.description}
-
-💰 Price: $${product.price.toFixed(2)}
-📊 Stock: ${product.stock} available
-
-👉 ${productLink}
-    `.trim()
+    const productLink = shopLinkUtils.generateShopLink(product.shopId, { productId: product.id })
+    const shareMessage = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
 
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(
