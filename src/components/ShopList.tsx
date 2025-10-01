@@ -436,32 +436,31 @@ const ShopList: React.FC = () => {
     }
   }
 
-  const fetchCategoryProducts = async (shopId: string, category: string) => {
+  const fetchAllShopProducts = async (shopId: string) => {
     try {
       setLoading(true)
-      
+
       // Try to load from cache first
       if (!isOnline) {
-        console.log('Offline: Loading products from cache')
+        console.log('Offline: Loading all products from cache')
         const cachedProducts = await shopListCache.getProducts(shopId)
-        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
-        if (categoryProducts.length > 0) {
-          setProducts(categoryProducts)
+        const activeProducts = cachedProducts.filter(p => p.isActive)
+        if (activeProducts.length > 0) {
+          setProducts(activeProducts)
           setLoading(false)
           return
         }
       }
-      
+
       const productsRef = collection(db, 'products')
       const productsQuery = query(
-        productsRef, 
+        productsRef,
         where('shopId', '==', shopId),
-        where('category', '==', category),
         where('isActive', '==', true),
         orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)
-      
+
       const productsList: Product[] = []
       productsSnapshot.forEach((doc) => {
         const data = doc.data()
@@ -490,7 +489,101 @@ const ShopList: React.FC = () => {
       })
 
       setProducts(productsList)
-      
+
+      // Cache the products
+      try {
+        await shopListCache.setProducts(shopId, productsList)
+        console.log('All products cached successfully')
+      } catch (cacheError) {
+        console.warn('Failed to cache products:', cacheError)
+      }
+
+      if (productsList.length === 0) {
+        // Try cache as fallback
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const activeProducts = cachedProducts.filter(p => p.isActive)
+        if (activeProducts.length > 0) {
+          setProducts(activeProducts)
+        } else {
+          setError('No products found in this shop.')
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching all products:', error)
+
+      // Try to load from cache as fallback
+      try {
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const activeProducts = cachedProducts.filter(p => p.isActive)
+        if (activeProducts.length > 0) {
+          setProducts(activeProducts)
+          setError('Showing cached products (offline)')
+        } else {
+          setError('Failed to load products. Please try again.')
+        }
+      } catch (cacheError) {
+        setError('Failed to load products. Please try again.')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchCategoryProducts = async (shopId: string, category: string) => {
+    try {
+      setLoading(true)
+
+      // Try to load from cache first
+      if (!isOnline) {
+        console.log('Offline: Loading products from cache')
+        const cachedProducts = await shopListCache.getProducts(shopId)
+        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
+        if (categoryProducts.length > 0) {
+          setProducts(categoryProducts)
+          setLoading(false)
+          return
+        }
+      }
+
+      const productsRef = collection(db, 'products')
+      const productsQuery = query(
+        productsRef,
+        where('shopId', '==', shopId),
+        where('category', '==', category),
+        where('isActive', '==', true),
+        orderBy('name', 'asc')
+      )
+      const productsSnapshot = await getDocs(productsQuery)
+
+      const productsList: Product[] = []
+      productsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const product: Product = {
+          id: doc.id,
+          shopId: data.shopId,
+          name: data.name || 'Unnamed Product',
+          description: data.description || 'No description available',
+          price: data.price || 0,
+          stock: data.stock || 0,
+          category: data.category || 'other',
+          subcategory: data.subcategory,
+          images: data.images || [],
+          sku: data.sku,
+          isActive: data.isActive !== false,
+          lowStockAlert: data.lowStockAlert || 0,
+          tags: data.tags,
+          featured: data.featured,
+          costPrice: data.costPrice,
+          weight: data.weight,
+          dimensions: data.dimensions,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        }
+        productsList.push(product)
+      })
+
+      setProducts(productsList)
+
       // Cache the products
       try {
         await shopListCache.setProducts(shopId, productsList)
@@ -498,7 +591,7 @@ const ShopList: React.FC = () => {
       } catch (cacheError) {
         console.warn('Failed to cache products:', cacheError)
       }
-      
+
       if (productsList.length === 0) {
         // Try cache as fallback
         const cachedProducts = await shopListCache.getProducts(shopId)
@@ -511,7 +604,7 @@ const ShopList: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching products:', error)
-      
+
       // Try to load from cache as fallback
       try {
         const cachedProducts = await shopListCache.getProducts(shopId)
@@ -619,9 +712,10 @@ const ShopList: React.FC = () => {
 
   const handleShopClick = (shop: Shop) => {
     setSelectedShop(shop)
-    setCurrentView('categories')
+    setCurrentView('products')
+    setSelectedCategory('All Products')
     setError(null)
-    fetchShopCategories(shop.id)
+    fetchAllShopProducts(shop.id)
   }
 
   const handleShopClickFeatured = (shop: Shop) => {
@@ -649,7 +743,8 @@ const ShopList: React.FC = () => {
   }
 
   const handleBackToCategories = () => {
-    setCurrentView('categories')
+    setCurrentView('shops')
+    setSelectedShop(null)
     setSelectedCategory('')
     setProducts([])
     setError(null)
