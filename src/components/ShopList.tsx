@@ -206,6 +206,7 @@ const ShopList: React.FC = () => {
   const fetchAllShopProducts = async (shopId: string) => {
     try {
       setLoading(true)
+      setError(null)
 
       const productsRef = collection(db, 'products')
       const productsQuery = query(
@@ -215,6 +216,8 @@ const ShopList: React.FC = () => {
         orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)
+
+      console.log('Fetched products:', productsSnapshot.size)
 
       const productsList: Product[] = []
       productsSnapshot.forEach((doc) => {
@@ -243,6 +246,7 @@ const ShopList: React.FC = () => {
         productsList.push(product)
       })
 
+      console.log('Products list:', productsList)
       setAllProducts(productsList)
       setProducts(productsList)
 
@@ -298,6 +302,7 @@ const ShopList: React.FC = () => {
         productsList.push(product)
       })
 
+      setAllProducts(productsList)
       setProducts(productsList)
 
       if (productsList.length === 0) {
@@ -903,6 +908,14 @@ const ShopList: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {products.length === 0 && !loading && !error && (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
+            <h3 className="text-lg font-medium text-telegram-text mb-2">No Products Found</h3>
+            <p className="text-telegram-hint">This shop has no products available.</p>
           </div>
         )}
 
