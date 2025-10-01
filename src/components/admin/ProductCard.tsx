@@ -1,6 +1,6 @@
 import React from 'react'
 import { Product } from '../../types'
-import { Package, FileEdit as Edit, Trash2, Star, AlertTriangle, Megaphone } from 'lucide-react'
+import { Package, FileEdit as Edit, Trash2, Star, AlertTriangle, Megaphone, Share2 } from 'lucide-react'
 
 interface ProductCardProps {
   product: Product
@@ -11,6 +11,55 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, onPromote }) => {
   const isLowStock = product.stock <= product.lowStockAlert
+
+  const shareProduct = (product: Product) => {
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const productUrl = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+    const shareText = `🛍️ Check out this amazing product!\n\n📦 ${product.name}\n💰 $${product.price.toFixed(2)}\n\n${product.description}\n\n🔗 ${productUrl}`
+    
+    if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: shareText,
+        url: productUrl
+      }).catch(() => {
+        copyToClipboard(shareText)
+      })
+    } else {
+      copyToClipboard(shareText)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
+        } else {
+          alert('Product link copied to clipboard!')
+        }
+      }).catch(() => {
+        fallbackCopy(text)
+      })
+    } else {
+      fallbackCopy(text)
+    }
+  }
+
+  const fallbackCopy = (text: string) => {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    
+    if (window.Telegram?.WebApp?.showAlert) {
+      window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
+    } else {
+      alert('Product link copied to clipboard!')
+    }
+  }
 
   return (
     <div className="bg-telegram-secondary-bg rounded-lg p-4">
@@ -100,6 +149,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, on
               <Megaphone className="w-4 h-4" />
             </button>
           )}
+          <button
+            onClick={() => shareProduct(product)}
+            className="p-2 text-blue-600 hover:bg-blue-600 hover:text-white rounded"
+            title="Share Product"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onEdit(product)}
             className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"

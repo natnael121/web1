@@ -107,6 +107,37 @@ function App() {
     try {
       console.log('Handling start parameter:', param)
       
+      // Check if it's a product-specific link
+      if (param.includes('_product_')) {
+        const [shopId, , productId] = param.split('_')
+        
+        // Load shop first
+        let shopDoc = await getDoc(doc(db, 'shops', shopId))
+        
+        if (shopDoc.exists()) {
+          const shopData = shopDoc.data()
+          const shop: Shop = {
+            id: shopDoc.id,
+            ownerId: shopData.ownerId,
+            name: shopData.name,
+            slug: shopData.slug,
+            description: shopData.description,
+            logo: shopData.logo,
+            isActive: shopData.isActive,
+            businessInfo: shopData.businessInfo,
+            settings: shopData.settings,
+            stats: shopData.stats,
+            createdAt: shopData.createdAt?.toDate() || new Date(),
+            updatedAt: shopData.updatedAt?.toDate() || new Date()
+          }
+          
+          console.log('Found shop for product link:', shop)
+          setSelectedShopForCatalog(shop)
+          setCurrentView('catalog')
+          return
+        }
+      }
+      
       // First try to find shop by ID
       let shopDoc = await getDoc(doc(db, 'shops', param))
       

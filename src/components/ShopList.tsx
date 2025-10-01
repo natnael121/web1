@@ -1166,17 +1166,6 @@ const ShopList: React.FC = () => {
                             Out of Stock
                           </span>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            shareShop(shop)
-                          }}
-                          className="text-xs bg-green-500 text-white px-2 py-1 rounded-full flex items-center space-x-1"
-                          title="Share Shop"
-                        >
-                          <Share2 className="w-3 h-3" />
-                          <span>Share</span>
-                        </button>
                       </div>
                     </div>
                     
