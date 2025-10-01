@@ -248,8 +248,9 @@ function App() {
       <FirebaseProvider db={db}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
           <SyncStatus />
-          <div className="max-w-md mx-auto">
+          <div className={currentView === 'catalog' ? 'w-full' : 'max-w-md mx-auto'}>
             {/* Header */}
+            {currentView !== 'catalog' && (
             <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
               <h1 className="text-xl font-bold text-center">Shop Directory</h1>
               {user && (
@@ -258,9 +259,10 @@ function App() {
                 </p>
               )}
             </header>
+            )}
 
             {/* Main Content */}
-            <main className="pb-20">
+            <main className={currentView === 'catalog' ? '' : 'pb-20'}>
               {currentView === 'catalog' && selectedShopForCatalog && (
                 <ShopCatalog 
                   shop={selectedShopForCatalog} 
@@ -275,8 +277,8 @@ function App() {
               {currentView === 'admin' && <AdminPanel />}
             </main>
 
-            {/* Bottom Navigation */}
-            {(userData || user) && (
+            {/* Bottom Navigation - Show always when not in catalog view */}
+            {currentView !== 'catalog' && (
               <Navigation 
                 currentView={currentView} 
                 onViewChange={(view) => {

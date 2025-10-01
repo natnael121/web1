@@ -428,147 +428,135 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
         )}
       </div>
 
-      {/* Categories */}
-      {categories.length > 0 && (
-        <div className="px-4">
-          <div className="flex space-x-2 overflow-x-auto pb-2">
+      {/* Categories - Sticky at top */}
+      <div className="sticky top-0 z-10 bg-telegram-bg px-4 py-3 border-b border-telegram-secondary-bg">
+        <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => setSelectedCategory('all')}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              selectedCategory === 'all'
+                ? 'bg-telegram-button text-telegram-button-text shadow-md'
+                : 'bg-telegram-secondary-bg text-telegram-text hover:bg-telegram-button hover:bg-opacity-10'
+            }`}
+          >
+            All ({products.length})
+          </button>
+          {categories.map((category) => (
             <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-                selectedCategory === 'all'
-                  ? 'bg-telegram-button text-telegram-button-text'
-                  : 'bg-telegram-secondary-bg text-telegram-text'
+              key={category.id}
+              onClick={() => setSelectedCategory(category.name)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center space-x-1 transition-all ${
+                selectedCategory === category.name
+                  ? 'bg-telegram-button text-telegram-button-text shadow-md'
+                  : 'bg-telegram-secondary-bg text-telegram-text hover:bg-telegram-button hover:bg-opacity-10'
               }`}
             >
-              All ({products.length})
+              <span>{category.icon}</span>
+              <span>{category.name}</span>
+              <span className="text-xs opacity-70">({products.filter(p => p.category === category.name).length})</span>
             </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.name)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center space-x-1 ${
-                  selectedCategory === category.name
-                    ? 'bg-telegram-button text-telegram-button-text'
-                    : 'bg-telegram-secondary-bg text-telegram-text'
-                }`}
-              >
-                <span>{category.icon}</span>
-                <span>{category.name}</span>
-                <span>({products.filter(p => p.category === category.name).length})</span>
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Products */}
-      <div className="px-4 space-y-3">
-        {filteredProducts.map((product) => {
-          const cartItem = cart.find(item => item.productId === product.id)
-          const isOutOfStock = product.stock === 0
-          
-          return (
-            <div
-              key={product.id}
-              className="bg-telegram-secondary-bg rounded-lg p-4"
-            >
-              <div className="flex items-start space-x-3">
-                <div 
-                  className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+      {/* Products Grid */}
+      <div className="px-4 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredProducts.map((product) => {
+            const cartItem = cart.find(item => item.productId === product.id)
+            const isOutOfStock = product.stock === 0
+
+            return (
+              <div
+                key={product.id}
+                className="bg-telegram-secondary-bg rounded-lg overflow-hidden flex flex-col hover:shadow-lg transition-shadow"
+              >
+                <div
+                  className="relative w-full pt-[100%] bg-gray-300 cursor-pointer overflow-hidden"
                   onClick={() => setSelectedProduct(product)}
                 >
                   {product.images?.[0] ? (
-                    <img 
-                      src={product.images[0]} 
+                    <img
+                      src={product.images[0]}
                       alt={product.name}
-                      className="w-full h-full object-cover rounded-lg"
+                      className="absolute top-0 left-0 w-full h-full object-cover hover:scale-105 transition-transform"
                     />
                   ) : (
-                    <Package className="w-8 h-8 text-telegram-hint" />
+                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                      <Package className="w-12 h-12 text-telegram-hint" />
+                    </div>
+                  )}
+                  {product.featured && (
+                    <div className="absolute top-2 right-2 bg-yellow-500 rounded-full p-1">
+                      <Star className="w-4 h-4 text-white fill-current" />
+                    </div>
+                  )}
+                  {isOutOfStock && (
+                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      Out of Stock
+                    </div>
                   )}
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 
-                          className="font-semibold text-telegram-text truncate cursor-pointer hover:text-telegram-button"
-                          onClick={() => setSelectedProduct(product)}
-                        >
-                          {product.name}
-                        </h3>
-                        {product.featured && (
-                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                        )}
-                      </div>
-                      <p 
-                        className="text-sm text-telegram-hint mt-1 line-clamp-2 cursor-pointer"
-                        onClick={() => setSelectedProduct(product)}
-                      >
-                        {product.description}
-                      </p>
+
+                <div className="p-3 flex flex-col flex-1">
+                  <h3
+                    className="font-semibold text-telegram-text text-sm line-clamp-2 cursor-pointer hover:text-telegram-button mb-1"
+                    onClick={() => setSelectedProduct(product)}
+                  >
+                    {product.name}
+                  </h3>
+                  <p
+                    className="text-xs text-telegram-hint line-clamp-2 mb-2 flex-1 cursor-pointer"
+                    onClick={() => setSelectedProduct(product)}
+                  >
+                    {product.description}
+                  </p>
+
+                  <div className="mt-auto">
+                    <div className="text-lg font-bold text-telegram-button mb-2">
+                      ${product.price.toFixed(2)}
                     </div>
-                    
-                    <div className="text-right ml-2">
-                      <div className="text-lg font-bold text-telegram-button">
-                        ${product.price.toFixed(2)}
-                      </div>
-                      {isOutOfStock && (
-                        <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
-                          Out of Stock
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Add to Cart Controls */}
-                  <div className="flex items-center justify-between mt-3">
+
                     {!isOutOfStock ? (
                       cartItem ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-between bg-telegram-bg rounded-lg p-1">
                           <button
                             onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
-                            className="w-8 h-8 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                            className="w-7 h-7 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center hover:opacity-80"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3 h-3" />
                           </button>
-                          <span className="text-telegram-text font-medium">{cartItem.quantity}</span>
+                          <span className="text-telegram-text font-medium text-sm">{cartItem.quantity}</span>
                           <button
                             onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
-                            className="w-8 h-8 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                            className="w-7 h-7 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center hover:opacity-80"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3 h-3" />
                           </button>
-                          <span className="text-sm text-telegram-hint ml-2">
-                            ${(cartItem.quantity * product.price).toFixed(2)}
-                          </span>
                         </div>
                       ) : (
                         <button
                           onClick={() => addToCart(product)}
-                          className="flex items-center space-x-2 bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg"
+                          className="w-full flex items-center justify-center space-x-1 bg-telegram-button text-telegram-button-text px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90"
                         >
                           <Plus className="w-4 h-4" />
-                          <span>Add to Cart</span>
+                          <span>Add</span>
                         </button>
                       )
                     ) : (
-                      <span className="text-sm text-red-500">Out of Stock</span>
+                      <button
+                        disabled
+                        className="w-full bg-gray-300 text-gray-500 px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+                      >
+                        Out of Stock
+                      </button>
                     )}
-                    
-                    <button
-                      onClick={() => setSelectedProduct(product)}
-                      className="text-sm text-telegram-button hover:underline"
-                    >
-                      View Details
-                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
       
       {filteredProducts.length === 0 && (
