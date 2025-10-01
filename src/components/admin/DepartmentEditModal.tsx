@@ -35,20 +35,19 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
   const [botToken, setBotToken] = useState('')
 
   const roles = [
-    { value: 'kitchen', label: 'Kitchen', description: 'Receives order notifications for food preparation' },
-    { value: 'cashier', label: 'Cashier', description: 'Handles payments and order confirmations' },
     { value: 'admin', label: 'Admin', description: 'Receives all notifications and manages operations' },
-    { value: 'shop', label: 'Shop', description: 'General shop notifications' },
-    { value: 'delivery', label: 'Delivery', description: 'Handles delivery and shipping notifications' },
-    { value: 'sales', label: 'Sales', description: 'Manages customer inquiries and sales' }
+    { value: 'shop', label: 'Shop', description: 'Receives shop and order notifications' },
+    { value: 'delivery', label: 'Delivery', description: 'Handles delivery and shipping notifications' }
   ]
 
   const notificationTypes = [
     'new_order',
     'order_confirmed',
+    'order_ready',
+    'order_shipped',
     'payment_received',
     'low_stock',
-    'customer_inquiry',
+    'promotions',
     'order_cancelled'
   ]
 

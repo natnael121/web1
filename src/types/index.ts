@@ -104,7 +104,7 @@ export interface Department {
   name: string
   telegramChatId: string
   adminChatId?: string
-  role: 'kitchen' | 'cashier' | 'admin' | 'shop' | 'delivery' | 'sales'
+  role: 'admin' | 'shop' | 'delivery'
   order: number
   icon: string
   isActive: boolean

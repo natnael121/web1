@@ -7,7 +7,7 @@ interface ProductCardProps {
   onEdit: (product: Product) => void
   onDelete: (productId: string) => void
   onPromote?: (product: Product) => void
-  onShare?: (product: Product) => void
+  onShare: (product: Product) => void
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, onPromote, onShare }) => {
@@ -101,15 +101,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, on
               <Megaphone className="w-4 h-4" />
             </button>
           )}
-          {onShare && (
-            <button
-              onClick={() => onShare(product)}
-              className="p-2 text-blue-600 hover:bg-blue-600 hover:text-white rounded"
-              title="Share Product"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={() => onShare(product)}
+            className="p-2 text-blue-600 hover:bg-blue-600 hover:text-white rounded"
+            title="Share Product"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onEdit(product)}
             className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
