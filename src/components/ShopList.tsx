@@ -117,11 +117,12 @@ const ShopList: React.FC = () => {
       setLoading(true)
       setError(null)
 
-      // Load categories - remove compound query to avoid index requirements
+      // Load categories
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
         categoriesRef,
         where('shopId', '==', shopId),
+        where('isActive', '==', true),
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
@@ -129,33 +130,31 @@ const ShopList: React.FC = () => {
       const categoriesList: Category[] = []
       categoriesSnapshot.forEach((doc) => {
         const data = doc.data()
-        // Filter active categories in code instead of query
-        if (data.isActive !== false) {
-          categoriesList.push({
-            id: doc.id,
-            userId: data.userId,
-            shopId: data.shopId,
-            name: data.name,
-            description: data.description,
-            image: data.image,
-            color: data.color,
-            icon: data.icon,
-            order: data.order || 0,
-            isActive: data.isActive !== false,
-            productCount: data.productCount || 0,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date()
-          })
-        }
+        categoriesList.push({
+          id: doc.id,
+          userId: data.userId,
+          shopId: data.shopId,
+          name: data.name,
+          description: data.description,
+          image: data.image,
+          color: data.color,
+          icon: data.icon,
+          order: data.order || 0,
+          isActive: data.isActive !== false,
+          productCount: data.productCount || 0,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        })
       })
 
       setCategories(categoriesList)
 
-      // Load all products - remove compound query to avoid index requirements
+      // Load all products
       const productsRef = collection(db, 'products')
       const productsQuery = query(
         productsRef,
         where('shopId', '==', shopId),
+        where('isActive', '==', true),
         orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)
@@ -163,10 +162,7 @@ const ShopList: React.FC = () => {
       const productsList: Product[] = []
       productsSnapshot.forEach((doc) => {
         const data = doc.data()
-        // Filter active products in code instead of query
-        if (data.isActive !== false) {
-          productsList.push(createProductFromData(doc.id, data))
-        }
+        productsList.push(createProductFromData(doc.id, data))
       })
 
       setProducts(productsList)
@@ -347,7 +343,7 @@ const ShopList: React.FC = () => {
     )
   }
 
-  if (error && currentView === 'shops') {
+  if (error) {
     return (
       <div className="p-4">
         <div className="text-center py-12">
@@ -541,43 +537,6 @@ const ShopList: React.FC = () => {
 
   // Render products view
   if (currentView === 'products') {
-    // Show error state for products view
-    if (error) {
-      return (
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="bg-telegram-secondary-bg p-4">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleBackToShops}
-                className="p-2 rounded-lg bg-telegram-bg"
-              >
-                <ArrowLeft className="w-5 h-5 text-telegram-text" />
-              </button>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-telegram-text">{selectedShop?.name}</h1>
-              </div>
-            </div>
-          </div>
-
-          {/* Error Message */}
-          <div className="p-4">
-            <div className="text-center py-12">
-              <Package className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
-              <h3 className="text-lg font-medium text-telegram-text mb-2">Error Loading Products</h3>
-              <p className="text-telegram-hint mb-4">{error}</p>
-              <button
-                onClick={() => selectedShop && fetchShopData(selectedShop.id)}
-                className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div className="space-y-4">
         {/* Header */}
