@@ -13,10 +13,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, on
   const isLowStock = product.stock <= product.lowStockAlert
 
   const shareProduct = (product: Product) => {
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const productUrl = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+    const currentUrl = window.location.origin + window.location.pathname
+    const productUrl = `${currentUrl}?shop=${product.shopId}&product=${product.id}`
     const shareText = `🛍️ Check out this amazing product!\n\n📦 ${product.name}\n💰 $${product.price.toFixed(2)}\n\n${product.description}\n\n🔗 ${productUrl}`
-    
+
     if (navigator.share) {
       navigator.share({
         title: product.name,

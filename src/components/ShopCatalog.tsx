@@ -170,27 +170,51 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
   }
 
   const shareShop = () => {
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
+    const currentUrl = window.location.origin + window.location.pathname
+    const shareUrl = `${currentUrl}?shop=${shop.id}`
     const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
-    
-    if (webApp?.openTelegramLink) {
-      webApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)
-    } else if (navigator.share) {
+
+    if (navigator.share) {
       navigator.share({
         title: shop.name,
         text: shareText,
         url: shareUrl
+      }).catch(() => {
+        copyToClipboard(shareText)
       })
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(shareText).then(() => {
+      copyToClipboard(shareText)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
         if (webApp?.showAlert) {
           webApp.showAlert('Shop link copied to clipboard!')
         } else {
           alert('Shop link copied to clipboard!')
         }
+      }).catch(() => {
+        fallbackCopy(text)
       })
+    } else {
+      fallbackCopy(text)
+    }
+  }
+
+  const fallbackCopy = (text: string) => {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+
+    if (webApp?.showAlert) {
+      webApp.showAlert('Shop link copied to clipboard!')
+    } else {
+      alert('Shop link copied to clipboard!')
     }
   }
 

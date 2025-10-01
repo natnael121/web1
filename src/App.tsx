@@ -52,25 +52,30 @@ function App() {
         console.error('Failed to initialize cache sync service:', error)
       }
     }
-    
+
     initializeCache()
 
-    // Initialize Telegram WebApp
+    // Check URL parameters first
+    const urlParams = new URLSearchParams(window.location.search)
+    const shopParam = urlParams.get('shop')
+    const productParam = urlParams.get('product')
+
+    // Initialize Telegram WebApp if available
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
       tg.ready()
       tg.expand()
-      
+
       // Set header color to match theme
       tg.setHeaderColor('#2481cc')
-      
+
       // Get user data from Telegram
       const telegramUser = tg.initDataUnsafe?.user
-      const startParameter = tg.initDataUnsafe?.start_param
-      
+      const startParameter = tg.initDataUnsafe?.start_param || shopParam
+
       console.log('Telegram start parameter:', startParameter)
       setStartParam(startParameter || null)
-      
+
       if (telegramUser) {
         const userInfo = {
           id: telegramUser.id.toString(),
@@ -81,7 +86,7 @@ function App() {
           telegramId: telegramUser.id
         }
         setUser(userInfo)
-        
+
         // Check if user exists in database
         checkUserInDatabase(telegramUser.id)
       } else {
@@ -92,12 +97,11 @@ function App() {
         setUserLoading(false)
       }
     } else {
-      // For development/testing outside Telegram
-      const urlParams = new URLSearchParams(window.location.search)
-      const shopParam = urlParams.get('shop')
+      // Running outside Telegram - handle URL parameters
       if (shopParam) {
-        setStartParam(shopParam)
-        handleStartParam(shopParam)
+        const param = productParam ? `${shopParam}_product_${productParam}` : shopParam
+        setStartParam(param)
+        handleStartParam(param)
       }
       setUserLoading(false)
     }
@@ -306,10 +310,10 @@ function App() {
               {currentView === 'admin' && <AdminPanel />}
             </main>
 
-            {/* Bottom Navigation */}
-            {(userData || user) && (
-              <Navigation 
-                currentView={currentView} 
+            {/* Bottom Navigation - Show always when not in catalog view */}
+            {currentView !== 'catalog' && (
+              <Navigation
+                currentView={currentView}
                 onViewChange={(view) => {
                   if (view !== 'catalog') {
                     setSelectedShopForCatalog(null)
