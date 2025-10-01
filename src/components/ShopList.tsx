@@ -439,90 +439,95 @@ const ShopList: React.FC = () => {
   const fetchAllShopProducts = async (shopId: string) => {
     try {
       setLoading(true)
+      setError(null)
 
-      // Try to load from cache first
-      if (!isOnline) {
-        console.log('Offline: Loading all products from cache')
-        const cachedProducts = await shopListCache.getProducts(shopId)
-        const activeProducts = cachedProducts.filter(p => p.isActive)
-        if (activeProducts.length > 0) {
-          setProducts(activeProducts)
-          setLoading(false)
-          return
+      // Always try to fetch from Firebase first if online
+      if (isOnline) {
+
+        const productsRef = collection(db, 'products')
+        const productsQuery = query(
+          productsRef,
+          where('shopId', '==', shopId),
+          where('isActive', '==', true),
+          orderBy('name', 'asc')
+        )
+        const productsSnapshot = await getDocs(productsQuery)
+
+        const productsList: Product[] = []
+        productsSnapshot.forEach((doc) => {
+          const data = doc.data()
+          const product: Product = {
+            id: doc.id,
+            shopId: data.shopId,
+            name: data.name || 'Unnamed Product',
+            description: data.description || 'No description available',
+            price: data.price || 0,
+            stock: data.stock || 0,
+            category: data.category || 'other',
+            subcategory: data.subcategory,
+            images: data.images || [],
+            sku: data.sku,
+            isActive: data.isActive !== false,
+            lowStockAlert: data.lowStockAlert || 0,
+            tags: data.tags,
+            featured: data.featured,
+            costPrice: data.costPrice,
+            weight: data.weight,
+            dimensions: data.dimensions,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          }
+          productsList.push(product)
+        })
+
+        setProducts(productsList)
+
+        // Cache the products
+        try {
+          await shopListCache.setProducts(shopId, productsList)
+          console.log('All products cached successfully')
+        } catch (cacheError) {
+          console.warn('Failed to cache products:', cacheError)
         }
-      }
 
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef,
-        where('shopId', '==', shopId),
-        where('isActive', '==', true),
-        orderBy('name', 'asc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
-
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name || 'Unnamed Product',
-          description: data.description || 'No description available',
-          price: data.price || 0,
-          stock: data.stock || 0,
-          category: data.category || 'other',
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 0,
-          tags: data.tags,
-          featured: data.featured,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
-
-      // Cache the products
-      try {
-        await shopListCache.setProducts(shopId, productsList)
-        console.log('All products cached successfully')
-      } catch (cacheError) {
-        console.warn('Failed to cache products:', cacheError)
-      }
-
-      if (productsList.length === 0) {
-        // Try cache as fallback
-        const cachedProducts = await shopListCache.getProducts(shopId)
-        const activeProducts = cachedProducts.filter(p => p.isActive)
-        if (activeProducts.length > 0) {
-          setProducts(activeProducts)
-        } else {
+        if (productsList.length === 0) {
           setError('No products found in this shop.')
         }
-      }
-    } catch (error) {
-      console.error('Error fetching all products:', error)
-
-      // Try to load from cache as fallback
-      try {
+      } else {
+        // Offline: Load from cache only
+        console.log('Offline: Loading all products from cache')
         const cachedProducts = await shopListCache.getProducts(shopId)
         const activeProducts = cachedProducts.filter(p => p.isActive)
         if (activeProducts.length > 0) {
           setProducts(activeProducts)
           setError('Showing cached products (offline)')
         } else {
+          setProducts([])
+          setError('No cached products available. Please go online to view products.')
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching all products:', error)
+
+      // Only try cache as fallback if we were online
+      if (isOnline) {
+        try {
+          const cachedProducts = await shopListCache.getProducts(shopId)
+          const activeProducts = cachedProducts.filter(p => p.isActive)
+          if (activeProducts.length > 0) {
+            setProducts(activeProducts)
+            setError('Showing cached products (offline)')
+          } else {
+            setProducts([])
+            setError('Failed to load products. Please try again.')
+          }
+        } catch (cacheError) {
+          setProducts([])
           setError('Failed to load products. Please try again.')
         }
-      } catch (cacheError) {
-        setError('Failed to load products. Please try again.')
+      } else {
+        setProducts([])
+        setError('Cannot load products while offline.')
       }
     } finally {
       setLoading(false)
@@ -532,91 +537,96 @@ const ShopList: React.FC = () => {
   const fetchCategoryProducts = async (shopId: string, category: string) => {
     try {
       setLoading(true)
+      setError(null)
 
-      // Try to load from cache first
-      if (!isOnline) {
-        console.log('Offline: Loading products from cache')
-        const cachedProducts = await shopListCache.getProducts(shopId)
-        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
-        if (categoryProducts.length > 0) {
-          setProducts(categoryProducts)
-          setLoading(false)
-          return
+      // Always try to fetch from Firebase first if online
+      if (isOnline) {
+
+        const productsRef = collection(db, 'products')
+        const productsQuery = query(
+          productsRef,
+          where('shopId', '==', shopId),
+          where('category', '==', category),
+          where('isActive', '==', true),
+          orderBy('name', 'asc')
+        )
+        const productsSnapshot = await getDocs(productsQuery)
+
+        const productsList: Product[] = []
+        productsSnapshot.forEach((doc) => {
+          const data = doc.data()
+          const product: Product = {
+            id: doc.id,
+            shopId: data.shopId,
+            name: data.name || 'Unnamed Product',
+            description: data.description || 'No description available',
+            price: data.price || 0,
+            stock: data.stock || 0,
+            category: data.category || 'other',
+            subcategory: data.subcategory,
+            images: data.images || [],
+            sku: data.sku,
+            isActive: data.isActive !== false,
+            lowStockAlert: data.lowStockAlert || 0,
+            tags: data.tags,
+            featured: data.featured,
+            costPrice: data.costPrice,
+            weight: data.weight,
+            dimensions: data.dimensions,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          }
+          productsList.push(product)
+        })
+
+        setProducts(productsList)
+
+        // Cache the products
+        try {
+          await shopListCache.setProducts(shopId, productsList)
+          console.log('Products cached successfully')
+        } catch (cacheError) {
+          console.warn('Failed to cache products:', cacheError)
         }
-      }
 
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef,
-        where('shopId', '==', shopId),
-        where('category', '==', category),
-        where('isActive', '==', true),
-        orderBy('name', 'asc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
-
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name || 'Unnamed Product',
-          description: data.description || 'No description available',
-          price: data.price || 0,
-          stock: data.stock || 0,
-          category: data.category || 'other',
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 0,
-          tags: data.tags,
-          featured: data.featured,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
-
-      // Cache the products
-      try {
-        await shopListCache.setProducts(shopId, productsList)
-        console.log('Products cached successfully')
-      } catch (cacheError) {
-        console.warn('Failed to cache products:', cacheError)
-      }
-
-      if (productsList.length === 0) {
-        // Try cache as fallback
-        const cachedProducts = await shopListCache.getProducts(shopId)
-        const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
-        if (categoryProducts.length > 0) {
-          setProducts(categoryProducts)
-        } else {
+        if (productsList.length === 0) {
           setError(`No products found in the ${category} category.`)
         }
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error)
-
-      // Try to load from cache as fallback
-      try {
+      } else {
+        // Offline: Load from cache only
+        console.log('Offline: Loading products from cache')
         const cachedProducts = await shopListCache.getProducts(shopId)
         const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
         if (categoryProducts.length > 0) {
           setProducts(categoryProducts)
           setError('Showing cached products (offline)')
         } else {
+          setProducts([])
+          setError('No cached products available. Please go online to view products.')
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+
+      // Only try cache as fallback if we were online
+      if (isOnline) {
+        try {
+          const cachedProducts = await shopListCache.getProducts(shopId)
+          const categoryProducts = cachedProducts.filter(p => p.category === category && p.isActive)
+          if (categoryProducts.length > 0) {
+            setProducts(categoryProducts)
+            setError('Showing cached products (offline)')
+          } else {
+            setProducts([])
+            setError('Failed to load products. Please try again.')
+          }
+        } catch (cacheError) {
+          setProducts([])
           setError('Failed to load products. Please try again.')
         }
-      } catch (cacheError) {
-        setError('Failed to load products. Please try again.')
+      } else {
+        setProducts([])
+        setError('Cannot load products while offline.')
       }
     } finally {
       setLoading(false)
