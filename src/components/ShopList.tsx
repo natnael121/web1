@@ -1242,7 +1242,7 @@ const ShopList: React.FC = () => {
             cartItem={cart.find(item => item.productId === selectedProduct.id)}
             onUpdateCartQuantity={updateCartQuantity}
           />
-        )}
+        )} 
       </div>
     )
   }
