@@ -485,6 +485,58 @@ const AdminPanel: React.FC = () => {
     setShowPromotionModal(true)
   }
 
+  const handleShareProduct = (product: Product) => {
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const productLink = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+
+    const shareMessage = `
+🛍️ Check out this product!
+
+📦 ${product.name}
+
+${product.description}
+
+💰 Price: $${product.price.toFixed(2)}
+📊 Stock: ${product.stock} available
+
+👉 ${productLink}
+    `.trim()
+
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
+      )
+    } else if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: shareMessage,
+        url: productLink
+      }).catch((error) => {
+        console.error('Error sharing:', error)
+        copyToClipboard(shareMessage)
+      })
+    } else {
+      copyToClipboard(shareMessage)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
+        } else {
+          alert('Product link copied to clipboard!')
+        }
+      }).catch((error) => {
+        console.error('Error copying to clipboard:', error)
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('Failed to copy link')
+        }
+      })
+    }
+  }
+
   const handlePromotionSubmit = async (promotionData: any) => {
     try {
       setError(null)
@@ -508,7 +560,10 @@ const AdminPanel: React.FC = () => {
       const discountedPrice = discountPercentage > 0 ? `<b>$${(product.price * (1 - discountPercentage / 100)).toFixed(2)}</b>` : `<b>$${product.price.toFixed(2)}</b>`
       const validUntilText = validUntil ? `\n⏰ <b>Valid until:</b> ${validUntil.toLocaleDateString()}` : ''
       const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
-      
+
+      const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+      const productLink = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+
       const message = `
 🔥 <b>${promotionTitle}</b>${discountText}
 
@@ -521,6 +576,8 @@ ${customMessage || product.description}
 ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
 
 🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}
+
+👉 <a href="${productLink}">View Product</a>
 
 <i>🚀 Limited time offer - Order today!</i>
       `.trim()
@@ -782,6 +839,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
                     onEdit={setEditingProduct}
                     onDelete={handleDeleteProduct}
                     onPromote={handlePromoteProduct}
+                    onShare={handleShareProduct}
                   />
                 ))}
               </div>

@@ -162,7 +162,10 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
     const discountedPrice = discountPercentage > 0 ? `<b>$${(product.price * (1 - discountPercentage / 100)).toFixed(2)}</b>` : `<b>$${product.price.toFixed(2)}</b>`
     const validUntilText = validUntil ? `\n⏰ <b>Valid until:</b> ${new Date(validUntil).toLocaleDateString()}` : ''
     const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
-    
+
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const productLink = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+
     return `
 🔥 <b>${promotionTitle}</b>${discountText}
 
@@ -175,6 +178,8 @@ ${customMessage || product.description}
 ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
 
 🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}
+
+👉 <a href="${productLink}">View Product</a>
 
 <i>🚀 Limited time offer - Order today!</i>
     `.trim()

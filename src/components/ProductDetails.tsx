@@ -10,7 +10,6 @@ import {
   ArrowLeft, 
   ArrowRight,
   Heart,
-  Share2,
   Info,
   Truck,
   Shield,
@@ -93,9 +92,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
           <div className="flex items-center space-x-2">
             <button className="p-2 rounded-full bg-telegram-secondary-bg">
               <Heart className="w-5 h-5 text-telegram-hint" />
-            </button>
-            <button className="p-2 rounded-full bg-telegram-secondary-bg">
-              <Share2 className="w-5 h-5 text-telegram-hint" />
             </button>
           </div>
         </div>
