@@ -566,7 +566,7 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
             }
           </p>
         </div>
-      )}
+      )} 
 
       {/* Product Details Modal */}
       {selectedProduct && (
