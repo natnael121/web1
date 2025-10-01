@@ -428,36 +428,38 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
         )}
       </div>
 
-      {/* Categories - Sticky at top */}
-      <div className="sticky top-0 z-10 bg-telegram-bg px-3 py-2 border-b border-telegram-secondary-bg shadow-sm">
-        <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-1">
-          <button
-            onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              selectedCategory === 'all'
-                ? 'bg-telegram-button text-telegram-button-text shadow-md'
-                : 'bg-telegram-secondary-bg text-telegram-text'
-            }`}
-          >
-            All ({products.length})
-          </button>
-          {categories.map((category) => (
+      {/* Categories - Optional Filter */}
+      {categories.length > 0 && (
+        <div className="px-3 py-2">
+          <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
             <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.name)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center space-x-1 transition-all ${
-                selectedCategory === category.name
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                selectedCategory === 'all'
                   ? 'bg-telegram-button text-telegram-button-text shadow-md'
                   : 'bg-telegram-secondary-bg text-telegram-text'
               }`}
             >
-              <span>{category.icon}</span>
-              <span>{category.name}</span>
-              <span className="text-xs opacity-70">({products.filter(p => p.category === category.name).length})</span>
+              All ({products.length})
             </button>
-          ))}
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.name)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center space-x-1 transition-all ${
+                  selectedCategory === category.name
+                    ? 'bg-telegram-button text-telegram-button-text shadow-md'
+                    : 'bg-telegram-secondary-bg text-telegram-text'
+                }`}
+              >
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+                <span className="text-xs opacity-70">({products.filter(p => p.category === category.name).length})</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Products Grid */}
       <div className="px-3 py-4">
