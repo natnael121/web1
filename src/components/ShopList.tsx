@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem } from '../types'
-import ProductDetails from './ProductDetails'
-import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle, Share2, ExternalLink } from 'lucide-react'
+import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 
 const ShopList: React.FC = () => {
   const { db } = useFirebase()
@@ -21,7 +20,6 @@ const ShopList: React.FC = () => {
   const [cart, setCart] = useState<OrderItem[]>([])
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     if (user?.id) {
@@ -44,13 +42,8 @@ const ShopList: React.FC = () => {
 
       // Query users collection by telegramId
       const usersRef = collection(db, 'users')
-      
-      // Try both telegramId and telegram_id fields
-      let userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', parseInt(user.id))))
-      
-      if (userSnapshot.empty) {
-        userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', parseInt(user.id))))
-      }
+      const userQuery = query(usersRef, where('telegram_id', '==', parseInt(user.id)))
+      const userSnapshot = await getDocs(userQuery)
       
       if (userSnapshot.empty) {
         // For demo purposes, show all active shops if user not found
@@ -78,17 +71,17 @@ const ShopList: React.FC = () => {
     try {
       const shopsRef = collection(db, 'shops')
       const shopsQuery = query(
-        shopsRef,
+        shopsRef, 
         where('isActive', '==', true),
         orderBy('updatedAt', 'desc')
       )
       const shopsSnapshot = await getDocs(shopsQuery)
-
+      
       if (shopsSnapshot.empty) {
         setError('No active shops found.')
         return
       }
-
+      
       const allShops: Shop[] = []
       shopsSnapshot.forEach((doc) => {
         const data = doc.data()
@@ -108,7 +101,7 @@ const ShopList: React.FC = () => {
         }
         allShops.push(shop)
       })
-
+      
       setShops(allShops)
     } catch (error) {
       console.error('Error fetching all active shops:', error)
@@ -116,57 +109,19 @@ const ShopList: React.FC = () => {
     }
   }
 
-  const shareShop = (shop: Shop) => {
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
-    const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
-    
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)
-    } else if (navigator.share) {
-      navigator.share({
-        title: shop.name,
-        text: shareText,
-        url: shareUrl
-      }).catch(console.error)
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(shareText).then(() => {
-        if (window.Telegram?.WebApp?.showAlert) {
-          window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
-        } else {
-          alert('Shop link copied to clipboard!')
-        }
-      }).catch(() => {
-        // Fallback for older browsers
-        const textArea = document.createElement('textarea')
-        textArea.value = shareText
-        document.body.appendChild(textArea)
-        textArea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textArea)
-        
-        if (window.Telegram?.WebApp?.showAlert) {
-          window.Telegram.WebApp.showAlert('Shop link copied to clipboard!')
-        } else {
-          alert('Shop link copied to clipboard!')
-        }
-      })
-    }
-  }
 
   const fetchShopCategories = async (shopId: string) => {
     try {
       setLoading(true)
-
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
-        categoriesRef,
+        categoriesRef, 
         where('shopId', '==', shopId),
+        
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
-
+      
       const categoriesList: string[] = []
       categoriesSnapshot.forEach((doc) => {
         const data = doc.data()
@@ -176,7 +131,7 @@ const ShopList: React.FC = () => {
       })
 
       setCategories(categoriesList)
-
+      
       if (categoriesList.length === 0) {
         setError('No categories found for this shop.')
       }
@@ -188,75 +143,19 @@ const ShopList: React.FC = () => {
     }
   }
 
-  const fetchAllShopProducts = async (shopId: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const productsRef = collection(db, 'products')
-      const productsQuery = query(
-        productsRef,
-        where('shopId', '==', shopId),
-        where('isActive', '==', true),
-        orderBy('name', 'asc')
-      )
-      const productsSnapshot = await getDocs(productsQuery)
-
-      const productsList: Product[] = []
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const product: Product = {
-          id: doc.id,
-          shopId: data.shopId,
-          name: data.name || 'Unnamed Product',
-          description: data.description || 'No description available',
-          price: data.price || 0,
-          stock: data.stock || 0,
-          category: data.category || 'other',
-          subcategory: data.subcategory,
-          images: data.images || [],
-          sku: data.sku,
-          isActive: data.isActive !== false,
-          lowStockAlert: data.lowStockAlert || 0,
-          tags: data.tags,
-          featured: data.featured,
-          costPrice: data.costPrice,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        productsList.push(product)
-      })
-
-      setProducts(productsList)
-
-      if (productsList.length === 0) {
-        setError('No products found in this shop.')
-      }
-    } catch (error) {
-      console.error('Error fetching all products:', error)
-      setError('Failed to load products. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const fetchCategoryProducts = async (shopId: string, category: string) => {
     try {
       setLoading(true)
-      setError(null)
-
       const productsRef = collection(db, 'products')
       const productsQuery = query(
-        productsRef,
+        productsRef, 
         where('shopId', '==', shopId),
         where('category', '==', category),
         where('isActive', '==', true),
         orderBy('name', 'asc')
       )
       const productsSnapshot = await getDocs(productsQuery)
-
+      
       const productsList: Product[] = []
       productsSnapshot.forEach((doc) => {
         const data = doc.data()
@@ -285,7 +184,7 @@ const ShopList: React.FC = () => {
       })
 
       setProducts(productsList)
-
+      
       if (productsList.length === 0) {
         setError(`No products found in the ${category} category.`)
       }
@@ -300,17 +199,16 @@ const ShopList: React.FC = () => {
   const fetchFeaturedProducts = async (shopId: string) => {
     try {
       setLoading(true)
-
       const productsRef = collection(db, 'products')
       const productsQuery = query(
-        productsRef,
+        productsRef, 
         where('shopId', '==', shopId),
         where('isActive', '==', true),
         where('featured', '==', true),
         orderBy('updatedAt', 'desc')
       )
       const productsSnapshot = await getDocs(productsQuery)
-
+      
       const productsList: Product[] = []
       productsSnapshot.forEach((doc) => {
         const data = doc.data()
@@ -353,10 +251,9 @@ const ShopList: React.FC = () => {
 
   const handleShopClick = (shop: Shop) => {
     setSelectedShop(shop)
-    setCurrentView('products')
-    setSelectedCategory('All Products')
+    setCurrentView('categories')
     setError(null)
-    fetchAllShopProducts(shop.id)
+    fetchShopCategories(shop.id)
   }
 
   const handleShopClickFeatured = (shop: Shop) => {
@@ -384,8 +281,7 @@ const ShopList: React.FC = () => {
   }
 
   const handleBackToCategories = () => {
-    setCurrentView('shops')
-    setSelectedShop(null)
+    setCurrentView('categories')
     setSelectedCategory('')
     setProducts([])
     setError(null)
@@ -435,10 +331,10 @@ const ShopList: React.FC = () => {
 
   const placeOrder = async () => {
     if (!selectedShop || !user || cart.length === 0) {
-      console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
-      setError("Cannot place order: missing information or empty cart.")
-      return
-    }
+  console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
+  setError("Cannot place order: missing information or empty cart.")
+  return
+}
     
     try {
       setOrderPlacing(true)
@@ -451,7 +347,7 @@ const ShopList: React.FC = () => {
       const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
         shopId: selectedShop.id,
         customerId: user.id,
-        customerName: `${user.firstName} ${user.lastName || ''}`.trim(),
+        customerName: `${user.firstName} ${user.lastName}`.trim(),
         items: cart,
         subtotal,
         tax,
@@ -460,22 +356,20 @@ const ShopList: React.FC = () => {
         paymentStatus: 'pending',
         deliveryMethod: 'pickup',
         source: 'web',
-        telegramId: user.id.toString(),
+        telegramId: user.id,
         telegramUsername: user.username
       }
       
       const ordersRef = collection(db, 'orders')
       await addDoc(ordersRef, {
         ...orderData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
       
       // Clear cart and show success
       setCart([])
       setShowOrderSuccess(true)
-      
-      console.log('Order placed successfully:', orderData)
       setTimeout(() => setShowOrderSuccess(false), 3000)
     } catch (error) {
       console.error('Error placing order:', error)
@@ -493,37 +387,6 @@ const ShopList: React.FC = () => {
   const handleBackToProducts = () => {
     setCurrentView('products')
     setError(null)
-  }
-
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product)
-  }
-
-  const handleCloseProductDetails = () => {
-    setSelectedProduct(null)
-  }
-
-  const handleAddToCartFromDetails = (product: Product, quantity: number) => {
-    const existingItem = cart.find(item => item.productId === product.id)
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item.productId === product.id 
-          ? { ...item, quantity: quantity, total: quantity * item.price }
-          : item
-      ))
-    } else {
-      const newItem: OrderItem = {
-        productId: product.id,
-        productName: product.name,
-        quantity: quantity,
-        price: product.price,
-        total: product.price * quantity,
-        productImage: product.images?.[0],
-        productSku: product.sku
-      }
-      setCart([...cart, newItem])
-    }
-    setSelectedProduct(null)
   }
 
   if (loading) {
@@ -820,7 +683,7 @@ const ShopList: React.FC = () => {
               </p>
             </div>
           </div>
-
+          
           {cart.length > 0 && (
             <button
               onClick={handleViewCart}
@@ -843,10 +706,7 @@ const ShopList: React.FC = () => {
                 className="bg-telegram-secondary-bg rounded-lg p-4"
               >
                 <div className="flex items-start space-x-3">
-                  <div 
-                    className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
-                    onClick={() => handleProductClick(product)}
-                  >
+                  <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                     {product.images?.[0] ? (
                       <img 
                         src={product.images[0]} 
@@ -859,10 +719,7 @@ const ShopList: React.FC = () => {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
-                      <h3 
-                        className="font-semibold text-telegram-text truncate pr-2 cursor-pointer hover:text-telegram-button"
-                        onClick={() => handleProductClick(product)}
-                      >
+                      <h3 className="font-semibold text-telegram-text truncate pr-2">
                         {product.name}
                       </h3>
                       <div className="text-right flex-shrink-0">
@@ -874,24 +731,10 @@ const ShopList: React.FC = () => {
                             Out of Stock
                           </span>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            shareShop(shop)
-                          }}
-                          className="text-xs bg-green-500 text-white px-2 py-1 rounded-full flex items-center space-x-1"
-                          title="Share Shop"
-                        >
-                          <Share2 className="w-3 h-3" />
-                          <span>Share</span>
-                        </button>
                       </div>
                     </div>
                     
-                    <p 
-                      className="text-sm text-telegram-hint mt-1 line-clamp-2 cursor-pointer"
-                      onClick={() => handleProductClick(product)}
-                    >
+                    <p className="text-sm text-telegram-hint mt-1 line-clamp-2">
                       {product.description}
                     </p>
                     
@@ -929,13 +772,6 @@ const ShopList: React.FC = () => {
                       ) : (
                         <span className="text-sm text-red-500">Out of Stock</span>
                       )}
-                      
-                      <button
-                        onClick={() => handleProductClick(product)}
-                        className="text-sm text-telegram-button hover:underline"
-                      >
-                        View Details
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -943,17 +779,6 @@ const ShopList: React.FC = () => {
             )
           })}
         </div>
-        
-        {/* Product Details Modal */}
-        {selectedProduct && (
-          <ProductDetails
-            product={selectedProduct}
-            onClose={handleCloseProductDetails}
-            onAddToCart={handleAddToCartFromDetails}
-            cartItem={cart.find(item => item.productId === selectedProduct.id)}
-            onUpdateCartQuantity={updateCartQuantity}
-          />
-        )}
       </div>
     )
   }
