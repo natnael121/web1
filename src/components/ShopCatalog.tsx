@@ -428,38 +428,36 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
         )}
       </div>
 
-      {/* Categories - Optional Filter */}
-      {categories.length > 0 && (
-        <div className="px-3 py-2">
-          <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
+      {/* Category Filters */}
+      <div className="px-3 py-2 sticky top-0 bg-telegram-bg z-10 border-b border-telegram-hint/10">
+        <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => setSelectedCategory('all')}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              selectedCategory === 'all'
+                ? 'bg-telegram-button text-telegram-button-text shadow-md'
+                : 'bg-telegram-secondary-bg text-telegram-text'
+            }`}
+          >
+            All ({products.length})
+          </button>
+          {categories.map((category) => (
             <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                selectedCategory === 'all'
+              key={category.id}
+              onClick={() => setSelectedCategory(category.name)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center space-x-1.5 transition-all ${
+                selectedCategory === category.name
                   ? 'bg-telegram-button text-telegram-button-text shadow-md'
                   : 'bg-telegram-secondary-bg text-telegram-text'
               }`}
             >
-              All ({products.length})
+              <span>{category.icon}</span>
+              <span>{category.name}</span>
+              <span className="text-xs opacity-70">({products.filter(p => p.category === category.name).length})</span>
             </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.name)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center space-x-1 transition-all ${
-                  selectedCategory === category.name
-                    ? 'bg-telegram-button text-telegram-button-text shadow-md'
-                    : 'bg-telegram-secondary-bg text-telegram-text'
-                }`}
-              >
-                <span>{category.icon}</span>
-                <span>{category.name}</span>
-                <span className="text-xs opacity-70">({products.filter(p => p.category === category.name).length})</span>
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Products Grid */}
       <div className="px-3 py-4">
@@ -508,45 +506,53 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack }) => {
                     {product.name}
                   </h3>
 
-                  <div className="mt-auto">
-                    <div className="text-base font-bold text-telegram-button mb-1.5">
+                  <div className="mt-auto space-y-1.5">
+                    <div className="text-base font-bold text-telegram-button">
                       ${product.price.toFixed(2)}
                     </div>
 
-                    {!isOutOfStock ? (
-                      cartItem ? (
-                        <div className="flex items-center justify-between bg-telegram-bg rounded-lg p-1">
+                    <div className="flex items-center space-x-1.5">
+                      <button
+                        onClick={() => setSelectedProduct(product)}
+                        className="flex-1 bg-telegram-secondary-bg text-telegram-text px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-telegram-hint hover:bg-opacity-10 transition-colors"
+                      >
+                        Details
+                      </button>
+
+                      {!isOutOfStock ? (
+                        cartItem ? (
+                          <div className="flex items-center bg-telegram-bg rounded-lg">
+                            <button
+                              onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
+                              className="w-7 h-7 rounded-l-lg bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-telegram-text font-medium text-xs px-2">{cartItem.quantity}</span>
+                            <button
+                              onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
+                              className="w-7 h-7 rounded-r-lg bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
-                            className="w-6 h-6 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
+                            onClick={() => addToCart(product)}
+                            className="w-7 h-7 rounded-lg bg-telegram-button text-telegram-button-text flex items-center justify-center"
                           >
-                            <Minus className="w-3 h-3" />
+                            <Plus className="w-4 h-4" />
                           </button>
-                          <span className="text-telegram-text font-medium text-xs">{cartItem.quantity}</span>
-                          <button
-                            onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
-                            className="w-6 h-6 rounded-full bg-telegram-button text-telegram-button-text flex items-center justify-center"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
+                        )
                       ) : (
                         <button
-                          onClick={() => addToCart(product)}
-                          className="w-full flex items-center justify-center space-x-1 bg-telegram-button text-telegram-button-text px-2 py-1.5 rounded-lg text-xs font-medium"
+                          disabled
+                          className="w-7 h-7 rounded-lg bg-gray-300 text-gray-500 flex items-center justify-center cursor-not-allowed"
                         >
-                          <Plus className="w-3 h-3" />
-                          <span>Add</span>
+                          <Plus className="w-4 h-4" />
                         </button>
-                      )
-                    ) : (
-                      <button
-                        disabled
-                        className="w-full bg-gray-300 text-gray-500 px-2 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed"
-                      >
-                        Unavailable
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
