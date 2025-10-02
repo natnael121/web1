@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
@@ -17,7 +17,7 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
   const [showPassword, setShowPassword] = useState(false)
 
   const [formData, setFormData] = useState({
-    displayName: `${user.firstName} ${user.lastName}`.trim(),
+    displayName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || '',
     email: '',
     password: '',
   })
@@ -28,26 +28,75 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     setError(null)
 
     try {
-      // Create user with Firebase Authentication
+      const telegramId = user.telegramId || parseInt(user.id)
+
+      // Check if user already exists in Firestore by telegramId
+      const usersRef = collection(db, 'users')
+      const userQuery = query(usersRef, where('telegramId', '==', telegramId))
+      let userSnapshot = await getDocs(userQuery)
+
+      if (userSnapshot.empty) {
+        const altQuery = query(usersRef, where('telegram_id', '==', telegramId))
+        userSnapshot = await getDocs(altQuery)
+      }
+
+      // Create Firebase Authentication account
       const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
 
       // Update display name in Firebase Auth profile
       await updateProfile(cred.user, { displayName: formData.displayName })
 
-      // Create Firestore user profile
-      const userData: UserData = {
-        uid: cred.user.uid,
-        email: formData.email,
-        displayName: formData.displayName,
-        telegramId: user.telegramId || parseInt(user.id),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      if (!userSnapshot.empty) {
+        // User exists as customer - update their existing document and delete it
+        const existingUserDoc = userSnapshot.docs[0]
+        const existingDocId = existingUserDoc.id
+        const existingData = existingUserDoc.data()
+
+        console.log('Found existing customer document:', existingDocId, 'Upgrading to admin...')
+
+        // Create new document with Firebase Auth UID as the document ID
+        const userData: UserData = {
+          uid: cred.user.uid,
+          email: formData.email,
+          displayName: formData.displayName,
+          telegramId,
+          telegram_id: telegramId,
+          role: 'admin',
+          createdAt: existingData.createdAt || serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }
+
+        await setDoc(doc(db, 'users', cred.user.uid), userData)
+
+        // Delete the old customer document
+        await deleteDoc(doc(db, 'users', existingDocId))
+
+        console.log('Deleted old customer document and created admin document')
+
+        onComplete({
+          ...userData,
+          createdAt: existingData.createdAt?.toDate?.() || new Date(),
+          updatedAt: new Date(),
+        } as UserData)
+      } else {
+        // New user - create with admin role
+        const userData: UserData = {
+          uid: cred.user.uid,
+          email: formData.email,
+          displayName: formData.displayName,
+          telegramId,
+          telegram_id: telegramId,
+          role: 'admin',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }
+
+        await setDoc(doc(db, 'users', cred.user.uid), userData)
+
+        console.log('Created new admin user')
+
+        onComplete(userData)
       }
-
-      await setDoc(doc(db, 'users', cred.user.uid), userData)
-
-      // Return completed user data
-      onComplete(userData)
     } catch (error: any) {
       console.error('Error creating user:', error)
       setError(error.message || 'Failed to create account. Please try again.')
