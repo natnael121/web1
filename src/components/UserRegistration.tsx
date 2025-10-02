@@ -3,7 +3,7 @@ import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
-import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff, PlusCircle } from 'lucide-react'
+import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 'lucide-react'
 
 interface UserRegistrationProps {
   user: User
@@ -15,7 +15,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
-  const [showNoShopsMessage, setShowNoShopsMessage] = useState(false)
 
   const [formData, setFormData] = useState({
     displayName: `${user.firstName} ${user.lastName}`.trim(),
@@ -55,39 +54,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     } finally {
       setLoading(false)
     }
-  }
-
-  if (showNoShopsMessage) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-telegram-button/10 via-telegram-bg to-telegram-secondary-bg flex items-center justify-center p-4">
-        <div className="max-w-md w-full space-y-8 text-center">
-          <div className="flex justify-center">
-            <div className="h-16 w-16 bg-telegram-button rounded-2xl flex items-center justify-center">
-              <Store className="h-8 w-8 text-telegram-button-text" />
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-telegram-text">
-            No Shops Found
-          </h2>
-          <p className="text-telegram-hint">
-            You haven't interacted with any shops yet. Get a shop link from a shop owner to start shopping.
-          </p>
-          <div className="mt-6 p-4 bg-telegram-secondary-bg rounded-lg">
-            <h3 className="text-lg font-semibold text-telegram-text mb-2">Want to create your own shop?</h3>
-            <p className="text-sm text-telegram-hint mb-4">
-              Start selling your products by creating your own shop on our platform.
-            </p>
-            <button
-              onClick={() => window.open('https://t.me/YourBotUsername', '_blank')}
-              className="w-full bg-telegram-button text-telegram-button-text py-3 rounded-lg font-semibold flex items-center justify-center space-x-2"
-            >
-              <PlusCircle className="w-5 h-5" />
-              <span>Create Your Own Shop</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
