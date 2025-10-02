@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, getDoc, addDoc } from 'firebase/firestore'
+import { shopCustomerService } from './services/shopCustomerService'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import { cacheSyncService } from './services/cacheSync'
@@ -114,18 +115,35 @@ function App() {
     try {
       console.log('Handling start parameter:', param)
 
+      if (!user) {
+        console.log('No user available for start param')
+        return
+      }
+
       const parts = param.split('_')
       const shopId = parts[0]
       const productId = parts[1] || null
 
       console.log('Parsed IDs:', { shopId, productId })
 
+      // First, add user to shop_customers if not already there
+      const result = await shopCustomerService.handleShopLinkAccess(
+        db,
+        param,
+        user.telegramId || parseInt(user.id)
+      )
+
+      if (!result.success) {
+        console.error('Failed to add user to shop:', result.error)
+        return
+      }
+
       if (productId) {
         setDeepLinkedProductId(productId)
       }
 
       let shopDoc = await getDoc(doc(db, 'shops', shopId))
-      
+
       if (shopDoc.exists()) {
         const shopData = shopDoc.data()
         const shop: Shop = {
@@ -142,18 +160,18 @@ function App() {
           createdAt: shopData.createdAt?.toDate() || new Date(),
           updatedAt: shopData.updatedAt?.toDate() || new Date()
         }
-        
+
         console.log('Found shop:', shop)
         setSelectedShopForCatalog(shop)
         setCurrentView('catalog')
         return
       }
-      
+
       // If not found by ID, try to find by slug
       const shopsRef = collection(db, 'shops')
       const slugQuery = query(shopsRef, where('slug', '==', param), where('isActive', '==', true))
       const slugSnapshot = await getDocs(slugQuery)
-      
+
       if (!slugSnapshot.empty) {
         const shopDoc = slugSnapshot.docs[0]
         const shopData = shopDoc.data()
@@ -171,13 +189,13 @@ function App() {
           createdAt: shopData.createdAt?.toDate() || new Date(),
           updatedAt: shopData.updatedAt?.toDate() || new Date()
         }
-        
+
         console.log('Found shop by slug:', shop)
         setSelectedShopForCatalog(shop)
         setCurrentView('catalog')
         return
       }
-      
+
       console.log('Shop not found for parameter:', param)
     } catch (error) {
       console.error('Error handling start parameter:', error)
@@ -211,13 +229,48 @@ function App() {
           await handleStartParam(startParam)
         }
       } else {
-        // User not found, show registration
-        setShowRegistration(true)
+        // User not found - if they have a shop link, auto-register them as customer
+        if (startParam) {
+          await autoRegisterCustomer(telegramId)
+        } else {
+          // No shop link, show registration form
+          setShowRegistration(true)
+        }
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
     } finally {
       setUserLoading(false)
+    }
+  }
+
+  const autoRegisterCustomer = async (telegramId: number) => {
+    try {
+      if (!user || !startParam) return
+
+      // Create a minimal user record
+      const newUserData: any = {
+        displayName: `${user.firstName} ${user.lastName}`.trim() || 'Customer',
+        telegramId: telegramId,
+        telegram_id: telegramId,
+        role: 'customer',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      const usersRef = collection(db, 'users')
+      const userDocRef = await addDoc(usersRef, newUserData)
+
+      setUserData({
+        ...newUserData,
+        uid: userDocRef.id
+      })
+
+      // Process the shop link and load shop
+      await handleStartParam(startParam)
+    } catch (error) {
+      console.error('Error auto-registering customer:', error)
+      setShowRegistration(true)
     }
   }
 

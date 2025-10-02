@@ -47,13 +47,10 @@ const ShopList: React.FC = () => {
       setLinkProcessed(true)
       setLoading(true)
 
-      const userRole = userData?.role || 'customer'
-
       const result = await shopCustomerService.handleShopLinkAccess(
         db,
         startParam,
-        parseInt(user.id),
-        userRole
+        parseInt(user.id)
       )
 
       if (result.success && result.shopId) {
