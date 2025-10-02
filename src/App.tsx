@@ -89,7 +89,7 @@ function App() {
         setUser(userInfo)
 
         // Check if user exists in database
-        checkUserInDatabase(telegramUser.id)
+        checkUserInDatabase(telegramUser.id, userInfo)
       } else {
         // For development/testing - check for start param even without user
         if (startParameter) {
@@ -109,11 +109,12 @@ function App() {
     }
   }, [])
 
-  const handleStartParam = async (param: string) => {
+  const handleStartParam = async (param: string, userInfo?: User) => {
     try {
       console.log('Handling start parameter:', param)
 
-      if (!user) {
+      const currentUser = userInfo || user
+      if (!currentUser) {
         console.log('No user available for start param')
         return
       }
@@ -125,11 +126,11 @@ function App() {
       console.log('Parsed IDs:', { shopId, productId })
 
       // First, add user to shop_customers if not already there
-      const displayName = `${user.firstName} ${user.lastName}`.trim() || 'Customer'
+      const displayName = `${currentUser.firstName} ${currentUser.lastName}`.trim() || 'Customer'
       const result = await shopCustomerService.handleShopLinkAccess(
         db,
         param,
-        user.telegramId || parseInt(user.id),
+        currentUser.telegramId || parseInt(currentUser.id),
         displayName
       )
 
@@ -141,7 +142,7 @@ function App() {
       // If user was newly created, update userData state
       if (result.isNewCustomer && !userData) {
         const usersRef = collection(db, 'users')
-        const userQuery = query(usersRef, where('telegramId', '==', user.telegramId || parseInt(user.id)))
+        const userQuery = query(usersRef, where('telegramId', '==', currentUser.telegramId || parseInt(currentUser.id)))
         const userSnapshot = await getDocs(userQuery)
 
         if (!userSnapshot.empty) {
@@ -220,7 +221,7 @@ function App() {
     }
   }
 
-  const checkUserInDatabase = async (telegramId: number) => {
+  const checkUserInDatabase = async (telegramId: number, userInfo?: User) => {
     try {
       setUserLoading(true)
       const usersRef = collection(db, 'users')
@@ -246,7 +247,7 @@ function App() {
       // After user check, handle start param if present
       // This will create the user if they don't exist
       if (startParam) {
-        await handleStartParam(startParam)
+        await handleStartParam(startParam, userInfo)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
