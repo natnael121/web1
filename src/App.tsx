@@ -14,7 +14,6 @@ import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
 import { User, UserData, Shop, Customer } from './types'
-import { Store, PlusCircle } from 'lucide-react'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -37,7 +36,6 @@ function App() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const [showRegistration, setShowRegistration] = useState(false)
-  const [showNoShopsMessage, setShowNoShopsMessage] = useState(false)
   const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
   const [startParam, setStartParam] = useState<string | null>(null)
   const [deepLinkedProductId, setDeepLinkedProductId] = useState<string | null>(null)
@@ -209,7 +207,6 @@ function App() {
         userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', telegramId)))
       }
 
-      let isAdmin = false
       if (!userSnapshot.empty) {
         const userDoc = userSnapshot.docs[0]
         const userData = userDoc.data() as UserData
@@ -219,7 +216,6 @@ function App() {
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })
-        isAdmin = userData.role === 'admin' || userData.role === 'shop_owner'
       }
 
       let customerSnapshot = await getDocs(query(customersRef, where('telegramId', '==', telegramId)))
@@ -244,17 +240,15 @@ function App() {
 
         await handleStartParam(startParam, 'link')
       } else if (startParam && paramType === 'start') {
-        if (customerSnapshot.empty && !isAdmin) {
-          setShowNoShopsMessage(true)
+        if (customerSnapshot.empty) {
+          setShowRegistration(true)
         } else {
           await handleStartParam(startParam, 'start')
         }
-      } else if (isAdmin) {
-        setCurrentView('shops')
       } else if (!customerSnapshot.empty) {
         setCurrentView('shops')
       } else {
-        setShowNoShopsMessage(true)
+        setShowRegistration(true)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
@@ -297,44 +291,6 @@ function App() {
             <div className="text-center">
               <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-telegram-hint">Loading...</p>
-            </div>
-          </div>
-        </FirebaseProvider>
-      </TelegramProvider>
-    )
-  }
-
-  // Show no shops message
-  if (showNoShopsMessage) {
-    return (
-      <TelegramProvider>
-        <FirebaseProvider db={db} auth={auth}>
-          <div className="min-h-screen bg-gradient-to-br from-telegram-button/10 via-telegram-bg to-telegram-secondary-bg flex items-center justify-center p-4">
-            <div className="max-w-md w-full space-y-8 text-center">
-              <div className="flex justify-center">
-                <div className="h-16 w-16 bg-telegram-button rounded-2xl flex items-center justify-center">
-                  <Store className="h-8 w-8 text-telegram-button-text" />
-                </div>
-              </div>
-              <h2 className="text-3xl font-bold text-telegram-text">
-                No Shops Found
-              </h2>
-              <p className="text-telegram-hint">
-                You haven't interacted with any shops yet. Get a shop link from a shop owner to start shopping.
-              </p>
-              <div className="mt-6 p-4 bg-telegram-secondary-bg rounded-lg">
-                <h3 className="text-lg font-semibold text-telegram-text mb-2">Want to create your own shop?</h3>
-                <p className="text-sm text-telegram-hint mb-4">
-                  Start selling your products by creating your own shop on our platform.
-                </p>
-                <button
-                  onClick={() => window.open('https://t.me/YourBotUsername', '_blank')}
-                  className="w-full bg-telegram-button text-telegram-button-text py-3 rounded-lg font-semibold flex items-center justify-center space-x-2"
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  <span>Create Your Own Shop</span>
-                </button>
-              </div>
             </div>
           </div>
         </FirebaseProvider>
