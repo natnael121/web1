@@ -30,6 +30,7 @@ import ShopCard from './admin/ShopCard'
 import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
 import TelegramBotSettings from './admin/TelegramBotSettings'
+import UserRegistration from './UserRegistration'
 import { shopLinkUtils } from '../utils/shopLinks'
 import { shopCustomerService } from '../services/shopCustomerService'
 
@@ -847,7 +848,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       )}
 
       {/* No Shops Message */}
-      {ownedShops.length === 0 && (
+      {ownedShops.length === 0 && !showRoleUpgrade && (
         <div className="text-center py-6">
           <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
           <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
@@ -864,6 +865,39 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             {userData.role === 'customer' ? 'Become a Shop Owner' : 'Create Your First Shop'}
           </button>
         </div>
+      )}
+
+      {/* User Registration for Role Upgrade */}
+      {showRoleUpgrade && userData.role === 'customer' && user && (
+        <UserRegistration
+          user={user}
+          onCancel={() => setShowRoleUpgrade(false)}
+          onComplete={async (newUserData) => {
+            try {
+              setError(null)
+              const usersRef = collection(db, 'users')
+              const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+              const userSnapshot = await getDocs(userQuery)
+
+              if (!userSnapshot.empty) {
+                const userDocRef = doc(db, 'users', userSnapshot.docs[0].id)
+                await updateDoc(userDocRef, {
+                  role: 'admin',
+                  email: newUserData.email,
+                  displayName: newUserData.displayName,
+                  updatedAt: new Date()
+                })
+
+                await loadUserData()
+                setShowRoleUpgrade(false)
+                setShowCreateShop(true)
+              }
+            } catch (error) {
+              console.error('Error upgrading role:', error)
+              setError('Failed to upgrade account. Please try again.')
+            }
+          }}
+        />
       )}
 
       {/* Shop Management - Only show if a shop is selected */}
@@ -1175,72 +1209,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         />
       )}
 
-      {/* Role Upgrade Modal */}
-      {showRoleUpgrade && userData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-telegram-bg rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-telegram-text">Become a Shop Owner</h3>
-              <button
-                onClick={() => setShowRoleUpgrade(false)}
-                className="text-telegram-hint"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <p className="text-telegram-text mb-4">
-                Upgrade your account to create and manage your own shops. As a shop owner, you'll be able to:
-              </p>
-              <ul className="list-disc list-inside text-telegram-text space-y-2 mb-4">
-                <li>Create multiple shops</li>
-                <li>Add and manage products</li>
-                <li>Process orders</li>
-                <li>Track analytics</li>
-                <li>Configure Telegram notifications</li>
-              </ul>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowRoleUpgrade(false)}
-                className="flex-1 bg-telegram-hint text-white py-3 rounded-lg font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    setError(null)
-                    const usersRef = collection(db, 'users')
-                    const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-                    const userSnapshot = await getDocs(userQuery)
-
-                    if (!userSnapshot.empty) {
-                      const userDocRef = doc(db, 'users', userSnapshot.docs[0].id)
-                      await updateDoc(userDocRef, {
-                        role: 'admin',
-                        updatedAt: new Date()
-                      })
-
-                      await loadUserData()
-                      setShowRoleUpgrade(false)
-                      setShowCreateShop(true)
-                    }
-                  } catch (error) {
-                    console.error('Error upgrading role:', error)
-                    setError('Failed to upgrade account. Please try again.')
-                  }
-                }}
-                className="flex-1 bg-telegram-button text-telegram-button-text py-3 rounded-lg font-medium"
-              >
-                Upgrade Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
