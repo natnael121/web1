@@ -1,27 +1,25 @@
 export interface User {
   id: string
-  firstName?: string
-  lastName?: string
-  first_name?: string
-  last_name?: string
-  username?: string
-  languageCode?: string
-  language_code?: string
+  firstName: string
+  lastName: string
+  username: string
+  languageCode: string
   telegramId?: number
 }
 
 export interface UserData {
-  uid?: string
-  id?: string
-  email?: string
+  uid: string
+  id?: string // Add optional id field for compatibility
+  email: string
   displayName?: string
   phone?: string
   bio?: string
-  role?: 'shop_owner' | 'admin' | 'customer'
+  role: 'shop_owner' | 'admin'
   telegramId?: number
-  telegram_id?: number
+  telegram_id?: number // Add for compatibility with different field names
   telegramBotToken?: string
-  settings?: {
+  telegramBotToken?: string
+  settings: {
     notifications: {
       email: boolean
       push: boolean

@@ -17,19 +17,19 @@ import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft } from 'lucide-react'
 import { Settings } from 'lucide-react'
-// import OrderManagement from './admin/OrderManagement'
-// import ShopCreateModal from './admin/ShopCreateModal'
-// import ProductCard from './admin/ProductCard'
-// import ProductEditModal from './admin/ProductEditModal'
-// import { PromotionModal } from './admin/PromotionModal'
-// import CategoryCard from './admin/CategoryCard'
-// import CategoryEditModal from './admin/CategoryEditModal'
-// import DepartmentCard from './admin/DepartmentCard'
-// import DepartmentEditModal from './admin/DepartmentEditModal'
-// import ShopCard from './admin/ShopCard'
-// import ShopEditModal from './admin/ShopEditModal'
-// import AnalyticsTab from './admin/AnalyticsTab'
-// import TelegramBotSettings from './admin/TelegramBotSettings'
+import OrderManagement from './admin/OrderManagement'
+import ShopCreateModal from './admin/ShopCreateModal'
+import ProductCard from './admin/ProductCard'
+import ProductEditModal from './admin/ProductEditModal'
+import { PromotionModal } from './admin/PromotionModal'
+import CategoryCard from './admin/CategoryCard'
+import CategoryEditModal from './admin/CategoryEditModal'
+import DepartmentCard from './admin/DepartmentCard'
+import DepartmentEditModal from './admin/DepartmentEditModal'
+import ShopCard from './admin/ShopCard'
+import ShopEditModal from './admin/ShopEditModal'
+import AnalyticsTab from './admin/AnalyticsTab'
+import TelegramBotSettings from './admin/TelegramBotSettings'
 import UserRegistration from './UserRegistration'
 import { shopLinkUtils } from '../utils/shopLinks'
 import { shopCustomerService } from '../services/shopCustomerService'
@@ -875,13 +875,26 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           onComplete={async (newUserData) => {
             try {
               setError(null)
-              // UserRegistration already handled the upgrade, just reload data
-              await loadUserData()
-              setShowRoleUpgrade(false)
-              setShowCreateShop(true)
+              const usersRef = collection(db, 'users')
+              const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+              const userSnapshot = await getDocs(userQuery)
+
+              if (!userSnapshot.empty) {
+                const userDocRef = doc(db, 'users', userSnapshot.docs[0].id)
+                await updateDoc(userDocRef, {
+                  role: 'admin',
+                  email: newUserData.email,
+                  displayName: newUserData.displayName,
+                  updatedAt: new Date()
+                })
+
+                await loadUserData()
+                setShowRoleUpgrade(false)
+                setShowCreateShop(true)
+              }
             } catch (error) {
-              console.error('Error after user upgrade:', error)
-              setError('Failed to complete upgrade. Please try again.')
+              console.error('Error upgrading role:', error)
+              setError('Failed to upgrade account. Please try again.')
             }
           }}
         />

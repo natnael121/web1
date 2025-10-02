@@ -12,6 +12,7 @@ import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
 import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
+import SyncStatus from './components/common/SyncStatus'
 import { User, UserData, Shop } from './types'
 
 // Firebase configuration
@@ -275,6 +276,7 @@ function App() {
     <TelegramProvider>
       <FirebaseProvider db={db} auth={auth}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
+          <SyncStatus />
           <div className={currentView === 'catalog' ? 'w-full max-w-7xl mx-auto' : 'max-w-md mx-auto'}>
             {/* Header */}
             {currentView !== 'catalog' && (
