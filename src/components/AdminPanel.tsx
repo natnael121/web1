@@ -91,7 +91,7 @@ const AdminPanel: React.FC = () => {
       }
 
       const userDoc = userSnapshot.docs[0]
-      const userData = { ...userDoc.data() as UserData, id: userDoc.id }
+      const userData = userDoc.data() as UserData
       setUserData(userData)
 
       // Find shops owned by this user (if any)
@@ -1042,7 +1042,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       {/* Shop Create Modal */}
       {showCreateShop && userData && (
         <ShopCreateModal
-          userId={userData.id!}
+          userId={userData.uid}
           onSave={async (shopData) => {
             try {
               setError(null)
