@@ -105,15 +105,12 @@ export const shopCustomerService = {
     displayName: string = 'Customer'
   ): Promise<string | null> {
     try {
-      console.log('[shopCustomerService] Checking if user exists:', telegramId)
       const userId = await this.getUserIdByTelegramId(db, telegramId)
 
       if (userId) {
-        console.log('[shopCustomerService] User already exists with ID:', userId)
         return userId
       }
 
-      console.log('[shopCustomerService] User not found, creating new user...')
       const usersRef = collection(db, 'users')
       const newUserData = {
         displayName,
@@ -124,12 +121,11 @@ export const shopCustomerService = {
         updatedAt: new Date()
       }
 
-      console.log('[shopCustomerService] New user data:', newUserData)
       const userDocRef = await addDoc(usersRef, newUserData)
-      console.log('[shopCustomerService] Created new user with ID:', userDocRef.id)
+      console.log('Created new user:', userDocRef.id)
       return userDocRef.id
     } catch (error) {
-      console.error('[shopCustomerService] Error creating user:', error)
+      console.error('Error creating user:', error)
       return null
     }
   },
@@ -141,12 +137,9 @@ export const shopCustomerService = {
     displayName?: string
   ): Promise<ShopAccessResult> {
     try {
-      console.log('[shopCustomerService] Starting handleShopLinkAccess', { startParam, telegramId, displayName })
       const { shopId, productId } = await this.parseStartParam(startParam)
-      console.log('[shopCustomerService] Parsed params:', { shopId, productId })
 
       const shopExists = await this.verifyShopExists(db, shopId)
-      console.log('[shopCustomerService] Shop exists:', shopExists)
       if (!shopExists) {
         return {
           success: false,
@@ -158,18 +151,14 @@ export const shopCustomerService = {
       }
 
       const isExistingCustomer = await this.checkIfCustomerExists(db, shopId, telegramId)
-      console.log('[shopCustomerService] Is existing customer:', isExistingCustomer)
 
       if (!isExistingCustomer) {
         let userId = await this.getUserIdByTelegramId(db, telegramId)
-        console.log('[shopCustomerService] Existing userId:', userId)
 
         if (!userId) {
-          console.log('[shopCustomerService] Creating new user...')
           userId = await this.createUserIfNotExists(db, telegramId, displayName)
 
           if (!userId) {
-            console.error('[shopCustomerService] Failed to create user')
             return {
               success: false,
               shopId: null,
@@ -180,9 +169,7 @@ export const shopCustomerService = {
           }
         }
 
-        console.log('[shopCustomerService] Adding customer to shop...', { userId, shopId, telegramId })
         const added = await this.addCustomerToShop(db, shopId, userId, telegramId, 'customer')
-        console.log('[shopCustomerService] Customer added:', added)
 
         if (!added) {
           return {
@@ -194,7 +181,6 @@ export const shopCustomerService = {
           }
         }
 
-        console.log('[shopCustomerService] Success! New customer added')
         return {
           success: true,
           shopId,
@@ -203,7 +189,6 @@ export const shopCustomerService = {
         }
       }
 
-      console.log('[shopCustomerService] Success! Existing customer')
       return {
         success: true,
         shopId,
@@ -211,7 +196,7 @@ export const shopCustomerService = {
         isNewCustomer: false
       }
     } catch (error) {
-      console.error('[shopCustomerService] Error handling shop link access:', error)
+      console.error('Error handling shop link access:', error)
       return {
         success: false,
         shopId: null,

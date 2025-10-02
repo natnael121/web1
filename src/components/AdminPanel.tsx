@@ -82,34 +82,16 @@ const AdminPanel: React.FC = () => {
       setLinkProcessed(true)
       setLoading(true)
 
-      const displayName = userData?.displayName || `User ${user.id}`
+      const userRole = userData?.role || 'admin'
 
       const result = await shopCustomerService.handleShopLinkAccess(
         db,
         startParam,
         parseInt(user.id),
-        displayName
+        userRole
       )
 
       if (result.success && result.shopId) {
-        const shopCustomersRef = collection(db, 'shop_customers')
-        const customerQuery = query(
-          shopCustomersRef,
-          where('shopId', '==', result.shopId),
-          where('telegramId', '==', parseInt(user.id))
-        )
-        const customerSnapshot = await getDocs(customerQuery)
-
-        if (!customerSnapshot.empty) {
-          const customerData = customerSnapshot.docs[0].data()
-
-          if (customerData.role !== 'admin') {
-            setError('This view is for shop owners only. Please use the Shops tab to browse.')
-            setLoading(false)
-            return
-          }
-        }
-
         await loadUserData()
 
         const shopRef = doc(db, 'shops', result.shopId)
