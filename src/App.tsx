@@ -55,7 +55,7 @@ function App() {
         console.error('Failed to initialize cache sync service:', error)
       }
     }
-    
+
     initializeCache()
 
     // Initialize Telegram WebApp
@@ -63,17 +63,21 @@ function App() {
       const tg = window.Telegram.WebApp
       tg.ready()
       tg.expand()
-      
+
       // Set header color to match theme
       tg.setHeaderColor('#2481cc')
-      
+
       // Get user data from Telegram
       const telegramUser = tg.initDataUnsafe?.user
       const startParameter = tg.initDataUnsafe?.start_param
-      
+
+      console.log('Telegram WebApp initDataUnsafe:', tg.initDataUnsafe)
       console.log('Telegram start parameter:', startParameter)
-      setStartParam(startParameter || null)
-      
+
+      if (startParameter) {
+        setStartParam(startParameter)
+      }
+
       if (telegramUser) {
         const userInfo = {
           id: telegramUser.id.toString(),
@@ -84,7 +88,7 @@ function App() {
           telegramId: telegramUser.id
         }
         setUser(userInfo)
-        
+
         // Check if user exists in database
         checkUserInDatabase(telegramUser.id)
       } else {
@@ -184,14 +188,14 @@ function App() {
     try {
       setUserLoading(true)
       const usersRef = collection(db, 'users')
-      
+
       // Try both telegramId and telegram_id fields
       let userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', telegramId)))
-      
+
       if (userSnapshot.empty) {
         userSnapshot = await getDocs(query(usersRef, where('telegram_id', '==', telegramId)))
       }
-      
+
       if (!userSnapshot.empty) {
         const userDoc = userSnapshot.docs[0]
         const userData = userDoc.data() as UserData
@@ -201,14 +205,14 @@ function App() {
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })
+
+        // After user is set, handle start param if present
+        if (startParam) {
+          await handleStartParam(startParam)
+        }
       } else {
         // User not found, show registration
         setShowRegistration(true)
-      }
-      
-      // After user check, handle start param if present
-      if (startParam) {
-        await handleStartParam(startParam)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
