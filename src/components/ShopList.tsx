@@ -35,10 +35,10 @@ const ShopList: React.FC = () => {
   }, [user])
 
   useEffect(() => {
-    if (user?.id && startParam && !linkProcessed && userData) {
+    if (user?.id && startParam && !linkProcessed) {
       handleShopLink()
     }
-  }, [user, startParam, linkProcessed, userData])
+  }, [user, startParam, linkProcessed])
 
   const handleShopLink = async () => {
     if (!user?.id || !startParam || linkProcessed) return
@@ -47,10 +47,15 @@ const ShopList: React.FC = () => {
       setLinkProcessed(true)
       setLoading(true)
 
+      const displayName = user.firstName && user.lastName
+        ? `${user.firstName} ${user.lastName}`.trim()
+        : user.firstName || 'Customer'
+
       const result = await shopCustomerService.handleShopLinkAccess(
         db,
         startParam,
-        parseInt(user.id)
+        parseInt(user.id),
+        displayName
       )
 
       if (result.success && result.shopId) {
