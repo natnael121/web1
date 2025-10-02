@@ -99,10 +99,42 @@ export const shopCustomerService = {
     }
   },
 
+  async createUserIfNotExists(
+    db: Firestore,
+    telegramId: number,
+    displayName: string = 'Customer'
+  ): Promise<string | null> {
+    try {
+      const userId = await this.getUserIdByTelegramId(db, telegramId)
+
+      if (userId) {
+        return userId
+      }
+
+      const usersRef = collection(db, 'users')
+      const newUserData = {
+        displayName,
+        telegramId,
+        telegram_id: telegramId,
+        role: 'customer',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      const userDocRef = await addDoc(usersRef, newUserData)
+      console.log('Created new user:', userDocRef.id)
+      return userDocRef.id
+    } catch (error) {
+      console.error('Error creating user:', error)
+      return null
+    }
+  },
+
   async handleShopLinkAccess(
     db: Firestore,
     startParam: string,
-    telegramId: number
+    telegramId: number,
+    displayName?: string
   ): Promise<ShopAccessResult> {
     try {
       const { shopId, productId } = await this.parseStartParam(startParam)
@@ -121,15 +153,19 @@ export const shopCustomerService = {
       const isExistingCustomer = await this.checkIfCustomerExists(db, shopId, telegramId)
 
       if (!isExistingCustomer) {
-        const userId = await this.getUserIdByTelegramId(db, telegramId)
+        let userId = await this.getUserIdByTelegramId(db, telegramId)
 
         if (!userId) {
-          return {
-            success: false,
-            shopId: null,
-            productId: null,
-            isNewCustomer: false,
-            error: 'User not found in database'
+          userId = await this.createUserIfNotExists(db, telegramId, displayName)
+
+          if (!userId) {
+            return {
+              success: false,
+              shopId: null,
+              productId: null,
+              isNewCustomer: false,
+              error: 'Failed to create user record'
+            }
           }
         }
 

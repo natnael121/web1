@@ -125,15 +125,35 @@ function App() {
       console.log('Parsed IDs:', { shopId, productId })
 
       // First, add user to shop_customers if not already there
+      const displayName = `${user.firstName} ${user.lastName}`.trim() || 'Customer'
       const result = await shopCustomerService.handleShopLinkAccess(
         db,
         param,
-        user.telegramId || parseInt(user.id)
+        user.telegramId || parseInt(user.id),
+        displayName
       )
 
       if (!result.success) {
         console.error('Failed to add user to shop:', result.error)
         return
+      }
+
+      // If user was newly created, update userData state
+      if (result.isNewCustomer && !userData) {
+        const usersRef = collection(db, 'users')
+        const userQuery = query(usersRef, where('telegramId', '==', user.telegramId || parseInt(user.id)))
+        const userSnapshot = await getDocs(userQuery)
+
+        if (!userSnapshot.empty) {
+          const userDoc = userSnapshot.docs[0]
+          const newUserData = userDoc.data() as UserData
+          setUserData({
+            ...newUserData,
+            uid: userDoc.id,
+            createdAt: newUserData.createdAt?.toDate?.() || new Date(),
+            updatedAt: newUserData.updatedAt?.toDate?.() || new Date()
+          })
+        }
       }
 
       if (productId) {
@@ -221,19 +241,12 @@ function App() {
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })
+      }
 
-        // After user is set, handle start param if present
-        if (startParam) {
-          await handleStartParam(startParam)
-        }
-      } else {
-        // User not found - if they have a shop link, auto-register them as customer
-        if (startParam) {
-          await autoRegisterCustomer(telegramId)
-        } else {
-          // No shop link, create basic user anyway
-          await autoRegisterCustomer(telegramId)
-        }
+      // After user check, handle start param if present
+      // This will create the user if they don't exist
+      if (startParam) {
+        await handleStartParam(startParam)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
@@ -241,38 +254,6 @@ function App() {
       setUserLoading(false)
     }
   }
-
-  const autoRegisterCustomer = async (telegramId: number) => {
-    try {
-      if (!user) return
-
-      // Create a minimal user record
-      const newUserData: any = {
-        displayName: `${user.firstName} ${user.lastName}`.trim() || 'Customer',
-        telegramId: telegramId,
-        telegram_id: telegramId,
-        role: 'customer',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-
-      const usersRef = collection(db, 'users')
-      const userDocRef = await addDoc(usersRef, newUserData)
-
-      setUserData({
-        ...newUserData,
-        uid: userDocRef.id
-      })
-
-      // If there's a shop link, process it and load shop
-      if (startParam) {
-        await handleStartParam(startParam)
-      }
-    } catch (error) {
-      console.error('Error auto-registering customer:', error)
-    }
-  }
-
 
   // Show loading while checking user
   if (userLoading) {
