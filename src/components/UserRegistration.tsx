@@ -1,9 +1,9 @@
-
-import React, { useState } from 'react' 
-import { collection, addDoc } from 'firebase/firestore'
+import React, { useState } from 'react'
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
-import { Store, User as UserIcon, Mail, Save, Loader2 } from 'lucide-react'
+import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 'lucide-react'
 
 interface UserRegistrationProps {
   user: User
@@ -11,12 +11,15 @@ interface UserRegistrationProps {
 }
 
 const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete }) => {
-  const { db } = useFirebase()
+  const { db, auth } = useFirebase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+
   const [formData, setFormData] = useState({
     displayName: `${user.firstName} ${user.lastName}`.trim(),
     email: '',
+    password: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,30 +28,29 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     setError(null)
 
     try {
-      // Get current timestamp
-      const now = new Date()
-      
-      const userData = {
-        createdAt: now,
-        displayName: formData.displayName,
+      // Create user with Firebase Authentication
+      const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+
+      // Update display name in Firebase Auth profile
+      await updateProfile(cred.user, { displayName: formData.displayName })
+
+      // Create Firestore user profile
+      const userData: UserData = {
+        uid: cred.user.uid,
         email: formData.email,
+        displayName: formData.displayName,
         telegramId: user.telegramId || parseInt(user.id),
-        updatedAt: now,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       }
 
-      const usersRef = collection(db, 'users')
-      const docRef = await addDoc(usersRef, userData)
+      await setDoc(doc(db, 'users', cred.user.uid), userData)
 
-      // Create the complete user data with the UID
-      const completeUserData: UserData = {
-        ...userData,
-        uid: docRef.id // This will be the auto-generated Firestore document ID
-      }
-
-      onComplete(completeUserData)
-    } catch (error) {
+      // Return completed user data
+      onComplete(userData)
+    } catch (error: any) {
       console.error('Error creating user:', error)
-      setError('Failed to create account. Please try again.')
+      setError(error.message || 'Failed to create account. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -79,14 +81,13 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
           )}
 
           <div className="space-y-4">
+            {/* Full Name */}
             <div>
               <label htmlFor="displayName" className="block text-sm font-medium text-telegram-text mb-2">
                 Full Name
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <UserIcon className="h-5 w-5 text-telegram-hint" />
-                </div>
+                <UserIcon className="h-5 w-5 text-telegram-hint absolute left-3 top-3" />
                 <input
                   id="displayName"
                   name="displayName"
@@ -94,20 +95,19 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
                   required
                   value={formData.displayName}
                   onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-                  className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
+                  className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent bg-telegram-secondary-bg text-telegram-text"
                   placeholder="Enter your full name"
                 />
               </div>
             </div>
 
+            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-telegram-text mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-telegram-hint" />
-                </div>
+                <Mail className="h-5 w-5 text-telegram-hint absolute left-3 top-3" />
                 <input
                   id="email"
                   name="email"
@@ -115,9 +115,36 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button focus:border-transparent transition-colors duration-200 bg-telegram-secondary-bg text-telegram-text"
+                  className="block w-full pl-10 pr-3 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button bg-telegram-secondary-bg text-telegram-text"
                   placeholder="Enter your email"
                 />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-telegram-text mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="h-5 w-5 text-telegram-hint absolute left-3 top-3" />
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  className="block w-full pl-10 pr-10 py-3 border border-telegram-hint/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-button bg-telegram-secondary-bg text-telegram-text"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5 text-telegram-hint" /> : <Eye className="h-5 w-5 text-telegram-hint" />}
+                </button>
               </div>
             </div>
           </div>
@@ -125,7 +152,7 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-telegram-button-text bg-telegram-button hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-telegram-button disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-telegram-button-text bg-telegram-button hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-telegram-button disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
@@ -143,6 +170,6 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
       </div>
     </div>
   )
-} 
+}
 
 export default UserRegistration
