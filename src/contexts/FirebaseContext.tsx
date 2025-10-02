@@ -1,8 +1,10 @@
 import React, { createContext, useContext } from 'react'
 import { Firestore } from 'firebase/firestore'
+import { Auth } from 'firebase/auth'
 
 interface FirebaseContextType {
   db: Firestore
+  auth: Auth
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined)
@@ -18,11 +20,13 @@ export const useFirebase = () => {
 interface FirebaseProviderProps {
   children: React.ReactNode
   db: Firestore
+  auth: Auth
 }
 
-export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children, db }) => {
+export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children, db, auth }) => {
   const value = {
-    db
+    db,
+    auth
   }
 
   return (

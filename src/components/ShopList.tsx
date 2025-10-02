@@ -727,6 +727,8 @@ const ShopList: React.FC = () => {
             onAddToCart={addToCart}
             cartItem={cart.find(item => item.productId === selectedProduct.id)}
             onUpdateCartQuantity={updateCartQuantity}
+            shopId={selectedShop?.id}
+            shopName={selectedShop?.name}
           />
         )}
       </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
@@ -27,6 +28,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+const auth = getAuth(app)
 
 function App() {
   const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin' | 'catalog'>('shops')
@@ -224,7 +226,7 @@ function App() {
   if (userLoading) {
     return (
       <TelegramProvider>
-        <FirebaseProvider db={db}>
+        <FirebaseProvider db={db} auth={auth}>
           <div className="min-h-screen bg-telegram-bg text-telegram-text flex items-center justify-center">
             <div className="text-center">
               <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -240,11 +242,11 @@ function App() {
   if (showRegistration && user) {
     return (
       <TelegramProvider>
-        <FirebaseProvider db={db}>
+        <FirebaseProvider db={db} auth={auth}>
           <div className="min-h-screen bg-telegram-bg text-telegram-text">
             <SyncStatus />
-            <UserRegistration 
-              user={user} 
+            <UserRegistration
+              user={user}
               onComplete={handleRegistrationComplete}
             />
           </div>
@@ -255,7 +257,7 @@ function App() {
 
   return (
     <TelegramProvider>
-      <FirebaseProvider db={db}>
+      <FirebaseProvider db={db} auth={auth}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
           <SyncStatus />
           <div className={currentView === 'catalog' ? 'w-full max-w-7xl mx-auto' : 'max-w-md mx-auto'}>
