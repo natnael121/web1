@@ -1045,11 +1045,22 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             try {
               setError(null)
               const shopsRef = collection(db, 'shops')
-              await addDoc(shopsRef, {
+              const shopDoc = await addDoc(shopsRef, {
                 ...shopData,
                 createdAt: new Date(),
                 updatedAt: new Date()
               })
+
+              const shopCustomersRef = collection(db, 'shop_customers')
+              await addDoc(shopCustomersRef, {
+                customerId: userData.uid,
+                telegramId: userData.telegramId || userData.telegram_id,
+                shopId: shopDoc.id,
+                role: 'admin',
+                createdAt: new Date(),
+                updatedAt: new Date()
+              })
+
               setShowCreateShop(false)
               await loadUserData()
             } catch (error) {

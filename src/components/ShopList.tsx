@@ -71,39 +71,59 @@ const ShopList: React.FC = () => {
 
   const fetchAllActiveShops = async () => {
     try {
-      const shopsRef = collection(db, 'shops')
-      const shopsQuery = query(
-        shopsRef, 
-        where('isActive', '==', true),
-        orderBy('updatedAt', 'desc')
+      if (!user?.id) {
+        setError('User information not available')
+        return
+      }
+
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const customerQuery = query(
+        shopCustomersRef,
+        where('telegramId', '==', parseInt(user.id))
       )
-      const shopsSnapshot = await getDocs(shopsQuery)
-      
-      if (shopsSnapshot.empty) {
+      const customerSnapshot = await getDocs(customerQuery)
+
+      if (customerSnapshot.empty) {
+        setError('No shops assigned to you.')
+        return
+      }
+
+      const shopIds = customerSnapshot.docs.map(doc => doc.data().shopId)
+
+      const allShops: Shop[] = []
+      for (const shopId of shopIds) {
+        const shopRef = doc(db, 'shops', shopId)
+        const shopDoc = await getDoc(shopRef)
+
+        if (shopDoc.exists()) {
+          const data = shopDoc.data()
+          if (data.isActive) {
+            const shop: Shop = {
+              id: shopDoc.id,
+              ownerId: data.ownerId,
+              name: data.name,
+              slug: data.slug,
+              description: data.description,
+              logo: data.logo,
+              isActive: data.isActive,
+              businessInfo: data.businessInfo,
+              settings: data.settings,
+              stats: data.stats,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date()
+            }
+            allShops.push(shop)
+          }
+        }
+      }
+
+      allShops.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+
+      if (allShops.length === 0) {
         setError('No active shops found.')
         return
       }
-      
-      const allShops: Shop[] = []
-      shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive,
-          businessInfo: data.businessInfo,
-          settings: data.settings,
-          stats: data.stats,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
-        }
-        allShops.push(shop)
-      })
-      
+
       setShops(allShops)
     } catch (error) {
       console.error('Error fetching all active shops:', error)

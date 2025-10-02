@@ -265,6 +265,16 @@ export interface Customer {
   updatedAt: Date
 }
 
+export interface ShopCustomer {
+  id: string
+  customerId: string
+  telegramId?: number
+  shopId: string
+  role: 'admin' | 'customer'
+  createdAt: Date
+  updatedAt: Date
+}
+
 declare global {
   interface Window {
     Telegram?: {
