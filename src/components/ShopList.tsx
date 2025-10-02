@@ -5,10 +5,11 @@ import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem, Category } from '../types'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 import ProductDetails from './ProductDetails'
+import { shopCustomerService } from '../services/shopCustomerService'
 
 const ShopList: React.FC = () => {
   const { db } = useFirebase()
-  const { user } = useTelegram()
+  const { user, startParam } = useTelegram()
   const [shops, setShops] = useState<Shop[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -22,6 +23,7 @@ const ShopList: React.FC = () => {
   const [cart, setCart] = useState<OrderItem[]>([])
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
+  const [linkProcessed, setLinkProcessed] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -31,6 +33,76 @@ const ShopList: React.FC = () => {
       setError('Please open this app from Telegram to see your shops.')
     }
   }, [user])
+
+  useEffect(() => {
+    if (user?.id && startParam && !linkProcessed && userData) {
+      handleShopLink()
+    }
+  }, [user, startParam, linkProcessed, userData])
+
+  const handleShopLink = async () => {
+    if (!user?.id || !startParam || linkProcessed) return
+
+    try {
+      setLinkProcessed(true)
+      setLoading(true)
+
+      const userRole = userData?.role || 'customer'
+
+      const result = await shopCustomerService.handleShopLinkAccess(
+        db,
+        startParam,
+        parseInt(user.id),
+        userRole
+      )
+
+      if (result.success && result.shopId) {
+        await fetchAllActiveShops()
+
+        const shopRef = doc(db, 'shops', result.shopId)
+        const shopDoc = await getDoc(shopRef)
+
+        if (shopDoc.exists()) {
+          const shopData = shopDoc.data()
+          const shop: Shop = {
+            id: shopDoc.id,
+            ownerId: shopData.ownerId,
+            name: shopData.name,
+            slug: shopData.slug,
+            description: shopData.description,
+            logo: shopData.logo,
+            isActive: shopData.isActive,
+            businessInfo: shopData.businessInfo,
+            settings: shopData.settings,
+            stats: shopData.stats,
+            createdAt: shopData.createdAt?.toDate() || new Date(),
+            updatedAt: shopData.updatedAt?.toDate() || new Date()
+          }
+
+          setSelectedShop(shop)
+          setCurrentView('products')
+          await fetchShopData(result.shopId)
+
+          if (result.productId) {
+            const productRef = doc(db, 'products', result.productId)
+            const productDoc = await getDoc(productRef)
+
+            if (productDoc.exists()) {
+              const productData = productDoc.data()
+              setSelectedProduct(createProductFromData(productDoc.id, productData))
+            }
+          }
+        }
+      } else {
+        setError(result.error || 'Failed to access shop')
+      }
+    } catch (error) {
+      console.error('Error handling shop link:', error)
+      setError('Failed to process shop link')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchUserData = async () => {
     try {

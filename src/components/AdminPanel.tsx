@@ -31,10 +31,11 @@ import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
 import TelegramBotSettings from './admin/TelegramBotSettings'
 import { shopLinkUtils } from '../utils/shopLinks'
+import { shopCustomerService } from '../services/shopCustomerService'
 
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
-  const { user } = useTelegram()
+  const { user, startParam } = useTelegram()
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
@@ -58,6 +59,7 @@ const AdminPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [botToken, setBotToken] = useState('')
+  const [linkProcessed, setLinkProcessed] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -66,6 +68,66 @@ const AdminPanel: React.FC = () => {
       setLoading(false)
     }
   }, [user])
+
+  useEffect(() => {
+    if (user?.id && startParam && !linkProcessed && userData) {
+      handleShopLink()
+    }
+  }, [user, startParam, linkProcessed, userData])
+
+  const handleShopLink = async () => {
+    if (!user?.id || !startParam || linkProcessed) return
+
+    try {
+      setLinkProcessed(true)
+      setLoading(true)
+
+      const userRole = userData?.role || 'admin'
+
+      const result = await shopCustomerService.handleShopLinkAccess(
+        db,
+        startParam,
+        parseInt(user.id),
+        userRole
+      )
+
+      if (result.success && result.shopId) {
+        await loadUserData()
+
+        const shopRef = doc(db, 'shops', result.shopId)
+        const shopDoc = await getDoc(shopRef)
+
+        if (shopDoc.exists()) {
+          const shopData = shopDoc.data()
+          const shop: Shop = {
+            id: shopDoc.id,
+            ownerId: shopData.ownerId,
+            name: shopData.name,
+            slug: shopData.slug,
+            description: shopData.description,
+            logo: shopData.logo,
+            isActive: shopData.isActive,
+            businessInfo: shopData.businessInfo,
+            settings: shopData.settings,
+            stats: shopData.stats,
+            createdAt: shopData.createdAt?.toDate() || new Date(),
+            updatedAt: shopData.updatedAt?.toDate() || new Date()
+          }
+
+          setSelectedShop(shop)
+          setActiveTab('products')
+          await fetchShopData(shop.id)
+        }
+      } else {
+        setError(result.error || 'Failed to access shop')
+      }
+    } catch (error) {
+      console.error('Error handling shop link:', error)
+      setError('Failed to process shop link')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadUserData = async () => {
     try {

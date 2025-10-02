@@ -4,6 +4,7 @@ interface TelegramContextType {
   webApp: any
   user: any
   isReady: boolean
+  startParam: string | null
 }
 
 const TelegramContext = createContext<TelegramContextType | undefined>(undefined)
@@ -24,14 +25,16 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   const [webApp, setWebApp] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
   const [isReady, setIsReady] = useState(false)
+  const [startParam, setStartParam] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
       setWebApp(tg)
       setUser(tg.initDataUnsafe?.user)
+      setStartParam(tg.initDataUnsafe?.start_param || null)
       setIsReady(true)
-      
+
       // Configure the app
       tg.ready()
       tg.expand()
@@ -44,7 +47,8 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   const value = {
     webApp,
     user,
-    isReady
+    isReady,
+    startParam
   }
 
   return (
