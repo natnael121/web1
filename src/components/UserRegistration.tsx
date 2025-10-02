@@ -4,13 +4,15 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
 import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 'lucide-react'
+import { shopCustomerService } from '../services/shopCustomerService'
 
 interface UserRegistrationProps {
   user: User
-  onComplete: (userData: UserData) => void
+  onComplete: (userData: UserData, shopId?: string, productId?: string | null) => void
+  startParam?: string | null
 }
 
-const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete }) => {
+const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, startParam }) => {
   const { db, auth } = useFirebase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,8 +48,25 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
 
       await setDoc(doc(db, 'users', cred.user.uid), userData)
 
-      // Return completed user data
-      onComplete(userData)
+      // If user came from shop link, add them to the shop as customer
+      let shopId: string | undefined
+      let productId: string | null = null
+
+      if (startParam) {
+        const result = await shopCustomerService.handleShopLinkAccess(
+          db,
+          startParam,
+          user.telegramId || parseInt(user.id)
+        )
+
+        if (result.success) {
+          shopId = result.shopId || undefined
+          productId = result.productId
+        }
+      }
+
+      // Return completed user data with shop info
+      onComplete(userData, shopId, productId)
     } catch (error: any) {
       console.error('Error creating user:', error)
       setError(error.message || 'Failed to create account. Please try again.')

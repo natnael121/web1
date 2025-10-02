@@ -102,8 +102,7 @@ export const shopCustomerService = {
   async handleShopLinkAccess(
     db: Firestore,
     startParam: string,
-    telegramId: number,
-    userRole: 'admin' | 'shop_owner' | 'customer' = 'customer'
+    telegramId: number
   ): Promise<ShopAccessResult> {
     try {
       const { shopId, productId } = await this.parseStartParam(startParam)
@@ -134,8 +133,7 @@ export const shopCustomerService = {
           }
         }
 
-        const role = userRole === 'admin' || userRole === 'shop_owner' ? 'admin' : 'customer'
-        const added = await this.addCustomerToShop(db, shopId, userId, telegramId, role)
+        const added = await this.addCustomerToShop(db, shopId, userId, telegramId, 'customer')
 
         if (!added) {
           return {

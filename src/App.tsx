@@ -221,9 +221,41 @@ function App() {
     }
   }
 
-  const handleRegistrationComplete = (newUserData: UserData) => {
+  const handleRegistrationComplete = async (newUserData: UserData, shopId?: string, productId?: string | null) => {
     setUserData(newUserData)
     setShowRegistration(false)
+
+    // If user registered via shop link, load that shop
+    if (shopId) {
+      try {
+        const shopDoc = await getDoc(doc(db, 'shops', shopId))
+        if (shopDoc.exists()) {
+          const shopData = shopDoc.data()
+          const shop: Shop = {
+            id: shopDoc.id,
+            ownerId: shopData.ownerId,
+            name: shopData.name,
+            slug: shopData.slug,
+            description: shopData.description,
+            logo: shopData.logo,
+            isActive: shopData.isActive,
+            businessInfo: shopData.businessInfo,
+            settings: shopData.settings,
+            stats: shopData.stats,
+            createdAt: shopData.createdAt?.toDate() || new Date(),
+            updatedAt: shopData.updatedAt?.toDate() || new Date()
+          }
+
+          setSelectedShopForCatalog(shop)
+          if (productId) {
+            setDeepLinkedProductId(productId)
+          }
+          setCurrentView('catalog')
+        }
+      } catch (error) {
+        console.error('Error loading shop after registration:', error)
+      }
+    }
   }
 
   // Show loading while checking user
@@ -252,6 +284,7 @@ function App() {
             <UserRegistration
               user={user}
               onComplete={handleRegistrationComplete}
+              startParam={startParam}
             />
           </div>
         </FirebaseProvider>
