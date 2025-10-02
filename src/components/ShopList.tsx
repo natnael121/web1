@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { collection, getDocs, query, where, doc, getDoc, addDoc } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
-import { Shop, Product, UserData, Order, OrderItem, Category, Customer } from '../types'
+import { Shop, Product, UserData, Order, OrderItem, Category } from '../types'
 import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
 import ProductDetails from './ProductDetails'
 
@@ -36,51 +36,31 @@ const ShopList: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-
+      
       if (!user?.id) {
         setError('No user information available')
         return
       }
 
-      const telegramId = parseInt(user.id)
-
+      // Query users collection by telegramId
       const usersRef = collection(db, 'users')
-      let userQuery = query(usersRef, where('telegram_id', '==', telegramId))
-      let userSnapshot = await getDocs(userQuery)
-
+      const userQuery = query(usersRef, where('telegram_id', '==', parseInt(user.id)))
+      const userSnapshot = await getDocs(userQuery)
+      
       if (userSnapshot.empty) {
-        userQuery = query(usersRef, where('telegramId', '==', telegramId))
-        userSnapshot = await getDocs(userQuery)
-      }
-
-      if (!userSnapshot.empty) {
-        const userDoc = userSnapshot.docs[0]
-        const userData = userDoc.data() as UserData
-        setUserData(userData)
-      }
-
-      const customersRef = collection(db, 'customers')
-      const customerQuery = query(customersRef, where('telegramId', '==', telegramId))
-      const customerSnapshot = await getDocs(customerQuery)
-
-      if (customerSnapshot.empty) {
-        setShops([])
-        setError('You have not interacted with any shops yet. Use a shop link to get started.')
+        // For demo purposes, show all active shops if user not found
+        console.log('User not found in database, showing all active shops')
+        await fetchAllActiveShops()
         setLoading(false)
         return
       }
 
-      const customerDoc = customerSnapshot.docs[0]
-      const customerData = customerDoc.data() as Customer
+      const userDoc = userSnapshot.docs[0]
+      const userData = userDoc.data() as UserData
+      setUserData(userData)
 
-      if (!customerData.linkedShops || customerData.linkedShops.length === 0) {
-        setShops([])
-        setError('You have not interacted with any shops yet. Use a shop link to get started.')
-        setLoading(false)
-        return
-      }
-
-      await fetchLinkedShops(customerData.linkedShops)
+      // Fetch all active shops for browsing
+      await fetchAllActiveShops()
     } catch (error) {
       console.error('Error fetching user data:', error)
       setError('Failed to load your shop data. Please try again.')
@@ -89,43 +69,44 @@ const ShopList: React.FC = () => {
     }
   }
 
-  const fetchLinkedShops = async (shopIds: string[]) => {
+  const fetchAllActiveShops = async () => {
     try {
-      const linkedShops: Shop[] = []
-
-      for (const shopId of shopIds) {
-        const shopDoc = await getDoc(doc(db, 'shops', shopId))
-
-        if (shopDoc.exists()) {
-          const data = shopDoc.data()
-
-          if (data.isActive) {
-            const shop: Shop = {
-              id: shopDoc.id,
-              ownerId: data.ownerId,
-              name: data.name,
-              slug: data.slug,
-              description: data.description,
-              logo: data.logo,
-              isActive: data.isActive,
-              businessInfo: data.businessInfo,
-              settings: data.settings,
-              stats: data.stats,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date()
-            }
-            linkedShops.push(shop)
-          }
+      const shopsRef = collection(db, 'shops')
+      const shopsQuery = query(
+        shopsRef, 
+        where('isActive', '==', true),
+        orderBy('updatedAt', 'desc')
+      )
+      const shopsSnapshot = await getDocs(shopsQuery)
+      
+      if (shopsSnapshot.empty) {
+        setError('No active shops found.')
+        return
+      }
+      
+      const allShops: Shop[] = []
+      shopsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const shop: Shop = {
+          id: doc.id,
+          ownerId: data.ownerId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          logo: data.logo,
+          isActive: data.isActive,
+          businessInfo: data.businessInfo,
+          settings: data.settings,
+          stats: data.stats,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
         }
-      }
-
-      if (linkedShops.length === 0) {
-        setError('No active shops found in your list.')
-      }
-
-      setShops(linkedShops)
+        allShops.push(shop)
+      })
+      
+      setShops(allShops)
     } catch (error) {
-      console.error('Error fetching linked shops:', error)
+      console.error('Error fetching all active shops:', error)
       setError('Failed to load shops. Please try again.')
     }
   }
