@@ -871,6 +871,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       {showRoleUpgrade && userData.role === 'customer' && user && (
         <UserRegistration
           user={user}
+          existingUserData={userData}
           onCancel={() => setShowRoleUpgrade(false)}
           onComplete={async () => {
             await loadUserData()
