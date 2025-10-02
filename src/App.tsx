@@ -119,12 +119,6 @@ function App() {
         return
       }
 
-      const parts = param.split('_')
-      const shopId = parts[0]
-      const productId = parts[1] || null
-
-      console.log('Parsed IDs:', { shopId, productId })
-
       // First, add user to shop_customers if not already there
       const displayName = `${currentUser.firstName} ${currentUser.lastName}`.trim() || 'Customer'
       const result = await shopCustomerService.handleShopLinkAccess(
@@ -139,8 +133,13 @@ function App() {
         return
       }
 
-      // If user was newly created, update userData state
-      if (result.isNewCustomer && !userData) {
+      const shopId = result.shopId
+      const productId = result.productId
+
+      console.log('Shop access result:', { shopId, productId, isNewCustomer: result.isNewCustomer })
+
+      // If user was newly created, update userData state and reload
+      if (result.isNewCustomer) {
         const usersRef = collection(db, 'users')
         const userQuery = query(usersRef, where('telegramId', '==', currentUser.telegramId || parseInt(currentUser.id)))
         const userSnapshot = await getDocs(userQuery)
@@ -148,12 +147,16 @@ function App() {
         if (!userSnapshot.empty) {
           const userDoc = userSnapshot.docs[0]
           const newUserData = userDoc.data() as UserData
-          setUserData({
+          const updatedUserData = {
             ...newUserData,
             uid: userDoc.id,
             createdAt: newUserData.createdAt?.toDate?.() || new Date(),
             updatedAt: newUserData.updatedAt?.toDate?.() || new Date()
-          })
+          }
+          setUserData(updatedUserData)
+
+          // Small delay to ensure state is updated before proceeding
+          await new Promise(resolve => setTimeout(resolve, 100))
         }
       }
 
