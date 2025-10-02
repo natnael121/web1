@@ -8,16 +8,17 @@ import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 
 interface UserRegistrationProps {
   user: User
   onComplete: (userData: UserData) => void
+  onCancel?: () => void
 }
 
-const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete }) => {
+const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, onCancel }) => {
   const { db, auth } = useFirebase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
 
   const [formData, setFormData] = useState({
-    displayName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || '',
+    displayName: `${user.firstName || user.first_name || ''} ${user.lastName || user.last_name || ''}`.trim() || user.username || 'User',
     email: '',
     password: '',
   })
@@ -198,23 +199,36 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-telegram-button-text bg-telegram-button hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-telegram-button disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Creating Account...
-              </>
-            ) : (
-              <>
-                <Save className="w-5 h-5 mr-2" />
-                Complete Registration
-              </>
+          <div className="space-y-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-telegram-button-text bg-telegram-button hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-telegram-button disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5 mr-2" />
+                  Complete Registration
+                </>
+              )}
+            </button>
+
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={loading}
+                className="w-full flex justify-center py-3 px-4 border border-telegram-hint/30 text-sm font-medium rounded-lg text-telegram-text bg-telegram-secondary-bg hover:opacity-80 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
             )}
-          </button>
+          </div>
         </form>
       </div>
     </div>
