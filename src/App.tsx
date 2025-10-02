@@ -244,7 +244,7 @@ function App() {
 
   const autoRegisterCustomer = async (telegramId: number) => {
     try {
-      if (!user || !startParam) return
+      if (!user) return
 
       // Create a minimal user record
       const newUserData: any = {
@@ -264,11 +264,12 @@ function App() {
         uid: userDocRef.id
       })
 
-      // Process the shop link and load shop
-      await handleStartParam(startParam)
+      // If there's a shop link, process it and load shop
+      if (startParam) {
+        await handleStartParam(startParam)
+      }
     } catch (error) {
       console.error('Error auto-registering customer:', error)
-      setShowRegistration(true)
     }
   }
 
