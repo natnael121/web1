@@ -8,10 +8,9 @@ import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 
 interface UserRegistrationProps {
   user: User
   onComplete: (userData: UserData) => void
-  onCancel?: () => void
 }
 
-const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, onCancel }) => {
+const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete }) => {
   const { db, auth } = useFirebase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,19 +57,19 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, o
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-telegram-bg rounded-lg p-6 max-w-md w-full my-8">
+    <div className="min-h-screen bg-gradient-to-br from-telegram-button/10 via-telegram-bg to-telegram-secondary-bg flex items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center">
             <div className="h-16 w-16 bg-telegram-button rounded-2xl flex items-center justify-center">
               <Store className="h-8 w-8 text-telegram-button-text" />
             </div>
           </div>
-          <h2 className="mt-6 text-2xl font-bold text-telegram-text">
-            Become a Shop Owner
+          <h2 className="mt-6 text-3xl font-bold text-telegram-text">
+            Welcome to Multi-Shop!
           </h2>
           <p className="mt-2 text-sm text-telegram-hint">
-            Complete your profile to create and manage shops
+            Complete your profile to get started
           </p>
         </div>
 
@@ -150,35 +149,23 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, o
             </div>
           </div>
 
-          <div className="space-y-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-telegram-button-text bg-telegram-button hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-telegram-button disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Upgrading Account...
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5 mr-2" />
-                  Complete Registration & Upgrade
-                </>
-              )}
-            </button>
-            {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={loading}
-                className="w-full py-3 px-4 text-sm font-medium rounded-lg text-telegram-hint bg-telegram-secondary-bg hover:bg-telegram-hint/10 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-telegram-button-text bg-telegram-button hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-telegram-button disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5 mr-2" />
+                Complete Registration
+              </>
             )}
-          </div>
+          </button>
         </form>
       </div>
     </div>
