@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
 import { cacheSyncService } from './services/cacheSync'
@@ -13,7 +13,7 @@ import UserRegistration from './components/UserRegistration'
 import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
-import { User, UserData, Shop } from './types'
+import { User, UserData, Shop, Customer } from './types'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -39,6 +39,7 @@ function App() {
   const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
   const [startParam, setStartParam] = useState<string | null>(null)
   const [deepLinkedProductId, setDeepLinkedProductId] = useState<string | null>(null)
+  const [paramType, setParamType] = useState<'link' | 'start' | null>(null)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -76,6 +77,8 @@ function App() {
 
       if (startParameter) {
         setStartParam(startParameter)
+        const isLinkParam = startParameter.startsWith('link_')
+        setParamType(isLinkParam ? 'link' : 'start')
       }
 
       if (telegramUser) {
@@ -102,19 +105,27 @@ function App() {
       // For development/testing outside Telegram
       const urlParams = new URLSearchParams(window.location.search)
       const shopParam = urlParams.get('shop')
-      if (shopParam) {
+      const linkParam = urlParams.get('link')
+      if (linkParam) {
+        setStartParam(linkParam)
+        setParamType('link')
+        handleStartParam(linkParam, 'link')
+      } else if (shopParam) {
         setStartParam(shopParam)
-        handleStartParam(shopParam)
+        setParamType('start')
+        handleStartParam(shopParam, 'start')
       }
       setUserLoading(false)
     }
   }, [])
 
-  const handleStartParam = async (param: string) => {
+  const handleStartParam = async (param: string, type: 'link' | 'start' = 'start') => {
     try {
-      console.log('Handling start parameter:', param)
+      console.log('Handling parameter:', param, 'Type:', type)
 
-      const parts = param.split('_')
+      const actualParam = param.startsWith('link_') ? param.substring(5) : param
+
+      const parts = actualParam.split('_')
       const shopId = parts[0]
       const productId = parts[1] || null
 
@@ -188,8 +199,8 @@ function App() {
     try {
       setUserLoading(true)
       const usersRef = collection(db, 'users')
+      const customersRef = collection(db, 'customers')
 
-      // Try both telegramId and telegram_id fields
       let userSnapshot = await getDocs(query(usersRef, where('telegramId', '==', telegramId)))
 
       if (userSnapshot.empty) {
@@ -205,19 +216,64 @@ function App() {
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })
+      }
 
-        // After user is set, handle start param if present
-        if (startParam) {
-          await handleStartParam(startParam)
+      let customerSnapshot = await getDocs(query(customersRef, where('telegramId', '==', telegramId)))
+
+      if (startParam && paramType === 'link') {
+        const actualParam = startParam.startsWith('link_') ? startParam.substring(5) : startParam
+        const shopId = actualParam.split('_')[0]
+
+        if (customerSnapshot.empty) {
+          await createCustomerAndLinkShop(telegramId, shopId)
+        } else {
+          const customerDoc = customerSnapshot.docs[0]
+          const customerData = customerDoc.data() as Customer
+
+          if (!customerData.linkedShops.includes(shopId)) {
+            await updateDoc(doc(db, 'customers', customerDoc.id), {
+              linkedShops: arrayUnion(shopId),
+              updatedAt: new Date()
+            })
+          }
         }
+
+        await handleStartParam(startParam, 'link')
+      } else if (startParam && paramType === 'start') {
+        if (customerSnapshot.empty) {
+          setShowRegistration(true)
+        } else {
+          await handleStartParam(startParam, 'start')
+        }
+      } else if (!customerSnapshot.empty) {
+        setCurrentView('shops')
       } else {
-        // User not found, show registration
         setShowRegistration(true)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
     } finally {
       setUserLoading(false)
+    }
+  }
+
+  const createCustomerAndLinkShop = async (telegramId: number, shopId: string) => {
+    try {
+      const customersRef = collection(db, 'customers')
+      const customerData: Omit<Customer, 'id'> = {
+        telegramId,
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        username: user?.username || '',
+        linkedShops: [shopId],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      await setDoc(doc(customersRef), customerData)
+      console.log('Customer created and linked to shop:', shopId)
+    } catch (error) {
+      console.error('Error creating customer:', error)
     }
   }
 

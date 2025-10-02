@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  where, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  addDoc, 
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
   getDoc,
-  orderBy 
+  orderBy,
+  setDoc,
+  arrayUnion
 } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
-import { Shop, Product, Category, Department, UserData } from '../types'
+import { Shop, Product, Category, Department, UserData, Customer } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft } from 'lucide-react'
 import { Settings } from 'lucide-react'
@@ -1045,11 +1047,38 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             try {
               setError(null)
               const shopsRef = collection(db, 'shops')
-              await addDoc(shopsRef, {
+              const newShopRef = await addDoc(shopsRef, {
                 ...shopData,
                 createdAt: new Date(),
                 updatedAt: new Date()
               })
+
+              if (user?.id) {
+                const telegramId = parseInt(user.id)
+                const customersRef = collection(db, 'customers')
+                const customerQuery = query(customersRef, where('telegramId', '==', telegramId))
+                const customerSnapshot = await getDocs(customerQuery)
+
+                if (customerSnapshot.empty) {
+                  const customerData: Omit<Customer, 'id'> = {
+                    telegramId,
+                    firstName: user.firstName || '',
+                    lastName: user.lastName || '',
+                    username: user.username || '',
+                    linkedShops: [newShopRef.id],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                  }
+                  await setDoc(doc(customersRef), customerData)
+                } else {
+                  const customerDoc = customerSnapshot.docs[0]
+                  await updateDoc(doc(db, 'customers', customerDoc.id), {
+                    linkedShops: arrayUnion(newShopRef.id),
+                    updatedAt: new Date()
+                  })
+                }
+              }
+
               setShowCreateShop(false)
               await loadUserData()
             } catch (error) {

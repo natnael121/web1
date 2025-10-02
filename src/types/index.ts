@@ -244,6 +244,17 @@ export interface Order {
 
 export interface Customer {
   id: string
+  telegramId: number
+  firstName: string
+  lastName: string
+  username?: string
+  linkedShops: string[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ShopCustomer {
+  id: string
   shopId: string
   name: string
   email?: string
@@ -300,6 +311,7 @@ declare global {
             username?: string
             language_code?: string
           }
+          start_param?: string
         }
       }
     }
