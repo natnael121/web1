@@ -82,41 +82,60 @@ const AdminPanel: React.FC = () => {
       setLinkProcessed(true)
       setLoading(true)
 
-      const userRole = userData?.role || 'admin'
+      const displayName = userData?.displayName || user.firstName || 'Customer'
 
       const result = await shopCustomerService.handleShopLinkAccess(
         db,
         startParam,
         parseInt(user.id),
-        userRole
+        displayName
       )
 
       if (result.success && result.shopId) {
         await loadUserData()
 
-        const shopRef = doc(db, 'shops', result.shopId)
-        const shopDoc = await getDoc(shopRef)
+        const shopCustomersRef = collection(db, 'shop_customers')
+        const roleQuery = query(
+          shopCustomersRef,
+          where('shopId', '==', result.shopId),
+          where('telegramId', '==', parseInt(user.id))
+        )
+        const roleSnapshot = await getDocs(roleQuery)
 
-        if (shopDoc.exists()) {
-          const shopData = shopDoc.data()
-          const shop: Shop = {
-            id: shopDoc.id,
-            ownerId: shopData.ownerId,
-            name: shopData.name,
-            slug: shopData.slug,
-            description: shopData.description,
-            logo: shopData.logo,
-            isActive: shopData.isActive,
-            businessInfo: shopData.businessInfo,
-            settings: shopData.settings,
-            stats: shopData.stats,
-            createdAt: shopData.createdAt?.toDate() || new Date(),
-            updatedAt: shopData.updatedAt?.toDate() || new Date()
+        if (!roleSnapshot.empty) {
+          const customerData = roleSnapshot.docs[0].data()
+          const userRole = customerData.role
+
+          if (userRole === 'admin') {
+            const shopRef = doc(db, 'shops', result.shopId)
+            const shopDoc = await getDoc(shopRef)
+
+            if (shopDoc.exists()) {
+              const shopData = shopDoc.data()
+              const shop: Shop = {
+                id: shopDoc.id,
+                ownerId: shopData.ownerId,
+                name: shopData.name,
+                slug: shopData.slug,
+                description: shopData.description,
+                logo: shopData.logo,
+                isActive: shopData.isActive,
+                businessInfo: shopData.businessInfo,
+                settings: shopData.settings,
+                stats: shopData.stats,
+                createdAt: shopData.createdAt?.toDate() || new Date(),
+                updatedAt: shopData.updatedAt?.toDate() || new Date()
+              }
+
+              setSelectedShop(shop)
+              setActiveTab('products')
+              await fetchShopData(shop.id)
+            }
+          } else {
+            setError('Access denied: Admin privileges required to manage this shop')
           }
-
-          setSelectedShop(shop)
-          setActiveTab('products')
-          await fetchShopData(shop.id)
+        } else {
+          setError('Access denied: User not found in shop customer records')
         }
       } else {
         setError(result.error || 'Failed to access shop')
