@@ -10,7 +10,6 @@ import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
-import UserRegistration from './components/UserRegistration'
 import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
@@ -36,7 +35,6 @@ function App() {
   const [user, setUser] = useState<User | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
-  const [showRegistration, setShowRegistration] = useState(false)
   const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
   const [startParam, setStartParam] = useState<string | null>(null)
   const [deepLinkedProductId, setDeepLinkedProductId] = useState<string | null>(null)
@@ -233,8 +231,8 @@ function App() {
         if (startParam) {
           await autoRegisterCustomer(telegramId)
         } else {
-          // No shop link, show registration form
-          setShowRegistration(true)
+          // No shop link, create basic user anyway
+          await autoRegisterCustomer(telegramId)
         }
       }
     } catch (error) {
@@ -274,42 +272,6 @@ function App() {
     }
   }
 
-  const handleRegistrationComplete = async (newUserData: UserData, shopId?: string, productId?: string | null) => {
-    setUserData(newUserData)
-    setShowRegistration(false)
-
-    // If user registered via shop link, load that shop
-    if (shopId) {
-      try {
-        const shopDoc = await getDoc(doc(db, 'shops', shopId))
-        if (shopDoc.exists()) {
-          const shopData = shopDoc.data()
-          const shop: Shop = {
-            id: shopDoc.id,
-            ownerId: shopData.ownerId,
-            name: shopData.name,
-            slug: shopData.slug,
-            description: shopData.description,
-            logo: shopData.logo,
-            isActive: shopData.isActive,
-            businessInfo: shopData.businessInfo,
-            settings: shopData.settings,
-            stats: shopData.stats,
-            createdAt: shopData.createdAt?.toDate() || new Date(),
-            updatedAt: shopData.updatedAt?.toDate() || new Date()
-          }
-
-          setSelectedShopForCatalog(shop)
-          if (productId) {
-            setDeepLinkedProductId(productId)
-          }
-          setCurrentView('catalog')
-        }
-      } catch (error) {
-        console.error('Error loading shop after registration:', error)
-      }
-    }
-  }
 
   // Show loading while checking user
   if (userLoading) {
@@ -321,24 +283,6 @@ function App() {
               <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-telegram-hint">Loading...</p>
             </div>
-          </div>
-        </FirebaseProvider>
-      </TelegramProvider>
-    )
-  }
-
-  // Show registration if user not in database
-  if (showRegistration && user) {
-    return (
-      <TelegramProvider>
-        <FirebaseProvider db={db} auth={auth}>
-          <div className="min-h-screen bg-telegram-bg text-telegram-text">
-            <SyncStatus />
-            <UserRegistration
-              user={user}
-              onComplete={handleRegistrationComplete}
-              startParam={startParam}
-            />
           </div>
         </FirebaseProvider>
       </TelegramProvider>
