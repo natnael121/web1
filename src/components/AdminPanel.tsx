@@ -60,6 +60,7 @@ const AdminPanel: React.FC = () => {
   const [stats, setStats] = useState<any>(null)
   const [botToken, setBotToken] = useState('')
   const [linkProcessed, setLinkProcessed] = useState(false)
+  const [showRoleUpgrade, setShowRoleUpgrade] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -152,7 +153,7 @@ const AdminPanel: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       if (!user?.id) {
         setError('No user information available')
         return
@@ -176,34 +177,52 @@ const AdminPanel: React.FC = () => {
       // Find shops owned by this user (if any)
       // Also load bot token
       setBotToken(userData.telegramBotToken || '')
-      
+
+      // Get shops where user has admin role in shop_customers
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const adminQuery = query(
+        shopCustomersRef,
+        where('telegramId', '==', parseInt(user.id)),
+        where('role', '==', 'admin')
+      )
+      const adminShopsSnapshot = await getDocs(adminQuery)
+      const adminShopIds = adminShopsSnapshot.docs.map(doc => doc.data().shopId)
+
+      if (adminShopIds.length === 0) {
+        setOwnedShops([])
+        setLoading(false)
+        return
+      }
+
       const shopsRef = collection(db, 'shops')
-      const ownerQuery = query(shopsRef, where('ownerId', '==', userDoc.id), where('isActive', '==', true))
+      const ownerQuery = query(shopsRef, where('isActive', '==', true))
       const shopsSnapshot = await getDocs(ownerQuery)
  
       const shopsList: Shop[] = []
       shopsSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const shop: Shop = {
-          id: doc.id,
-          ownerId: data.ownerId,
-          name: data.name,
-          slug: data.slug,
-          description: data.description,
-          logo: data.logo,
-          isActive: data.isActive !== false,
-          businessInfo: data.businessInfo || {},
-          settings: data.settings || {
-            currency: 'USD',
-            taxRate: 0,
-            businessHours: { open: '09:00', close: '18:00', days: [] },
-            orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
-          },
-          stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
+        if (adminShopIds.includes(doc.id)) {
+          const data = doc.data()
+          const shop: Shop = {
+            id: doc.id,
+            ownerId: data.ownerId,
+            name: data.name,
+            slug: data.slug,
+            description: data.description,
+            logo: data.logo,
+            isActive: data.isActive !== false,
+            businessInfo: data.businessInfo || {},
+            settings: data.settings || {
+              currency: 'USD',
+              taxRate: 0,
+              businessHours: { open: '09:00', close: '18:00', days: [] },
+              orderSettings: { autoConfirm: false, requirePayment: false, allowCancellation: true }
+            },
+            stats: data.stats || { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalCustomers: 0 },
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          }
+          shopsList.push(shop)
         }
-        shopsList.push(shop)
       })
 
       setOwnedShops(shopsList)
@@ -833,13 +852,16 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           <Store className="w-12 h-12 mx-auto text-telegram-hint mb-3" />
           <h3 className="text-base font-medium text-telegram-text mb-2">No Shops Yet</h3>
           <p className="text-sm text-telegram-hint mb-4">
-            You don't own any shops yet. Create your first shop to get started.
+            {userData.role === 'customer'
+              ? 'Upgrade to shop owner to create and manage your own shops.'
+              : 'You don\'t own any shops yet. Create your first shop to get started.'
+            }
           </p>
           <button
-            onClick={() => setShowCreateShop(true)}
+            onClick={() => userData.role === 'customer' ? setShowRoleUpgrade(true) : setShowCreateShop(true)}
             className="bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
           >
-            Create Your First Shop
+            {userData.role === 'customer' ? 'Become a Shop Owner' : 'Create Your First Shop'}
           </button>
         </div>
       )}
@@ -1153,20 +1175,87 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         />
       )}
 
+      {/* Role Upgrade Modal */}
+      {showRoleUpgrade && userData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-telegram-bg rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-telegram-text">Become a Shop Owner</h3>
+              <button
+                onClick={() => setShowRoleUpgrade(false)}
+                className="text-telegram-hint"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-telegram-text mb-4">
+                Upgrade your account to create and manage your own shops. As a shop owner, you'll be able to:
+              </p>
+              <ul className="list-disc list-inside text-telegram-text space-y-2 mb-4">
+                <li>Create multiple shops</li>
+                <li>Add and manage products</li>
+                <li>Process orders</li>
+                <li>Track analytics</li>
+                <li>Configure Telegram notifications</li>
+              </ul>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowRoleUpgrade(false)}
+                className="flex-1 bg-telegram-hint text-white py-3 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    setError(null)
+                    const usersRef = collection(db, 'users')
+                    const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+                    const userSnapshot = await getDocs(userQuery)
+
+                    if (!userSnapshot.empty) {
+                      const userDocRef = doc(db, 'users', userSnapshot.docs[0].id)
+                      await updateDoc(userDocRef, {
+                        role: 'admin',
+                        updatedAt: new Date()
+                      })
+
+                      await loadUserData()
+                      setShowRoleUpgrade(false)
+                      setShowCreateShop(true)
+                    }
+                  } catch (error) {
+                    console.error('Error upgrading role:', error)
+                    setError('Failed to upgrade account. Please try again.')
+                  }
+                }}
+                className="flex-1 bg-telegram-button text-telegram-button-text py-3 rounded-lg font-medium"
+              >
+                Upgrade Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-telegram-bg rounded-lg p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-telegram-text">Delete Shop</h3>
-              <button 
-                onClick={() => setShowDeleteConfirm(null)} 
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
                 className="text-telegram-hint"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="mb-6">
               <p className="text-telegram-text mb-2">
                 Are you sure you want to delete this shop? This action cannot be undone.
@@ -1175,7 +1264,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
                 All products, categories, departments, and orders associated with this shop will be permanently deleted.
               </p>
             </div>
-            
+
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
