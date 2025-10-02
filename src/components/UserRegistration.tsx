@@ -8,9 +8,10 @@ import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 
 interface UserRegistrationProps {
   user: User
   onComplete: (userData: UserData) => void
+  onCancel?: () => void
 }
 
-const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete }) => {
+const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, onCancel }) => {
   const { db, auth } = useFirebase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,12 +35,13 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
       // Update display name in Firebase Auth profile
       await updateProfile(cred.user, { displayName: formData.displayName })
 
-      // Create Firestore user profile
+      // Create Firestore user profile with admin role
       const userData: UserData = {
         uid: cred.user.uid,
         email: formData.email,
         displayName: formData.displayName,
         telegramId: user.telegramId || parseInt(user.id),
+        role: 'admin',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }

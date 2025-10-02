@@ -872,30 +872,10 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         <UserRegistration
           user={user}
           onCancel={() => setShowRoleUpgrade(false)}
-          onComplete={async (newUserData) => {
-            try {
-              setError(null)
-              const usersRef = collection(db, 'users')
-              const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
-              const userSnapshot = await getDocs(userQuery)
-
-              if (!userSnapshot.empty) {
-                const userDocRef = doc(db, 'users', userSnapshot.docs[0].id)
-                await updateDoc(userDocRef, {
-                  role: 'admin',
-                  email: newUserData.email,
-                  displayName: newUserData.displayName,
-                  updatedAt: new Date()
-                })
-
-                await loadUserData()
-                setShowRoleUpgrade(false)
-                setShowCreateShop(true)
-              }
-            } catch (error) {
-              console.error('Error upgrading role:', error)
-              setError('Failed to upgrade account. Please try again.')
-            }
+          onComplete={async () => {
+            await loadUserData()
+            setShowRoleUpgrade(false)
+            setShowCreateShop(true)
           }}
         />
       )}
