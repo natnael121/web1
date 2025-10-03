@@ -653,7 +653,7 @@ const AdminPanel: React.FC = () => {
       const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
 
       const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-      const productLink = `https://t.me/${botUsername}?start=${product.shopId}_product_${product.id}`
+      const productLink = `https://t.me/${botUsername}?startapp=${product.shopId}_product_${product.id}`
 
       const message = `
 🔥 <b>${promotionTitle}</b>${discountText}
