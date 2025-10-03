@@ -690,25 +690,63 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         throw new Error('Telegram bot token not configured')
       }
 
-      // Send or schedule promotion
-      for (const department of targetDepartments) {
-        const config = {
-          botToken,
-          chatId: department.telegramChatId
-        }
+      // Validate target departments
+      if (targetDepartments.length === 0) {
+        throw new Error('No departments selected or configured. Please select at least one department or configure active departments with Telegram chat IDs.')
+      }
 
-        if (isScheduled && scheduledDate) {
-          await telegramService.scheduleMessage(config, promotionMessage, scheduledDate)
-        } else {
-          await telegramService.sendPromotionMessage(config, promotionMessage)
+      // Validate departments have chat IDs
+      const invalidDepartments = targetDepartments.filter(d => !d.telegramChatId)
+      if (invalidDepartments.length > 0) {
+        throw new Error(`Some departments don't have Telegram chat IDs configured: ${invalidDepartments.map(d => d.name).join(', ')}`)
+      }
+
+      console.log('Sending promotion to departments:', targetDepartments.map(d => ({ name: d.name, chatId: d.telegramChatId })))
+
+      // Send or schedule promotion
+      const results = []
+      for (const department of targetDepartments) {
+        try {
+          const config = {
+            botToken,
+            chatId: department.telegramChatId
+          }
+
+          console.log(`Sending to ${department.name} (${department.telegramChatId})...`)
+
+          if (isScheduled && scheduledDate) {
+            await telegramService.scheduleMessage(config, promotionMessage, scheduledDate)
+            results.push({ department: department.name, success: true, scheduled: true })
+          } else {
+            await telegramService.sendPromotionMessage(config, promotionMessage)
+            results.push({ department: department.name, success: true })
+          }
+          console.log(`✓ Sent to ${department.name}`)
+        } catch (deptError: any) {
+          console.error(`Failed to send to ${department.name}:`, deptError)
+          results.push({ department: department.name, success: false, error: deptError.message })
         }
+      }
+
+      // Check if any succeeded
+      const successCount = results.filter(r => r.success).length
+      const failCount = results.filter(r => !r.success).length
+
+      console.log('Promotion results:', results)
+
+      if (successCount === 0) {
+        throw new Error(`Failed to send to all departments. ${results.map(r => `${r.department}: ${r.error}`).join('; ')}`)
+      } else if (failCount > 0) {
+        setError(`Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`)
       }
 
       setShowPromotionModal(false)
       setPromotingProduct(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error promoting product:', error)
-      setError('Failed to promote product. Please check your Telegram bot configuration.')
+      const errorMessage = error.message || 'Failed to promote product. Please check your Telegram bot configuration.'
+      setError(errorMessage)
+      throw error
     }
   }
 

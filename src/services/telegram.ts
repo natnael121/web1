@@ -12,24 +12,37 @@ export interface PromotionMessage {
 
 export const telegramService = {
   async sendPromotionMessage(
-    config: TelegramBotConfig, 
+    config: TelegramBotConfig,
     message: PromotionMessage
   ): Promise<boolean> {
     try {
       const { botToken, chatId } = config
+
+      if (!botToken) {
+        throw new Error('Bot token is required')
+      }
+
+      if (!chatId) {
+        throw new Error('Chat ID is required')
+      }
+
+      console.log('Sending promotion message to:', chatId)
       const baseUrl = `https://api.telegram.org/bot${botToken}`
 
       // Convert username to chat ID if needed
       let finalChatId = chatId
       if (chatId.startsWith('@') || !/^-?\d+$/.test(chatId)) {
+        console.log('Converting username to chat ID:', chatId)
         // This is a username, try to convert it
         const telegramApi = new (await import('./telegramApi')).TelegramApiService(botToken)
         const convertedId = await telegramApi.getUserIdByUsername(chatId)
         if (convertedId) {
           finalChatId = convertedId.toString()
+          console.log('Converted to chat ID:', finalChatId)
         } else {
-          console.error('Could not convert username to chat ID:', chatId)
-          return false
+          const error = `Could not convert username to chat ID: ${chatId}. Make sure the bot has access to this chat.`
+          console.error(error)
+          throw new Error(error)
         }
       }
 

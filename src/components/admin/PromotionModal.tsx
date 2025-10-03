@@ -117,7 +117,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
   const handleSubmit = async () => {
     setIsSubmitting(true)
     setError(null)
-    
+
     try {
       const promotionData = {
         product,
@@ -128,28 +128,29 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
         validUntil: validUntil ? new Date(validUntil) : undefined,
         tags,
         isScheduled,
-        scheduledDate: isScheduled && scheduledDate && scheduledTime 
-          ? new Date(`${scheduledDate}T${scheduledTime}`) 
+        scheduledDate: isScheduled && scheduledDate && scheduledTime
+          ? new Date(`${scheduledDate}T${scheduledTime}`)
           : undefined,
         selectedDepartments
       }
 
       await onPromote(promotionData)
-      
+
       if (webApp?.showAlert) {
         webApp.showAlert(
-          isScheduled 
-            ? 'Promotion scheduled successfully!' 
+          isScheduled
+            ? 'Promotion scheduled successfully!'
             : 'Promotion sent successfully!'
         )
       }
-      
+
       onClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error promoting product:', error)
-      setError('Failed to promote product. Please try again.')
+      const errorMessage = error.message || 'Failed to promote product. Please try again.'
+      setError(errorMessage)
       if (webApp?.showAlert) {
-        webApp.showAlert('Failed to promote product. Please try again.')
+        webApp.showAlert(errorMessage)
       }
     } finally {
       setIsSubmitting(false)
