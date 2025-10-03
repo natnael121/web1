@@ -70,6 +70,34 @@ export const telegramService = {
           const result = await response.json()
           if (!response.ok || !result.ok) {
             console.error('Telegram API error:', result)
+
+            // Handle chat migration (group upgraded to supergroup)
+            if (result.error_code === 400 && result.parameters?.migrate_to_chat_id) {
+              const newChatId = result.parameters.migrate_to_chat_id
+              console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
+
+              // Retry with new chat ID
+              const retryResponse = await fetch(`${baseUrl}/sendMediaGroup`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  chat_id: newChatId,
+                  media: media
+                })
+              })
+
+              const retryResult = await retryResponse.json()
+              if (!retryResponse.ok || !retryResult.ok) {
+                throw new Error(retryResult.description || 'Failed to send media group after migration')
+              }
+
+              console.log(`Successfully sent to migrated chat: ${newChatId}`)
+              console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
+              return true
+            }
+
             throw new Error(result.description || 'Failed to send media group')
           }
           return true
@@ -92,6 +120,37 @@ export const telegramService = {
           const result = await response.json()
           if (!response.ok || !result.ok) {
             console.error('Telegram API error:', result)
+
+            // Handle chat migration (group upgraded to supergroup)
+            if (result.error_code === 400 && result.parameters?.migrate_to_chat_id) {
+              const newChatId = result.parameters.migrate_to_chat_id
+              console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
+
+              // Retry with new chat ID
+              const retryResponse = await fetch(`${baseUrl}/sendPhoto`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  chat_id: newChatId,
+                  photo: message.images[0],
+                  caption: message.text,
+                  parse_mode: message.parseMode || 'HTML',
+                  reply_markup: message.replyMarkup
+                })
+              })
+
+              const retryResult = await retryResponse.json()
+              if (!retryResponse.ok || !retryResult.ok) {
+                throw new Error(retryResult.description || 'Failed to send photo after migration')
+              }
+
+              console.log(`Successfully sent to migrated chat: ${newChatId}`)
+              console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
+              return true
+            }
+
             throw new Error(result.description || 'Failed to send photo')
           }
           return true
@@ -114,6 +173,36 @@ export const telegramService = {
         const result = await response.json()
         if (!response.ok || !result.ok) {
           console.error('Telegram API error:', result)
+
+          // Handle chat migration (group upgraded to supergroup)
+          if (result.error_code === 400 && result.parameters?.migrate_to_chat_id) {
+            const newChatId = result.parameters.migrate_to_chat_id
+            console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
+
+            // Retry with new chat ID
+            const retryResponse = await fetch(`${baseUrl}/sendMessage`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                chat_id: newChatId,
+                text: message.text,
+                parse_mode: message.parseMode || 'HTML',
+                reply_markup: message.replyMarkup
+              })
+            })
+
+            const retryResult = await retryResponse.json()
+            if (!retryResponse.ok || !retryResult.ok) {
+              throw new Error(retryResult.description || 'Failed to send message after migration')
+            }
+
+            console.log(`Successfully sent to migrated chat: ${newChatId}`)
+            console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
+            return true
+          }
+
           throw new Error(result.description || 'Failed to send message')
         }
         return true
