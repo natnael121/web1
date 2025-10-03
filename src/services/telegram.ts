@@ -54,7 +54,12 @@ export const telegramService = {
             })
           })
 
-          return response.ok
+          const result = await response.json()
+          if (!response.ok || !result.ok) {
+            console.error('Telegram API error:', result)
+            throw new Error(result.description || 'Failed to send media group')
+          }
+          return true
         } else {
           // Send single photo with caption
           const response = await fetch(`${baseUrl}/sendPhoto`, {
@@ -71,7 +76,12 @@ export const telegramService = {
             })
           })
 
-          return response.ok
+          const result = await response.json()
+          if (!response.ok || !result.ok) {
+            console.error('Telegram API error:', result)
+            throw new Error(result.description || 'Failed to send photo')
+          }
+          return true
         }
       } else {
         // Send text message only
@@ -88,7 +98,12 @@ export const telegramService = {
           })
         })
 
-        return response.ok
+        const result = await response.json()
+        if (!response.ok || !result.ok) {
+          console.error('Telegram API error:', result)
+          throw new Error(result.description || 'Failed to send message')
+        }
+        return true
       }
     } catch (error) {
       console.error('Error sending Telegram message:', error)
