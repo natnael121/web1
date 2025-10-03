@@ -241,132 +241,22 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
       setError(null)
 
       const ordersRef = collection(db, 'orders')
-      
-      // Try multiple query approaches to find user orders
-      let ordersSnapshot
-      
-      // First try with telegramId as string
-      try {
-        const ordersQuery1 = query(
-          ordersRef,
-          where('telegramId', '==', user.id),
-          orderBy('createdAt', 'desc')
-        )
-        ordersSnapshot = await getDocs(ordersQuery1)
-      } catch (error) {
-        console.log('First query failed, trying alternative approaches')
-      }
-      
-      // If no results, try with telegramId as number
-      if (!ordersSnapshot || ordersSnapshot.empty) {
-        try {
-          const ordersQuery2 = query(
-            ordersRef,
-            where('telegramId', '==', parseInt(user.id)),
-            orderBy('createdAt', 'desc')
-          )
-          ordersSnapshot = await getDocs(ordersQuery2)
-        } catch (error) {
-          console.log('Second query failed')
-        }
-      }
-      
-      // If still no results, try with customerId
-      if (!ordersSnapshot || ordersSnapshot.empty) {
-        try {
-          const ordersQuery3 = query(
-            ordersRef,
-            where('customerId', '==', user.id),
-            orderBy('createdAt', 'desc')
-          )
-          ordersSnapshot = await getDocs(ordersQuery3)
-        } catch (error) {
-          console.log('Third query failed')
-        }
-      }
-      
-      // If still no results, get all orders and filter client-side
-      if (!ordersSnapshot || ordersSnapshot.empty) {
-        try {
-          const allOrdersQuery = query(ordersRef, orderBy('createdAt', 'desc'))
-          const allOrdersSnapshot = await getDocs(allOrdersQuery)
-          
-          // Filter orders that match the user
-          const userOrders: Order[] = []
-          allOrdersSnapshot.forEach((doc) => {
-            const data = doc.data()
-            if (data.telegramId === user.id || 
-                data.telegramId === parseInt(user.id) || 
-                data.customerId === user.id ||
-                data.customerName === `${user.firstName} ${user.lastName}`.trim()) {
-              const order: Order = {
-                id: doc.id,
-                shopId: data.shopId || '',
-                customerId: data.customerId || '',
-                customerName: data.customerName || 'Unknown Customer',
-                customerPhone: data.customerPhone,
-                customerEmail: data.customerEmail,
-                items: data.items || [],
-                subtotal: data.subtotal || 0,
-                tax: data.tax || 0,
-                total: data.total || 0,
-                status: data.status || 'pending',
-                paymentStatus: data.paymentStatus || 'pending',
-                deliveryMethod: data.deliveryMethod || 'pickup',
-                deliveryAddress: data.deliveryAddress,
-                deliveryFee: data.deliveryFee,
-                estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
-                paymentPreference: data.paymentPreference,
-                paymentPhotoUrl: data.paymentPhotoUrl,
-                requiresPaymentConfirmation: data.requiresPaymentConfirmation,
-                customerNotes: data.customerNotes,
-                source: data.source || 'web',
-                tableNumber: data.tableNumber,
-                telegramId: data.telegramId,
-                telegramUsername: data.telegramUsername,
-                trackingNumber: data.trackingNumber,
-                createdAt: data.createdAt?.toDate() || new Date(),
-                updatedAt: data.updatedAt?.toDate() || new Date(),
-                confirmedAt: data.confirmedAt?.toDate(),
-                shippedAt: data.shippedAt?.toDate(),
-                deliveredAt: data.deliveredAt?.toDate()
-              }
-              userOrders.push(order)
-            }
-          })
-          
-          setOrders(userOrders)
-          
-          // Calculate stats from filtered orders
-          const totalOrders = userOrders.length
-          const totalSpent = userOrders.reduce((sum, order) => sum + order.total, 0)
-          const pendingOrders = userOrders.filter(order => 
-            ['pending', 'payment_pending', 'confirmed', 'processing'].includes(order.status)
-          ).length
-          const completedOrders = userOrders.filter(order => 
-            order.status === 'delivered'
-          ).length
+      const allOrdersQuery = query(ordersRef, orderBy('createdAt', 'desc'))
+      const allOrdersSnapshot = await getDocs(allOrdersQuery)
 
-          setStats({
-            totalOrders,
-            totalSpent,
-            pendingOrders,
-            completedOrders
-          })
-          
-          setLoading(false)
-          return
-        } catch (error) {
-          console.error('All order queries failed:', error)
-        }
-      }
-      
-      // Process orders from successful query
-      const ordersList: Order[] = []
-      
-      if (ordersSnapshot && !ordersSnapshot.empty) {
-        ordersSnapshot.forEach((doc) => {
-          const data = doc.data()
+      const userOrders: Order[] = []
+      const telegramIdNum = parseInt(user.id)
+
+      allOrdersSnapshot.forEach((doc) => {
+        const data = doc.data()
+
+        const matchesTelegramId =
+          data.telegramId === user.id ||
+          data.telegramId === telegramIdNum ||
+          data.customerId === user.id ||
+          data.customerId === user.id.toString()
+
+        if (matchesTelegramId) {
           const order: Order = {
             id: doc.id,
             shopId: data.shopId || '',
@@ -399,19 +289,18 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
             shippedAt: data.shippedAt?.toDate(),
             deliveredAt: data.deliveredAt?.toDate()
           }
-          ordersList.push(order)
-        })
-      }
+          userOrders.push(order)
+        }
+      })
 
-      setOrders(ordersList)
-      
-      // Calculate stats
-      const totalOrders = ordersList.length
-      const totalSpent = ordersList.reduce((sum, order) => sum + order.total, 0)
-      const pendingOrders = ordersList.filter(order => 
+      setOrders(userOrders)
+
+      const totalOrders = userOrders.length
+      const totalSpent = userOrders.reduce((sum, order) => sum + order.total, 0)
+      const pendingOrders = userOrders.filter(order =>
         ['pending', 'payment_pending', 'confirmed', 'processing'].includes(order.status)
       ).length
-      const completedOrders = ordersList.filter(order => 
+      const completedOrders = userOrders.filter(order =>
         order.status === 'delivered'
       ).length
 

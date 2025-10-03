@@ -10,10 +10,9 @@ import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
-import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
-import { User, UserData, Shop } from './types'
+import { User, UserData } from './types'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -31,13 +30,11 @@ const db = getFirestore(app)
 const auth = getAuth(app)
 
 function App() {
-  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin' | 'catalog'>('shops')
+  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('shops')
   const [user, setUser] = useState<User | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
-  const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
   const [startParam, setStartParam] = useState<string | null>(null)
-  const [deepLinkedProductId, setDeepLinkedProductId] = useState<string | null>(null)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -160,65 +157,8 @@ function App() {
         }
       }
 
-      if (productId) {
-        setDeepLinkedProductId(productId)
-      }
-
-      let shopDoc = await getDoc(doc(db, 'shops', shopId))
-
-      if (shopDoc.exists()) {
-        const shopData = shopDoc.data()
-        const shop: Shop = {
-          id: shopDoc.id,
-          ownerId: shopData.ownerId,
-          name: shopData.name,
-          slug: shopData.slug,
-          description: shopData.description,
-          logo: shopData.logo,
-          isActive: shopData.isActive,
-          businessInfo: shopData.businessInfo,
-          settings: shopData.settings,
-          stats: shopData.stats,
-          createdAt: shopData.createdAt?.toDate() || new Date(),
-          updatedAt: shopData.updatedAt?.toDate() || new Date()
-        }
-
-        console.log('Found shop:', shop)
-        setSelectedShopForCatalog(shop)
-        setCurrentView('catalog')
-        return
-      }
-
-      // If not found by ID, try to find by slug
-      const shopsRef = collection(db, 'shops')
-      const slugQuery = query(shopsRef, where('slug', '==', param), where('isActive', '==', true))
-      const slugSnapshot = await getDocs(slugQuery)
-
-      if (!slugSnapshot.empty) {
-        const shopDoc = slugSnapshot.docs[0]
-        const shopData = shopDoc.data()
-        const shop: Shop = {
-          id: shopDoc.id,
-          ownerId: shopData.ownerId,
-          name: shopData.name,
-          slug: shopData.slug,
-          description: shopData.description,
-          logo: shopData.logo,
-          isActive: shopData.isActive,
-          businessInfo: shopData.businessInfo,
-          settings: shopData.settings,
-          stats: shopData.stats,
-          createdAt: shopData.createdAt?.toDate() || new Date(),
-          updatedAt: shopData.updatedAt?.toDate() || new Date()
-        }
-
-        console.log('Found shop by slug:', shop)
-        setSelectedShopForCatalog(shop)
-        setCurrentView('catalog')
-        return
-      }
-
-      console.log('Shop not found for parameter:', param)
+      console.log('User registered to shop, switching to shops view')
+      setCurrentView('shops')
     } catch (error) {
       console.error('Error handling start parameter:', error)
     }
@@ -280,9 +220,8 @@ function App() {
       <FirebaseProvider db={db} auth={auth}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
           <SyncStatus />
-          <div className={currentView === 'catalog' ? 'w-full max-w-7xl mx-auto' : 'max-w-md mx-auto'}>
+          <div className="max-w-md mx-auto">
             {/* Header */}
-            {currentView !== 'catalog' && (
             <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
               <h1 className="text-xl font-bold text-center">Shop Directory</h1>
               {user && (
@@ -291,38 +230,19 @@ function App() {
                 </p>
               )}
             </header>
-            )}
 
             {/* Main Content */}
-            <main className={currentView === 'catalog' ? 'pb-4' : 'pb-20'}>
-              {currentView === 'catalog' && selectedShopForCatalog && (
-                <ShopCatalog
-                  shop={selectedShopForCatalog}
-                  deepLinkedProductId={deepLinkedProductId}
-                  onBack={() => {
-                    setCurrentView('shops')
-                    setSelectedShopForCatalog(null)
-                    setDeepLinkedProductId(null)
-                  }}
-                />
-              )}
+            <main className="pb-20">
               {currentView === 'shops' && <ShopList />}
               {currentView === 'profile' && <UserProfile user={user} userData={userData} />}
               {currentView === 'admin' && <AdminPanel />}
             </main>
 
-            {/* Bottom Navigation - Show always when not in catalog view */}
-            {currentView !== 'catalog' && (
-              <Navigation 
-                currentView={currentView} 
-                onViewChange={(view) => {
-                  if (view !== 'catalog') {
-                    setSelectedShopForCatalog(null)
-                  }
-                  setCurrentView(view)
-                }}
-              />
-            )}
+            {/* Bottom Navigation */}
+            <Navigation
+              currentView={currentView}
+              onViewChange={setCurrentView}
+            />
           </div>
         </div>
       </FirebaseProvider>

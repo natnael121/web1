@@ -358,23 +358,25 @@ const ShopList: React.FC = () => {
 
   const placeOrder = async () => {
     if (!selectedShop || !user || cart.length === 0) {
-  console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
-  setError("Cannot place order: missing information or empty cart.")
-  return
-}
-    
+      console.warn("Cannot place order. Missing data:", { selectedShop, user, cart })
+      setError("Cannot place order: missing information or empty cart.")
+      return
+    }
+
     try {
       setOrderPlacing(true)
       setError(null)
-      
+
       const subtotal = getCartTotal()
-      const tax = subtotal * 0.1 // 10% tax rate
+      const tax = subtotal * 0.1
       const total = subtotal + tax
-      
-      const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
+
+      const telegramIdNum = parseInt(user.id)
+
+      const orderData = {
         shopId: selectedShop.id,
         customerId: user.id,
-        customerName: `${user.firstName} ${user.lastName}`.trim(),
+        customerName: `${user.firstName} ${user.lastName}`.trim() || 'Customer',
         items: cart,
         subtotal,
         tax,
@@ -383,21 +385,21 @@ const ShopList: React.FC = () => {
         paymentStatus: 'pending',
         deliveryMethod: 'pickup',
         source: 'web',
-        telegramId: user.id,
-        telegramUsername: user.username
-      }
-      
-      const ordersRef = collection(db, 'orders')
-      await addDoc(ordersRef, {
-        ...orderData,
+        telegramId: telegramIdNum,
+        telegramUsername: user.username || '',
         createdAt: new Date(),
         updatedAt: new Date()
-      })
-      
-      // Clear cart and show success
+      }
+
+      const ordersRef = collection(db, 'orders')
+      await addDoc(ordersRef, orderData)
+
       setCart([])
       setShowOrderSuccess(true)
-      setTimeout(() => setShowOrderSuccess(false), 3000)
+      setTimeout(() => {
+        setShowOrderSuccess(false)
+        setCurrentView('products')
+      }, 3000)
     } catch (error) {
       console.error('Error placing order:', error)
       setError('Failed to place order. Please try again.')
