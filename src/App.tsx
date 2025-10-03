@@ -196,6 +196,10 @@ function App() {
         if (!startParam) {
           console.log('New user without shop link - needs registration')
           setNeedsRegistration(true)
+        } else {
+          // User came via shop link - no registration needed, will auto-create
+          console.log('New user with shop link - will auto-create customer account')
+          setNeedsRegistration(false)
         }
       }
 
