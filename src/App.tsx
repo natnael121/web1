@@ -12,6 +12,7 @@ import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
+import UserRegistration from './components/UserRegistration'
 import { User, UserData } from './types'
 
 // Firebase configuration
@@ -35,6 +36,7 @@ function App() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const [startParam, setStartParam] = useState<string | null>(null)
+  const [needsRegistration, setNeedsRegistration] = useState(false)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -185,10 +187,20 @@ function App() {
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })
+
+        // User exists, no registration needed
+        setNeedsRegistration(false)
+      } else {
+        // User does not exist in database
+        // Only require registration if they came via Start button (no startParam)
+        if (!startParam) {
+          console.log('New user without shop link - needs registration')
+          setNeedsRegistration(true)
+        }
       }
 
       // After user check, handle start param if present
-      // This will create the user if they don't exist
+      // This will create the user if they don't exist (for link-based users)
       if (startParam) {
         await handleStartParam(startParam, userInfo)
       }
@@ -197,6 +209,12 @@ function App() {
     } finally {
       setUserLoading(false)
     }
+  }
+
+  const handleRegistrationComplete = (userData: UserData) => {
+    console.log('Registration completed:', userData)
+    setUserData(userData)
+    setNeedsRegistration(false)
   }
 
   // Show loading while checking user
@@ -210,6 +228,20 @@ function App() {
               <p className="text-telegram-hint">Loading...</p>
             </div>
           </div>
+        </FirebaseProvider>
+      </TelegramProvider>
+    )
+  }
+
+  // Show registration for new users who came via Start button
+  if (needsRegistration && user) {
+    return (
+      <TelegramProvider>
+        <FirebaseProvider db={db} auth={auth}>
+          <UserRegistration
+            user={user}
+            onComplete={handleRegistrationComplete}
+          />
         </FirebaseProvider>
       </TelegramProvider>
     )
