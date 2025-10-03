@@ -87,8 +87,8 @@ function App() {
         }
         setUser(userInfo)
 
-        // Check if user exists in database
-        checkUserInDatabase(telegramUser.id, userInfo)
+        // Check if user exists in database, pass startParameter to determine flow
+        checkUserInDatabase(telegramUser.id, userInfo, startParameter)
       } else {
         // For development/testing - check for start param even without user
         if (startParameter) {
@@ -166,7 +166,7 @@ function App() {
     }
   }
 
-  const checkUserInDatabase = async (telegramId: number, userInfo?: User) => {
+  const checkUserInDatabase = async (telegramId: number, userInfo?: User, startParameter?: string | null) => {
     try {
       setUserLoading(true)
       const usersRef = collection(db, 'users')
@@ -192,8 +192,8 @@ function App() {
         setNeedsRegistration(false)
       } else {
         // User does not exist in database
-        // Only require registration if they came via Start button (no startParam)
-        if (!startParam) {
+        // Only require registration if they came via Start button (no startParameter)
+        if (!startParameter) {
           console.log('New user without shop link - needs registration')
           setNeedsRegistration(true)
         } else {
@@ -205,8 +205,8 @@ function App() {
 
       // After user check, handle start param if present
       // This will create the user if they don't exist (for link-based users)
-      if (startParam) {
-        await handleStartParam(startParam, userInfo)
+      if (startParameter) {
+        await handleStartParam(startParameter, userInfo)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
