@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Tag,
-  X,
-  Save,
-  TestTube
-} from 'lucide-react'
+import { Plus, FileEdit as Edit, Trash2, Tag, X, Save, TestTube } from 'lucide-react'
 import { CRMAutoTagRule, CRMTag } from '../../types'
 import {
   getAutoTagRules,

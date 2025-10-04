@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Copy,
-  FileText,
-  X,
-  Save
-} from 'lucide-react'
+import { Plus, FileEdit as Edit, Trash2, Copy, FileText, X, Save } from 'lucide-react'
 import { CRMMessageTemplate } from '../../types'
 import {
   getMessageTemplates,
