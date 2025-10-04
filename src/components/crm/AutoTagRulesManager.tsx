@@ -166,7 +166,7 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-telegram-button"></div>
       </div>
     )
   }
@@ -174,30 +174,30 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Auto-Tag Rules</h3>
+        <h3 className="text-lg font-semibold text-telegram-text">Auto-Tag Rules</h3>
         <button
           onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-telegram-button text-telegram-button-text rounded-lg hover:opacity-90 transition-opacity"
         >
           <Plus className="h-4 w-4" />
           New Rule
         </button>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2">Test Rules</h4>
+      <div className="bg-telegram-secondary-bg border border-telegram-hint/20 rounded-lg p-4">
+        <h4 className="font-medium text-telegram-text mb-2">Test Rules</h4>
         <div className="flex gap-2">
           <input
             type="text"
             value={testPattern}
             onChange={(e) => setTestPattern(e.target.value)}
             placeholder="Enter a start_param to test (e.g., promo_summer)"
-            className="flex-1 px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 bg-telegram-bg border border-telegram-hint/20 rounded-lg text-telegram-text placeholder-telegram-hint focus:ring-2 focus:ring-telegram-button focus:border-transparent"
           />
           <button
             onClick={handleTest}
             disabled={testing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-telegram-button text-telegram-button-text rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             <TestTube className="h-4 w-4" />
             {testing ? 'Testing...' : 'Test'}
@@ -205,14 +205,14 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
         </div>
         {testResult.length > 0 && (
           <div className="mt-3">
-            <p className="text-sm text-blue-900 mb-2">
+            <p className="text-sm text-telegram-text mb-2">
               Tags that would be applied:
             </p>
             <div className="flex flex-wrap gap-2">
               {testResult.map((tag, idx) => (
                 <span
                   key={idx}
-                  className="px-3 py-1 bg-white text-blue-900 rounded-full text-sm"
+                  className="px-3 py-1 bg-telegram-button/10 text-telegram-button rounded-full text-sm"
                 >
                   {tag}
                 </span>
@@ -221,17 +221,17 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
           </div>
         )}
         {testResult.length === 0 && testPattern && !testing && (
-          <p className="text-sm text-blue-700 mt-3">
+          <p className="text-sm text-telegram-hint mt-3">
             No tags would be applied for this pattern
           </p>
         )}
       </div>
 
       {rules.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-          <Tag className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500">No auto-tag rules yet</p>
-          <p className="text-sm text-gray-400 mt-1">
+        <div className="text-center py-12 bg-telegram-secondary-bg rounded-xl border border-telegram-hint/20">
+          <Tag className="h-12 w-12 mx-auto mb-3 text-telegram-hint" />
+          <p className="text-telegram-text">No auto-tag rules yet</p>
+          <p className="text-sm text-telegram-hint mt-1">
             Create rules to automatically tag customers based on their entry link
           </p>
         </div>
@@ -240,44 +240,42 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
           {rules.map(rule => (
             <div
               key={rule.id}
-              className={`bg-white p-4 rounded-xl border transition-shadow ${
-                rule.isActive
-                  ? 'border-gray-100 hover:shadow-md'
-                  : 'border-gray-200 opacity-60'
+              className={`bg-telegram-secondary-bg p-4 rounded-xl border border-telegram-hint/20 hover:bg-telegram-bg transition-colors ${
+                !rule.isActive && 'opacity-60'
               }`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-900">
+                    <h4 className="font-semibold text-telegram-text">
                       {rule.pattern}
                     </h4>
                     <button
                       onClick={() => toggleRuleStatus(rule)}
                       className={`px-2 py-1 text-xs rounded ${
                         rule.isActive
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
+                          ? 'bg-green-500/20 text-green-600'
+                          : 'bg-telegram-hint/20 text-telegram-hint'
                       }`}
                     >
                       {rule.isActive ? 'Active' : 'Inactive'}
                     </button>
                   </div>
                   {rule.description && (
-                    <p className="text-sm text-gray-600">{rule.description}</p>
+                    <p className="text-sm text-telegram-hint">{rule.description}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(rule)}
-                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    className="p-2 text-telegram-hint hover:text-telegram-button transition-colors"
                     title="Edit"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(rule.id, rule.pattern)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-2 text-telegram-hint hover:text-red-500 transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -288,7 +286,7 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
                 {rule.tags.map((tag, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full"
+                    className="px-3 py-1 bg-telegram-button/10 text-telegram-button text-sm rounded-full"
                   >
                     {tag}
                   </span>
@@ -301,22 +299,22 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">
+          <div className="bg-telegram-bg rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-telegram-bg border-b border-telegram-hint/20 p-6 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-telegram-text">
                 {editingRule ? 'Edit Rule' : 'New Rule'}
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-telegram-secondary-bg rounded-lg transition-colors"
               >
-                <X className="h-6 w-6 text-gray-500" />
+                <X className="h-6 w-6 text-telegram-hint" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-telegram-text mb-2">
                   Pattern
                 </label>
                 <input
@@ -326,16 +324,16 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
                     setFormData({ ...formData, pattern: e.target.value })
                   }
                   placeholder="e.g., promo_* or discount_summer"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-telegram-secondary-bg border border-telegram-hint/20 rounded-lg text-telegram-text placeholder-telegram-hint focus:ring-2 focus:ring-telegram-button focus:border-transparent"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-telegram-hint mt-1">
                   Use * as wildcard. Example: promo_* matches promo_summer,
                   promo_winter, etc.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-telegram-text mb-2">
                   Description (Optional)
                 </label>
                 <input
@@ -345,16 +343,16 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
                     setFormData({ ...formData, description: e.target.value })
                   }
                   placeholder="e.g., Tag for summer promotion campaign"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-telegram-secondary-bg border border-telegram-hint/20 rounded-lg text-telegram-text placeholder-telegram-hint focus:ring-2 focus:ring-telegram-button focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-telegram-text mb-2">
                   Tags to Apply
                 </label>
                 {availableTags.length === 0 ? (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-telegram-hint">
                     No tags available. Create tags in the contact detail modal
                     first.
                   </p>
@@ -367,7 +365,7 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
                         className={`px-3 py-1 rounded-full text-sm transition-colors ${
                           formData.tags.includes(tag.name)
                             ? 'text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-telegram-secondary-bg text-telegram-text hover:bg-telegram-hint/20'
                         }`}
                         style={{
                           backgroundColor: formData.tags.includes(tag.name)
@@ -390,9 +388,9 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
                   onChange={(e) =>
                     setFormData({ ...formData, isActive: e.target.checked })
                   }
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-telegram-button border-telegram-hint/20 rounded focus:ring-telegram-button"
                 />
-                <label htmlFor="isActive" className="text-sm text-gray-700">
+                <label htmlFor="isActive" className="text-sm text-telegram-text">
                   Active (rule will be applied to new contacts)
                 </label>
               </div>
@@ -400,14 +398,14 @@ const AutoTagRulesManager: React.FC<AutoTagRulesManagerProps> = ({
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-6 py-3 bg-telegram-secondary-bg text-telegram-text rounded-lg hover:bg-telegram-hint/20 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-telegram-button text-telegram-button-text rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                 >
                   <Save className="h-5 w-5" />
                   {saving ? 'Saving...' : 'Save Rule'}
