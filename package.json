@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
-    "populate-db": "node scripts/populate-database.js"
+    "populate-db": "node scripts/populate-database.js",
+    "migrate-crm": "node scripts/migrate-crm-data.js"
   },
   "dependencies": {
     "@telegram-apps/sdk": "^1.1.3",

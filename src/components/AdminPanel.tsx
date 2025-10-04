@@ -15,7 +15,7 @@ import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
-import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft } from 'lucide-react'
+import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft, MessageCircle } from 'lucide-react'
 import { Settings } from 'lucide-react'
 import OrderManagement from './admin/OrderManagement'
 import ShopCreateModal from './admin/ShopCreateModal'
@@ -31,6 +31,7 @@ import ShopEditModal from './admin/ShopEditModal'
 import AnalyticsTab from './admin/AnalyticsTab'
 import TelegramBotSettings from './admin/TelegramBotSettings'
 import UserRegistration from './UserRegistration'
+import CRMPanel from './crm/CRMPanel'
 import { shopLinkUtils } from '../utils/shopLinks'
 import { shopCustomerService } from '../services/shopCustomerService'
 
@@ -44,7 +45,7 @@ const AdminPanel: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders'>('profile')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders' | 'crm' | 'settings'>('profile')
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -944,6 +945,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               { id: 'products', label: 'Products', icon: Package },
               { id: 'categories', label: 'Categories', icon: Tag },
               { id: 'departments', label: 'Departments', icon: Users },
+              { id: 'crm', label: 'CRM', icon: MessageCircle },
               { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               { id: 'orders', label: 'Orders', icon: ShoppingCart },
               { id: 'settings', label: 'Settings', icon: Settings }
@@ -1088,6 +1090,15 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             </div>
           )}
 
+          {/* CRM Tab */}
+          {activeTab === 'crm' && (
+            <CRMPanel
+              shopId={selectedShop.id}
+              shop={selectedShop}
+              botToken={botToken}
+            />
+          )}
+
           {/* Analytics Tab */}
           {activeTab === 'analytics' && (
             <AnalyticsTab shop={selectedShop} stats={stats} />
@@ -1102,10 +1113,10 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           {activeTab === 'settings' && (
             <div className="space-y-4">
               <h3 className="text-base font-semibold text-telegram-text">Shop Settings</h3>
-              
+
               {userData && (
-                <TelegramBotSettings 
-                  userId={userData.uid} 
+                <TelegramBotSettings
+                  userId={userData.uid}
                   onTokenUpdate={(token) => setBotToken(token)}
                 />
               )}

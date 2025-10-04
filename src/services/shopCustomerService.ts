@@ -1,5 +1,7 @@
 import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore'
 import { Firestore } from 'firebase/firestore'
+import { syncContact } from './crmSyncService'
+import { applyAutoTagRules } from './crmService'
 
 export interface ShopAccessResult {
   success: boolean
@@ -179,6 +181,19 @@ export const shopCustomerService = {
             isNewCustomer: false,
             error: 'Failed to add customer to shop'
           }
+        }
+
+        try {
+          await syncContact(shopId, telegramId)
+
+          if (startParam) {
+            const tags = await applyAutoTagRules(shopId, startParam)
+            if (tags.length > 0) {
+              console.log(`Applied auto-tags for ${telegramId}:`, tags)
+            }
+          }
+        } catch (error) {
+          console.error('Error syncing CRM contact:', error)
         }
 
         return {
