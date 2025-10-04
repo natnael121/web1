@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Search, Filter, Mail, Phone, Calendar, DollarSign, Tag, Eye, FileEdit as Edit, Trash2, X } from 'lucide-react';
-import { useCustomers } from '../../hooks/useCustomers';
-import { Customer, CustomerTag } from '../../types';
+import { getContactsByShop } from '../../services/crmService';
+import { CRMContact } from '../../types';
 import { format } from 'date-fns';
 
 interface CustomerManagementProps {
@@ -9,22 +9,44 @@ interface CustomerManagementProps {
 }
 
 const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId }) => {
-  const { customers, loading, error } = useCustomers(selectedShopId);
+  const [customers, setCustomers] = useState<CRMContact[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTag, setFilterTag] = useState<CustomerTag | 'all'>('all');
+  const [filterTag, setFilterTag] = useState<string | 'all'>('all');
   const [activeTab, setActiveTab] = useState<'all' | 'web' | 'telegram'>('all');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CRMContact | null>(null);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      if (!selectedShopId) {
+        setLoading(false);
+        return;
+      }
+      try {
+        setLoading(true);
+        const data = await getContactsByShop(selectedShopId);
+        setCustomers(data);
+      } catch (err) {
+        console.error('Error fetching customers:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, [selectedShopId]);
 
   const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.phone?.includes(searchTerm);
+                         customer.phone?.includes(searchTerm) ||
+                         customer.username?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTag = filterTag === 'all' || customer.tags.includes(filterTag);
-    const matchesSource = activeTab === 'all' || customer.source === activeTab;
+    const source = customer.telegramId ? 'telegram' : 'web';
+    const matchesSource = activeTab === 'all' || source === activeTab;
     return matchesSearch && matchesTag && matchesSource;
   });
 
-  const getTagColor = (tag: CustomerTag) => {
+  const getTagColor = (tag: string) => {
     switch (tag) {
       case 'VIP': return 'bg-purple-100 text-purple-800';
       case 'Wholesale': return 'bg-blue-100 text-blue-800';
@@ -86,7 +108,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
             <div>
               <p className="text-xs font-medium text-telegram-hint">Web Customers</p>
               <p className="text-lg font-bold text-telegram-button">
-                {customers.filter(c => c.source === 'web').length}
+                {customers.filter(c => !c.telegramId).length}
               </p>
             </div>
             <Users className="h-6 w-6 text-telegram-button" />
@@ -97,7 +119,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
             <div>
               <p className="text-xs font-medium text-telegram-hint">Telegram</p>
               <p className="text-lg font-bold text-green-600">
-                {customers.filter(c => c.source === 'telegram').length}
+                {customers.filter(c => c.telegramId).length}
               </p>
             </div>
             <Users className="h-6 w-6 text-green-500" />
@@ -138,7 +160,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
                   : 'border-transparent text-telegram-hint hover:text-telegram-text'
               }`}
             >
-              Web ({customers.filter(c => c.source === 'web').length})
+              Web ({customers.filter(c => !c.telegramId).length})
             </button>
             <button
               onClick={() => setActiveTab('telegram')}
@@ -148,7 +170,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
                   : 'border-transparent text-telegram-hint hover:text-telegram-text'
               }`}
             >
-              Telegram ({customers.filter(c => c.source === 'telegram').length})
+              Telegram ({customers.filter(c => c.telegramId).length})
             </button>
           </nav>
         </div>
@@ -170,14 +192,13 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
 
           <select
             value={filterTag}
-            onChange={(e) => setFilterTag(e.target.value as CustomerTag | 'all')}
+            onChange={(e) => setFilterTag(e.target.value)}
             className="px-3 py-2 bg-telegram-bg border border-telegram-hint/20 rounded-lg text-telegram-text text-sm focus:ring-2 focus:ring-telegram-button focus:border-transparent"
           >
             <option value="all">All Tags</option>
-            <option value="VIP">VIP</option>
-            <option value="Wholesale">Wholesale</option>
-            <option value="Regular">Regular</option>
-            <option value="New">New</option>
+            {Array.from(new Set(customers.flatMap(c => c.tags))).map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
           </select>
 
           <div className="text-xs text-telegram-hint whitespace-nowrap">
@@ -223,14 +244,14 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
                       <div className="flex-shrink-0 h-8 w-8">
                         <div className="h-8 w-8 rounded-full bg-telegram-button flex items-center justify-center">
                           <span className="text-xs font-medium text-telegram-button-text">
-                            {customer.name.charAt(0).toUpperCase()}
+                            {customer.name?.charAt(0).toUpperCase() || 'U'}
                           </span>
                         </div>
                       </div>
                       <div className="ml-3">
-                        <div className="text-xs font-medium text-telegram-text">{customer.name}</div>
-                        {customer.telegramUsername && (
-                          <div className="text-xs text-telegram-hint">@{customer.telegramUsername}</div>
+                        <div className="text-xs font-medium text-telegram-text">{customer.name || 'Unknown'}</div>
+                        {customer.username && (
+                          <div className="text-xs text-telegram-hint">@{customer.username}</div>
                         )}
                       </div>
                     </div>
@@ -318,7 +339,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
 
 // Customer Detail Modal Component
 interface CustomerDetailModalProps {
-  customer: Customer;
+  customer: CRMContact;
   onClose: () => void;
 }
 
@@ -343,11 +364,11 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, onC
           <div className="flex items-center space-x-3">
             <div className="h-12 w-12 rounded-full bg-telegram-button flex items-center justify-center">
               <span className="text-lg font-bold text-telegram-button-text">
-                {customer.name.charAt(0).toUpperCase()}
+                {customer.name?.charAt(0).toUpperCase() || 'U'}
               </span>
             </div>
             <div>
-              <h3 className="text-base font-bold text-telegram-text">{customer.name}</h3>
+              <h3 className="text-base font-bold text-telegram-text">{customer.name || 'Unknown'}</h3>
               <div className="flex flex-wrap gap-1 mt-1">
                 {customer.tags.map((tag, index) => (
                   <span
@@ -378,10 +399,10 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, onC
                     <span className="text-telegram-text">{customer.phone}</span>
                   </div>
                 )}
-                {customer.telegramUsername && (
+                {customer.username && (
                   <div className="flex items-center">
                     <span className="w-3 h-3 mr-2 text-telegram-hint">@</span>
-                    <span className="text-telegram-text">{customer.telegramUsername}</span>
+                    <span className="text-telegram-text">{customer.username}</span>
                   </div>
                 )}
               </div>
