@@ -296,17 +296,18 @@ export const getContactStats = async (shopId: string): Promise<CRMStats> => {
 export const getTags = async (shopId: string): Promise<CRMTag[]> => {
   const q = query(
     collection(db, 'crm_tags'),
-    where('shopId', '==', shopId),
-    orderBy('name', 'asc')
+    where('shopId', '==', shopId)
   )
 
   const snapshot = await getDocs(q)
-  return snapshot.docs.map(doc => ({
+  const tags = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate(),
     updatedAt: doc.data().updatedAt?.toDate()
   })) as CRMTag[]
+
+  return tags.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export const createTag = async (
@@ -345,17 +346,18 @@ export const deleteTag = async (tagId: string): Promise<void> => {
 export const getMessageTemplates = async (shopId: string): Promise<CRMMessageTemplate[]> => {
   const q = query(
     collection(db, 'crm_message_templates'),
-    where('shopId', '==', shopId),
-    orderBy('name', 'asc')
+    where('shopId', '==', shopId)
   )
 
   const snapshot = await getDocs(q)
-  return snapshot.docs.map(doc => ({
+  const templates = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate(),
     updatedAt: doc.data().updatedAt?.toDate()
   })) as CRMMessageTemplate[]
+
+  return templates.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export const createMessageTemplate = async (
@@ -402,17 +404,18 @@ export const deleteMessageTemplate = async (templateId: string): Promise<void> =
 export const getAutoTagRules = async (shopId: string): Promise<CRMAutoTagRule[]> => {
   const q = query(
     collection(db, 'crm_auto_tag_rules'),
-    where('shopId', '==', shopId),
-    orderBy('createdAt', 'desc')
+    where('shopId', '==', shopId)
   )
 
   const snapshot = await getDocs(q)
-  return snapshot.docs.map(doc => ({
+  const rules = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate(),
     updatedAt: doc.data().updatedAt?.toDate()
   })) as CRMAutoTagRule[]
+
+  return rules.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
 }
 
 export const createAutoTagRule = async (
