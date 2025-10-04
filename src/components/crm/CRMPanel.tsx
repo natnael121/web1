@@ -79,23 +79,23 @@ const CRMPanel: React.FC<CRMPanelProps> = ({ shopId, shop, botToken }) => {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="border-b border-gray-200">
-          <nav className="flex">
+    <div className="space-y-3">
+      <div className="bg-telegram-secondary-bg rounded-lg">
+        <div className="border-b border-telegram-hint/20">
+          <nav className="flex overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 ${
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                      ? 'border-telegram-button text-telegram-button'
+                      : 'border-transparent text-telegram-hint hover:text-telegram-text'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4" />
                   {tab.label}
                 </button>
               )
@@ -103,7 +103,7 @@ const CRMPanel: React.FC<CRMPanelProps> = ({ shopId, shop, botToken }) => {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-3">
           {activeTab === 'dashboard' && (
             <CRMDashboard
               key={refreshTrigger}

@@ -64,108 +64,108 @@ const CRMDashboard: React.FC<CRMDashboardProps> = ({ shopId, onFilterChange }) =
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-telegram-button"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">CRM Dashboard</h2>
-        <div className="flex items-center gap-4">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-base font-semibold text-telegram-text">CRM Dashboard</h3>
+        <div className="flex items-center gap-2">
           {lastSync && (
-            <span className="text-sm text-gray-500">
+            <span className="text-xs text-telegram-hint">
               Last sync: {lastSync.toLocaleString()}
             </span>
           )}
           <button
             onClick={handleSyncAll}
             disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 px-3 py-2 bg-telegram-button text-telegram-button-text rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync All'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div
           onClick={() => onFilterChange?.('all')}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-telegram-secondary-bg p-4 rounded-lg cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 bg-telegram-button/10 rounded-lg">
+              <Users className="h-5 w-5 text-telegram-button" />
             </div>
-            <span className="text-3xl font-bold text-gray-900">
+            <span className="text-2xl font-bold text-telegram-text">
               {stats.totalCustomers}
             </span>
           </div>
-          <h3 className="text-sm font-medium text-gray-600">Total Customers</h3>
-          <p className="text-xs text-gray-500 mt-1">All contacts in your CRM</p>
+          <h3 className="text-sm font-medium text-telegram-text">Total Customers</h3>
+          <p className="text-xs text-telegram-hint mt-1">All contacts in your CRM</p>
         </div>
 
         <div
           onClick={() => onFilterChange?.('active')}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-telegram-secondary-bg p-4 rounded-lg cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Activity className="h-6 w-6 text-green-600" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Activity className="h-5 w-5 text-green-600" />
             </div>
-            <span className="text-3xl font-bold text-gray-900">
+            <span className="text-2xl font-bold text-telegram-text">
               {stats.activeThisWeek}
             </span>
           </div>
-          <h3 className="text-sm font-medium text-gray-600">Active This Week</h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <h3 className="text-sm font-medium text-telegram-text">Active This Week</h3>
+          <p className="text-xs text-telegram-hint mt-1">
             Engaged in the last 7 days
           </p>
         </div>
 
         <div
           onClick={() => onFilterChange?.('inactive')}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-telegram-secondary-bg p-4 rounded-lg cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <Clock className="h-6 w-6 text-orange-600" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Clock className="h-5 w-5 text-orange-600" />
             </div>
-            <span className="text-3xl font-bold text-gray-900">
+            <span className="text-2xl font-bold text-telegram-text">
               {stats.inactive30Plus}
             </span>
           </div>
-          <h3 className="text-sm font-medium text-gray-600">Inactive 30+ Days</h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <h3 className="text-sm font-medium text-telegram-text">Inactive 30+ Days</h3>
+          <p className="text-xs text-telegram-hint mt-1">
             Need re-engagement
           </p>
         </div>
       </div>
 
       {stats.topTags.length > 0 && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <Tag className="h-5 w-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Top Tags</h3>
+        <div className="bg-telegram-secondary-bg p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="h-4 w-4 text-telegram-hint" />
+            <h3 className="text-base font-semibold text-telegram-text">Top Tags</h3>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {stats.topTags.map((tagData, index) => (
               <div key={index} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-telegram-text">
                   {tagData.tag}
                 </span>
-                <div className="flex items-center gap-3">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-32 bg-telegram-hint/20 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      className="bg-telegram-button h-2 rounded-full transition-all"
                       style={{
                         width: `${(tagData.count / stats.totalCustomers) * 100}%`
                       }}
                     ></div>
                   </div>
-                  <span className="text-sm text-gray-600 w-12 text-right">
+                  <span className="text-sm text-telegram-hint w-12 text-right">
                     {tagData.count}
                   </span>
                 </div>

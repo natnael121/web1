@@ -147,39 +147,39 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-telegram-button"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-2 mb-4">
+    <div className="space-y-3">
+      <div className="bg-telegram-secondary-bg p-3 rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-telegram-hint" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by name, username, phone, or email..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2 bg-telegram-bg border border-telegram-hint/20 rounded-lg text-telegram-text text-sm focus:ring-2 focus:ring-telegram-button focus:border-transparent"
             />
           </div>
         </div>
 
         {availableTags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">Tags:</span>
+            <Filter className="h-3 w-3 text-telegram-hint" />
+            <span className="text-xs text-telegram-hint">Tags:</span>
             {availableTags.map(tag => (
               <button
                 key={tag}
                 onClick={() => toggleTag(tag)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                className={`px-2 py-1 rounded-full text-xs transition-colors ${
                   selectedTags.includes(tag)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-telegram-button text-telegram-button-text'
+                    : 'bg-telegram-hint/10 text-telegram-text hover:bg-telegram-hint/20'
                 }`}
               >
                 {tag}
@@ -188,7 +188,7 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
             {selectedTags.length > 0 && (
               <button
                 onClick={() => setSelectedTags([])}
-                className="text-sm text-blue-600 hover:underline"
+                className="text-xs text-telegram-button hover:underline"
               >
                 Clear filters
               </button>
@@ -197,11 +197,11 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="divide-y divide-gray-100">
+      <div className="bg-telegram-secondary-bg rounded-lg overflow-hidden">
+        <div className="divide-y divide-telegram-hint/10">
           {filteredContacts.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <User className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <div className="text-center py-12 text-telegram-hint">
+              <User className="h-12 w-12 mx-auto mb-3 text-telegram-hint" />
               <p>No contacts found</p>
             </div>
           ) : (
@@ -209,42 +209,42 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
               <div
                 key={contact.id}
                 onClick={() => onContactSelect(contact)}
-                className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                className="p-3 hover:bg-telegram-bg cursor-pointer transition-colors"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    <div className="w-10 h-10 bg-telegram-button rounded-full flex items-center justify-center text-telegram-button-text font-semibold text-sm">
                       {contact.name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                     <div
-                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getActivityIndicator(contact)}`}
+                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-telegram-secondary-bg ${getActivityIndicator(contact)}`}
                     ></div>
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                      <h3 className="font-semibold text-telegram-text truncate text-sm">
                         {contact.name || 'Unknown User'}
                       </h3>
                       {contact.username && (
-                        <span className="text-sm text-gray-500">
+                        <span className="text-xs text-telegram-hint">
                           @{contact.username}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-3 text-xs text-telegram-hint">
                       <span>{formatLastActivity(contact)}</span>
                       <span>{contact.totalOrders} orders</span>
                       <span>${contact.totalSpent.toFixed(2)} spent</span>
                     </div>
 
                     {contact.tags.length > 0 && (
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-1 mt-1.5">
                         {contact.tags.map((tag, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                            className="px-2 py-0.5 bg-telegram-button/10 text-telegram-button text-xs rounded-full"
                           >
                             {tag}
                           </span>
@@ -253,7 +253,7 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
                     )}
 
                     {contact.notes && (
-                      <p className="text-sm text-gray-500 mt-1 truncate">
+                      <p className="text-xs text-telegram-hint mt-1 truncate">
                         {contact.notes.substring(0, 40)}
                         {contact.notes.length > 40 && '...'}
                       </p>
@@ -264,14 +264,14 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
                     <button
                       onClick={(e) => handleRefreshContact(contact, e)}
                       disabled={refreshingId === contact.id}
-                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                      className="p-1.5 text-telegram-hint hover:text-telegram-button transition-colors disabled:opacity-50"
                       title="Refresh data"
                     >
                       <RefreshCw
-                        className={`h-5 w-5 ${refreshingId === contact.id ? 'animate-spin' : ''}`}
+                        className={`h-4 w-4 ${refreshingId === contact.id ? 'animate-spin' : ''}`}
                       />
                     </button>
-                    <MessageCircle className="h-5 w-5 text-gray-400" />
+                    <MessageCircle className="h-4 w-4 text-telegram-hint" />
                   </div>
                 </div>
               </div>
@@ -280,7 +280,7 @@ const CRMContactBook: React.FC<CRMContactBookProps> = ({
         </div>
       </div>
 
-      <div className="text-sm text-gray-500 text-center">
+      <div className="text-xs text-telegram-hint text-center">
         Showing {filteredContacts.length} of {contacts.length} contacts
       </div>
     </div>
