@@ -32,6 +32,7 @@ import AnalyticsTab from './admin/AnalyticsTab'
 import TelegramBotSettings from './admin/TelegramBotSettings'
 import UserRegistration from './UserRegistration'
 import CRMPanel from './crm/CRMPanel'
+import CustomerManagement from './admin/CustomerManagement'
 import { shopLinkUtils } from '../utils/shopLinks'
 import { shopCustomerService } from '../services/shopCustomerService'
 
@@ -45,7 +46,7 @@ const AdminPanel: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders' | 'crm' | 'settings'>('profile')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders' | 'crm' | 'customers' | 'settings'>('profile')
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -945,6 +946,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               { id: 'products', label: 'Products', icon: Package },
               { id: 'categories', label: 'Categories', icon: Tag },
               { id: 'departments', label: 'Departments', icon: Users },
+              { id: 'customers', label: 'Customers', icon: User },
               { id: 'crm', label: 'CRM', icon: MessageCircle },
               { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               { id: 'orders', label: 'Orders', icon: ShoppingCart },
@@ -1088,6 +1090,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
                 </div>
               )}
             </div>
+          )}
+
+          {/* Customers Tab */}
+          {activeTab === 'customers' && (
+            <CustomerManagement selectedShopId={selectedShop.id} />
           )}
 
           {/* CRM Tab */}

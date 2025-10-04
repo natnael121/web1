@@ -242,6 +242,8 @@ export interface Order {
   deliveredAt?: Date
 }
 
+export type CustomerTag = 'VIP' | 'Wholesale' | 'Regular' | 'New'
+
 export interface Customer {
   id: string
   shopId: string
@@ -251,7 +253,7 @@ export interface Customer {
   telegramId?: string
   telegramUsername?: string
   source: 'web' | 'telegram'
-  tags: ('VIP' | 'Wholesale' | 'Regular' | 'New')[]
+  tags: CustomerTag[]
   totalOrders: number
   totalSpent: number
   averageOrderValue: number
