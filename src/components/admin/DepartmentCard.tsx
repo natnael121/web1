@@ -1,6 +1,6 @@
 import React from 'react'
 import { Department } from '../../types'
-import { Edit, Trash2, MessageCircle } from 'lucide-react'
+import { FileEdit as Edit, Trash2, MessageCircle } from 'lucide-react'
 
 interface DepartmentCardProps {
   department: Department
