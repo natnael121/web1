@@ -10,46 +10,45 @@ interface CategoryCardProps {
 
 const CategoryCard: React.FC<CategoryCardProps> = ({ category, onEdit, onDelete }) => {
   return (
-    <div className="bg-telegram-secondary-bg rounded-lg p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3 flex-1">
-          <div 
-            className="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
-            style={{ backgroundColor: category.color + '20', color: category.color }}
-          >
-            {category.icon}
+    <div className="bg-telegram-secondary-bg rounded-2xl p-4 active:scale-[0.99] transition-transform">
+      <div className="flex items-center gap-3">
+        <div
+          className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+          style={{ backgroundColor: category.color + '20', color: category.color }}
+        >
+          {category.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-bold text-telegram-text truncate">{category.name}</h4>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ml-2 ${
+              category.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {category.isActive ? 'Active' : 'Inactive'}
+            </span>
           </div>
-          <div className="flex-1">
-            <h4 className="font-medium text-telegram-text">{category.name}</h4>
-            {category.description && (
-              <p className="text-sm text-telegram-hint mt-1">{category.description}</p>
-            )}
-            <div className="flex items-center space-x-4 mt-2">
-              <span className="text-sm text-telegram-hint">
-                {category.productCount || 0} products
-              </span>
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                category.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {category.isActive ? 'Active' : 'Inactive'}
-              </span>
+          {category.description && (
+            <p className="text-sm text-telegram-hint line-clamp-1 mb-2">{category.description}</p>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-telegram-hint">
+              {category.productCount || 0} product{category.productCount !== 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => onEdit(category)}
+                className="p-2 text-telegram-hint hover:text-telegram-button hover:bg-telegram-button/10 rounded-lg transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onDelete(category.id)}
+                className="p-2 text-telegram-hint hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        </div>
-        
-        <div className="flex space-x-2">
-          <button
-            onClick={() => onEdit(category)}
-            className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(category.id)}
-            className="p-2 text-red-500 hover:bg-red-500 hover:text-white rounded"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>
