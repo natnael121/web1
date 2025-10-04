@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Search, Filter, Mail, Phone, Calendar, DollarSign, Tag, Eye, Edit, Trash2, X } from 'lucide-react';
+import { Users, Search, Filter, Mail, Phone, Calendar, DollarSign, Tag, Eye, FileEdit as Edit, Trash2, X } from 'lucide-react';
 import { useCustomers } from '../../hooks/useCustomers';
 import { Customer, CustomerTag } from '../../types';
 import { format } from 'date-fns';
