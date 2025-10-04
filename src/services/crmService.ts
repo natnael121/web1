@@ -242,17 +242,18 @@ export const deleteTag = async (tagId: string): Promise<void> => {
 export const getMessageTemplates = async (shopId: string): Promise<CRMMessageTemplate[]> => {
   const q = query(
     collection(db, 'crm_message_templates'),
-    where('shopId', '==', shopId),
-    orderBy('name', 'asc')
+    where('shopId', '==', shopId)
   )
 
   const snapshot = await getDocs(q)
-  return snapshot.docs.map(doc => ({
+  const templates = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate(),
     updatedAt: doc.data().updatedAt?.toDate()
   })) as CRMMessageTemplate[]
+
+  return templates.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export const createMessageTemplate = async (

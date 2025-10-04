@@ -27,16 +27,21 @@ const MessageTemplatesManager: React.FC<MessageTemplatesManagerProps> = ({
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    loadTemplates()
+    console.log('MessageTemplatesManager mounted with shopId:', shopId)
+    if (shopId) {
+      loadTemplates()
+    }
   }, [shopId])
 
   const loadTemplates = async () => {
     try {
       setLoading(true)
       const data = await getMessageTemplates(shopId)
+      console.log('Loaded templates:', data)
       setTemplates(data)
     } catch (error) {
       console.error('Error loading templates:', error)
+      alert('Failed to load templates: ' + error)
     } finally {
       setLoading(false)
     }
@@ -82,25 +87,29 @@ const MessageTemplatesManager: React.FC<MessageTemplatesManagerProps> = ({
       setSaving(true)
 
       if (editingTemplate) {
+        console.log('Updating template:', editingTemplate.id)
         await updateMessageTemplate(editingTemplate.id, {
           name: formData.name,
           category: formData.category,
           content: formData.content
         })
       } else {
-        await createMessageTemplate(
+        console.log('Creating new template for shop:', shopId)
+        const newId = await createMessageTemplate(
           shopId,
           formData.name,
           formData.content,
           formData.category
         )
+        console.log('Created template with ID:', newId)
       }
 
+      console.log('Reloading templates...')
       await loadTemplates()
       setShowModal(false)
     } catch (error) {
       console.error('Error saving template:', error)
-      alert('Failed to save template')
+      alert('Failed to save template: ' + error)
     } finally {
       setSaving(false)
     }
