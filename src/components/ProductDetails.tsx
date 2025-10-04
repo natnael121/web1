@@ -26,6 +26,7 @@ interface ProductDetailsProps {
   onUpdateCartQuantity?: (productId: string, quantity: number) => void
   shopId?: string
   shopName?: string
+  onCheckout?: () => void
 }
 
 const ProductDetails: React.FC<ProductDetailsProps> = ({
@@ -35,7 +36,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
   cartItem,
   onUpdateCartQuantity,
   shopId,
-  shopName
+  shopName,
+  onCheckout
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(cartItem?.quantity || 1)
@@ -60,6 +62,12 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
   const handleAddToCart = () => {
     if (!isOutOfStock) {
       onAddToCart(product, quantity)
+    }
+  }
+
+  const handleCheckout = () => {
+    if (onCheckout) {
+      onCheckout()
     }
   }
 
@@ -457,26 +465,35 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
               </div>
             )}
 
-            {/* Add to Cart Button */}
-            <button
-              onClick={handleAddToCart}
-              disabled={isOutOfStock}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 ${
-                isOutOfStock
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-telegram-button text-telegram-button-text hover:opacity-80'
-              }`}
-            >
-              <ShoppingCart className="w-5 h-5" />
-              <span>
-                {isOutOfStock 
-                  ? 'Out of Stock' 
-                  : cartItem 
-                    ? 'Update Cart' 
+            {/* Add to Cart / Checkout Buttons */}
+            {cartItem ? (
+              <button
+                onClick={handleCheckout}
+                disabled={!onCheckout}
+                className="flex-1 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 active:scale-95 transition-all"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span>Checkout • {formatPrice(product.price * quantity)}</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 active:scale-95 transition-all ${
+                  isOutOfStock
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-telegram-button text-telegram-button-text hover:opacity-90'
+                }`}
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span>
+                  {isOutOfStock
+                    ? 'Out of Stock'
                     : `Add to Cart • ${formatPrice(product.price * quantity)}`
-                }
-              </span>
-            </button>
+                  }
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>

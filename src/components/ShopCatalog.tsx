@@ -602,6 +602,10 @@ const ShopCatalog: React.FC<ShopCatalogProps> = ({ shop, onBack, deepLinkedProdu
           onUpdateCartQuantity={updateCartQuantity}
           shopId={shop.id}
           shopName={shop.name}
+          onCheckout={() => {
+            setSelectedProduct(null)
+            setShowCart(true)
+          }}
         />
       )}
     </div>
