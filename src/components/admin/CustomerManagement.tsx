@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Filter, Mail, Phone, Calendar, DollarSign, Tag, Eye, FileEdit as Edit, Trash2, X } from 'lucide-react';
+import { Users, Search, Filter, Mail, Phone, Calendar, DollarSign, Tag, Eye, FileEdit as Edit, Trash2, X, Download, RefreshCw } from 'lucide-react';
 import { getContactsByShop } from '../../services/crmService';
 import { CRMContact } from '../../types';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
   const [filterTag, setFilterTag] = useState<string | 'all'>('all');
   const [activeTab, setActiveTab] = useState<'all' | 'web' | 'telegram'>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<CRMContact | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -48,12 +49,56 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
 
   const getTagColor = (tag: string) => {
     switch (tag) {
-      case 'VIP': return 'bg-purple-100 text-purple-800';
+      case 'VIP': return 'bg-yellow-100 text-yellow-800';
       case 'Wholesale': return 'bg-blue-100 text-blue-800';
       case 'Regular': return 'bg-green-100 text-green-800';
-      case 'New': return 'bg-yellow-100 text-yellow-800';
+      case 'New': return 'bg-cyan-100 text-cyan-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleRefresh = async () => {
+    if (!selectedShopId) return;
+    try {
+      setRefreshing(true);
+      const data = await getContactsByShop(selectedShopId);
+      setCustomers(data);
+    } catch (err) {
+      console.error('Error refreshing customers:', err);
+      alert('Failed to refresh customer data');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Username', 'Email', 'Phone', 'Total Orders', 'Total Spent', 'Last Order', 'Tags', 'Source'];
+    const csvData = filteredCustomers.map(customer => [
+      customer.name || 'Unknown',
+      customer.username || '',
+      customer.email || '',
+      customer.phone || '',
+      customer.totalOrders,
+      customer.totalSpent.toFixed(2),
+      customer.lastOrderDate ? format(customer.lastOrderDate, 'yyyy-MM-dd') : '',
+      customer.tags.join('; '),
+      customer.telegramId ? 'Telegram' : 'Web'
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `customers-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -89,6 +134,24 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
         <div>
           <h3 className="text-base font-semibold text-telegram-text">Customer Management</h3>
           <p className="text-xs text-telegram-hint">View and manage your customers</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1 px-3 py-2 bg-telegram-button text-telegram-button-text rounded-lg text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredCustomers.length === 0}
+            className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="h-3 w-3" />
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -129,11 +192,11 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-telegram-hint">VIP</p>
-              <p className="text-lg font-bold text-purple-600">
+              <p className="text-lg font-bold text-yellow-600">
                 {customers.filter(c => c.tags.includes('VIP')).length}
               </p>
             </div>
-            <Tag className="h-6 w-6 text-purple-500" />
+            <Tag className="h-6 w-6 text-yellow-500" />
           </div>
         </div>
       </div>
@@ -249,7 +312,12 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ selectedShopId 
                         </div>
                       </div>
                       <div className="ml-3">
-                        <div className="text-xs font-medium text-telegram-text">{customer.name || 'Unknown'}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-medium text-telegram-text">{customer.name || 'Unknown'}</div>
+                          {customer.telegramId && (
+                            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">TG</span>
+                          )}
+                        </div>
                         {customer.username && (
                           <div className="text-xs text-telegram-hint">@{customer.username}</div>
                         )}
@@ -367,8 +435,13 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, onC
                 {customer.name?.charAt(0).toUpperCase() || 'U'}
               </span>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-telegram-text">{customer.name || 'Unknown'}</h3>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-telegram-text">{customer.name || 'Unknown'}</h3>
+                {customer.telegramId && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Telegram</span>
+                )}
+              </div>
               <div className="flex flex-wrap gap-1 mt-1">
                 {customer.tags.map((tag, index) => (
                   <span
@@ -378,6 +451,34 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, onC
                     {tag}
                   </span>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Source Badge */}
+          <div className="bg-telegram-secondary-bg rounded-lg p-3">
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-telegram-hint">Customer Since:</span>
+                <p className="font-medium text-telegram-text mt-0.5">
+                  {format(customer.createdAt, 'MMM dd, yyyy')}
+                </p>
+              </div>
+              <div>
+                <span className="text-telegram-hint">Source:</span>
+                <p className="font-medium text-telegram-text mt-0.5">
+                  {customer.telegramId ? 'Telegram Bot' : 'Web Portal'}
+                </p>
+              </div>
+              <div>
+                <span className="text-telegram-hint">Activity Status:</span>
+                <p className="font-medium text-telegram-text mt-0.5">
+                  <span className={`px-2 py-0.5 rounded ${
+                    customer.activityStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {customer.activityStatus === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </p>
               </div>
             </div>
           </div>
