@@ -3,28 +3,7 @@ import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'fire
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData, Order, Shop } from '../types'
 import { useTelegram } from '../contexts/TelegramContext'
-import {
-  User as UserIcon,
-  ShoppingCart,
-  Package,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Truck,
-  DollarSign,
-  Calendar,
-  ArrowRight,
-  RefreshCw,
-  X,
-  Eye,
-  Globe,
-  MessageCircle,
-  Edit,
-  Save,
-  Mail,
-  Phone as PhoneIcon,
-  FileText
-} from 'lucide-react'
+import { User as UserIcon, ShoppingCart, Package, Clock, CheckCircle, XCircle, Truck, DollarSign, Calendar, ArrowRight, RefreshCw, X, Eye, Globe, MessageCircle, FileEdit as Edit, Save, Mail, Phone as PhoneIcon, FileText } from 'lucide-react'
 
 interface UserProfileProps {
   user: User | null
