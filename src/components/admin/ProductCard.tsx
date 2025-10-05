@@ -86,7 +86,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, on
                 title="Promote Product"
               >
                 <Megaphone className="w-4 h-4" />
-                <span>Promote</span>
+                <span>promote</span>
               </button>
             )}
             <button
