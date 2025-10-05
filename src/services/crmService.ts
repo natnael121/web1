@@ -119,6 +119,7 @@ export const getContactsByShop = async (shopId: string): Promise<CRMContact[]> =
 
     contacts.push({
       id: crmData?.id || shopCustomerDoc.id,
+      customerId: customerId,
       shopId,
       telegramId: telegramId || 0,
       name: userData.displayName || userData.first_name || 'Unknown User',

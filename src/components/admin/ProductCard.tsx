@@ -79,35 +79,21 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, on
           )}
 
           <div className="flex items-center gap-1.5 mt-3">
-            {onPromote && (
-              <button
-                onClick={() => onPromote(product)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-green-50 text-green-700 rounded-lg font-medium text-sm active:scale-95 transition-transform"
-                title="Promote Product"
-              >
-                <Megaphone className="w-4 h-4" />
-                <span>Promote</span>
-              </button>
-            )}
-            <button
-              onClick={() => onShare(product)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-blue-50 text-blue-700 rounded-lg font-medium text-sm active:scale-95 transition-transform"
-              title="Share Product"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>Share</span>
-            </button>
             <button
               onClick={() => onEdit(product)}
-              className="p-2 text-telegram-hint hover:text-telegram-button hover:bg-telegram-button/10 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-telegram-button/10 text-telegram-button rounded-lg font-medium text-sm active:scale-95 transition-transform"
+              title="Edit Product"
             >
-              <Edit className="w-5 h-5" />
+              <Edit className="w-4 h-4" />
+              <span>Edit</span>
             </button>
             <button
               onClick={() => onDelete(product.id)}
-              className="p-2 text-telegram-hint hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-red-50 text-red-600 rounded-lg font-medium text-sm active:scale-95 transition-transform"
+              title="Delete Product"
             >
-              <Trash2 className="w-5 h-5" />
+              <Trash2 className="w-4 h-4" />
+              <span>Delete</span>
             </button>
           </div>
         </div>

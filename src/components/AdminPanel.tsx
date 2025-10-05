@@ -1108,11 +1108,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
               </div>
             )}
 
-          {/* Customers Tab */}
-          {activeTab === 'customers' && (
-            <CustomerManagement selectedShopId={selectedShop.id} />
-          )}
-
           {/* CRM Tab */}
           {activeTab === 'crm' && (
             <CRMPanel
@@ -1312,7 +1307,6 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             {[
               { id: 'products', label: 'Products', icon: Package },
               { id: 'orders', label: 'Orders', icon: ShoppingCart },
-              { id: 'customers', label: 'Customers', icon: User },
               { id: 'crm', label: 'CRM', icon: MessageCircle },
             ].map((tab) => (
               <button
