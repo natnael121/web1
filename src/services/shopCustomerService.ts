@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, doc, getDoc, deleteDoc } from 'firebase/firestore'
 import { Firestore } from 'firebase/firestore'
 import { syncContact } from './crmSyncService'
 import { applyAutoTagRules } from './crmService'
@@ -331,7 +331,7 @@ export const shopCustomerService = {
       }
 
       console.log('[removeCustomerFromShop] Deleting document:', docToDelete.id)
-      await docToDelete.ref.delete()
+      await deleteDoc(docToDelete.ref)
 
       console.log('[removeCustomerFromShop] Successfully removed customer from shop')
       return {
