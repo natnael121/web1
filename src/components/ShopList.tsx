@@ -430,17 +430,7 @@ const ShopList: React.FC = () => {
 
     if (!user?.id) return
 
-    const isOwner = userData?.uid === shop.ownerId
-
-    if (isOwner) {
-      setDeleteMessage({
-        type: 'error',
-        text: 'Cannot delete: You are the owner of this shop'
-      })
-      setTimeout(() => setDeleteMessage(null), 3000)
-      return
-    }
-
+    // Skip owner check - let the service handle it
     setShopToDelete(shop)
     setShowDeleteConfirm(true)
   }

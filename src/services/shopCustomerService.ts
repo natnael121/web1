@@ -242,6 +242,8 @@ export const shopCustomerService = {
       const shopData = shopDoc.data()
       if (shopData.ownerId) {
         const ownerUsersRef = collection(db, 'users')
+
+        // Check with telegramId field
         const ownerQuery = query(
           ownerUsersRef,
           where('telegramId', '==', telegramId)
@@ -254,6 +256,23 @@ export const shopCustomerService = {
             return {
               success: false,
               error: 'Cannot remove shop owner from their own shop'
+            }
+          }
+        } else {
+          // Try with telegram_id field as fallback
+          const altOwnerQuery = query(
+            ownerUsersRef,
+            where('telegram_id', '==', telegramId)
+          )
+          const altOwnerSnapshot = await getDocs(altOwnerQuery)
+
+          if (!altOwnerSnapshot.empty) {
+            const ownerDoc = altOwnerSnapshot.docs[0]
+            if (ownerDoc.id === shopData.ownerId) {
+              return {
+                success: false,
+                error: 'Cannot remove shop owner from their own shop'
+              }
             }
           }
         }
