@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Filter, User, MessageCircle, RefreshCw, Grid, List, Mail, Phone, ShoppingBag, DollarSign } from 'lucide-react'
+import { Search, Filter, User, MessageCircle, RefreshCw, Grid2x2 as Grid, List, Mail, Phone, ShoppingBag, DollarSign } from 'lucide-react'
 import { getContactsByShop, searchContacts } from '../../services/crmService'
 import { syncContact } from '../../services/crmSyncService'
 import { CRMContact } from '../../types'
