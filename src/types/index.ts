@@ -280,7 +280,6 @@ export interface ShopCustomer {
 
 export interface CRMContact {
   id: string
-  customerId: string
   shopId: string
   telegramId: number
   name: string
