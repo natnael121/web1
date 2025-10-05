@@ -221,6 +221,107 @@ export const shopCustomerService = {
         error: 'Failed to process shop link'
       }
     }
+  },
+
+  async removeCustomerFromShop(
+    db: Firestore,
+    shopId: string,
+    telegramId: number
+  ): Promise<{ success: boolean; error?: string; deletedRecord?: any }> {
+    try {
+      const shopRef = doc(db, 'shops', shopId)
+      const shopDoc = await getDoc(shopRef)
+
+      if (!shopDoc.exists()) {
+        return {
+          success: false,
+          error: 'Shop not found'
+        }
+      }
+
+      const shopData = shopDoc.data()
+      if (shopData.ownerId) {
+        const ownerUsersRef = collection(db, 'users')
+        const ownerQuery = query(
+          ownerUsersRef,
+          where('telegramId', '==', telegramId)
+        )
+        const ownerSnapshot = await getDocs(ownerQuery)
+
+        if (!ownerSnapshot.empty) {
+          const ownerDoc = ownerSnapshot.docs[0]
+          if (ownerDoc.id === shopData.ownerId) {
+            return {
+              success: false,
+              error: 'Cannot remove shop owner from their own shop'
+            }
+          }
+        }
+      }
+
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const customerQuery = query(
+        shopCustomersRef,
+        where('shopId', '==', shopId),
+        where('telegramId', '==', telegramId)
+      )
+      const snapshot = await getDocs(customerQuery)
+
+      if (snapshot.empty) {
+        return {
+          success: false,
+          error: 'Customer access not found'
+        }
+      }
+
+      const docToDelete = snapshot.docs[0]
+      const deletedData = {
+        id: docToDelete.id,
+        ...docToDelete.data()
+      }
+
+      await docToDelete.ref.delete()
+
+      return {
+        success: true,
+        deletedRecord: deletedData
+      }
+    } catch (error) {
+      console.error('Error removing customer from shop:', error)
+      return {
+        success: false,
+        error: 'Failed to remove shop access'
+      }
+    }
+  },
+
+  async restoreCustomerToShop(
+    db: Firestore,
+    deletedRecord: any
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!deletedRecord || !deletedRecord.shopId || !deletedRecord.telegramId) {
+        return {
+          success: false,
+          error: 'Invalid record data'
+        }
+      }
+
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const { id, ...recordData } = deletedRecord
+
+      await addDoc(shopCustomersRef, recordData)
+
+      return {
+        success: true
+      }
+    } catch (error) {
+      console.error('Error restoring customer to shop:', error)
+      return {
+        success: false,
+        error: 'Failed to restore shop access'
+      }
+    }
   }
 }
  

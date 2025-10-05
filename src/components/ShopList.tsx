@@ -3,7 +3,7 @@ import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
 import { Shop, Product, UserData, Order, OrderItem, Category } from '../types'
-import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle } from 'lucide-react'
+import { Store, Star, Package, ArrowLeft, ShoppingCart, Plus, Minus, CheckCircle, Trash2, X } from 'lucide-react'
 import ProductDetails from './ProductDetails'
 import { shopCustomerService } from '../services/shopCustomerService'
 
@@ -24,6 +24,13 @@ const ShopList: React.FC = () => {
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [showOrderSuccess, setShowOrderSuccess] = useState(false)
   const [linkProcessed, setLinkProcessed] = useState(false)
+  const [deletingShopId, setDeletingShopId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [shopToDelete, setShopToDelete] = useState<Shop | null>(null)
+  const [showUndoNotification, setShowUndoNotification] = useState(false)
+  const [undoTimeLeft, setUndoTimeLeft] = useState(10)
+  const [deletedShopData, setDeletedShopData] = useState<{ shop: Shop; record: any } | null>(null)
+  const [deleteMessage, setDeleteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (user?.id) {
@@ -418,6 +425,132 @@ const ShopList: React.FC = () => {
     setError(null)
   }
 
+  const handleDeleteClick = (e: React.MouseEvent, shop: Shop) => {
+    e.stopPropagation()
+
+    if (!user?.id) return
+
+    const isOwner = userData?.uid === shop.ownerId
+
+    if (isOwner) {
+      setDeleteMessage({
+        type: 'error',
+        text: 'Cannot delete: You are the owner of this shop'
+      })
+      setTimeout(() => setDeleteMessage(null), 3000)
+      return
+    }
+
+    setShopToDelete(shop)
+    setShowDeleteConfirm(true)
+  }
+
+  const executeDelete = async () => {
+    if (!shopToDelete || !user?.id) return
+
+    try {
+      setDeletingShopId(shopToDelete.id)
+      setShowDeleteConfirm(false)
+
+      const result = await shopCustomerService.removeCustomerFromShop(
+        db,
+        shopToDelete.id,
+        parseInt(user.id)
+      )
+
+      if (result.success) {
+        setDeletedShopData({
+          shop: shopToDelete,
+          record: result.deletedRecord
+        })
+
+        setShops(prevShops => prevShops.filter(s => s.id !== shopToDelete.id))
+
+        setShowUndoNotification(true)
+        setUndoTimeLeft(10)
+
+        const interval = setInterval(() => {
+          setUndoTimeLeft(prev => {
+            if (prev <= 1) {
+              clearInterval(interval)
+              setShowUndoNotification(false)
+              setDeletedShopData(null)
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
+
+        setDeleteMessage({
+          type: 'success',
+          text: `${shopToDelete.name} removed from your list`
+        })
+        setTimeout(() => setDeleteMessage(null), 3000)
+      } else {
+        setDeleteMessage({
+          type: 'error',
+          text: result.error || 'Failed to remove shop'
+        })
+        setTimeout(() => setDeleteMessage(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error deleting shop:', error)
+      setDeleteMessage({
+        type: 'error',
+        text: 'An error occurred while removing the shop'
+      })
+      setTimeout(() => setDeleteMessage(null), 3000)
+    } finally {
+      setDeletingShopId(null)
+      setShopToDelete(null)
+    }
+  }
+
+  const handleUndo = async () => {
+    if (!deletedShopData) return
+
+    try {
+      const result = await shopCustomerService.restoreCustomerToShop(
+        db,
+        deletedShopData.record
+      )
+
+      if (result.success) {
+        setShops(prevShops => {
+          const newShops = [...prevShops, deletedShopData.shop]
+          return newShops.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+        })
+
+        setShowUndoNotification(false)
+        setDeletedShopData(null)
+
+        setDeleteMessage({
+          type: 'success',
+          text: `${deletedShopData.shop.name} restored successfully`
+        })
+        setTimeout(() => setDeleteMessage(null), 3000)
+      } else {
+        setDeleteMessage({
+          type: 'error',
+          text: result.error || 'Failed to restore shop'
+        })
+        setTimeout(() => setDeleteMessage(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error restoring shop:', error)
+      setDeleteMessage({
+        type: 'error',
+        text: 'An error occurred while restoring the shop'
+      })
+      setTimeout(() => setDeleteMessage(null), 3000)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false)
+    setShopToDelete(null)
+  }
+
   if (loading) {
     return (
       <div className="p-4">
@@ -474,57 +607,157 @@ const ShopList: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-3">
-          {shops.map((shop) => (
-            <div
-              key={shop.id}
-              onClick={() => handleShopClick(shop)}
-              className="bg-telegram-secondary-bg rounded-lg p-4 cursor-pointer transition-all hover:shadow-md active:scale-95"
+        {deleteMessage && (
+          <div className={`rounded-lg p-3 flex items-center space-x-2 ${
+            deleteMessage.type === 'success'
+              ? 'bg-green-100 border border-green-400 text-green-700'
+              : 'bg-red-100 border border-red-400 text-red-700'
+          }`}>
+            {deleteMessage.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 flex-shrink-0" />
+            ) : (
+              <X className="w-5 h-5 flex-shrink-0" />
+            )}
+            <span className="text-sm">{deleteMessage.text}</span>
+          </div>
+        )}
+
+        {showUndoNotification && deletedShopData && (
+          <div className="bg-telegram-secondary-bg border border-telegram-button rounded-lg p-3 flex items-center justify-between shadow-lg animate-slide-in-down">
+            <div className="flex-1">
+              <p className="text-sm text-telegram-text font-medium">
+                {deletedShopData.shop.name} removed
+              </p>
+              <p className="text-xs text-telegram-hint">
+                Undo available for {undoTimeLeft} seconds
+              </p>
+            </div>
+            <button
+              onClick={handleUndo}
+              className="ml-3 bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
             >
-              <div className="flex items-start space-x-3">
-                <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {shop.logo ? (
-                    <img 
-                      src={shop.logo} 
-                      alt={shop.name}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : null}
-                  {!shop.logo && <Store className="w-8 h-8 text-telegram-hint" />}
+              Undo
+            </button>
+          </div>
+        )}
+
+        {showDeleteConfirm && shopToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-telegram-bg rounded-lg p-6 max-w-sm w-full shadow-xl">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-semibold text-telegram-text truncate pr-2">
-                      {shop.name}
-                    </h3>
-                    <div className="flex items-center space-x-1 flex-shrink-0">
-                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium text-telegram-text">
-                        {(4.0 + Math.random()).toFixed(1)}
+                <div>
+                  <h3 className="text-lg font-semibold text-telegram-text">Remove Shop</h3>
+                  <p className="text-sm text-telegram-hint">This action can be undone</p>
+                </div>
+              </div>
+              <p className="text-telegram-text mb-6">
+                Are you sure you want to remove <span className="font-semibold">{shopToDelete.name}</span> from your list? Your order history will be preserved.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  className="flex-1 bg-telegram-secondary-bg text-telegram-text px-4 py-2 rounded-lg font-medium hover:bg-opacity-80 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {shops.map((shop) => {
+            const isOwner = userData?.uid === shop.ownerId
+            const isDeleting = deletingShopId === shop.id
+
+            return (
+              <div
+                key={shop.id}
+                className={`bg-telegram-secondary-bg rounded-lg p-4 transition-all ${
+                  isDeleting ? 'opacity-50 pointer-events-none' : 'hover:shadow-md'
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  <div
+                    onClick={() => !isDeleting && handleShopClick(shop)}
+                    className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+                  >
+                    {shop.logo ? (
+                      <img
+                        src={shop.logo}
+                        alt={shop.name}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : null}
+                    {!shop.logo && <Store className="w-8 h-8 text-telegram-hint" />}
+                  </div>
+
+                  <div className="flex-1 min-w-0" onClick={() => !isDeleting && handleShopClick(shop)}>
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-semibold text-telegram-text truncate pr-2 cursor-pointer">
+                        {shop.name}
+                      </h3>
+                      <div className="flex items-center space-x-1 flex-shrink-0">
+                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                        <span className="text-sm font-medium text-telegram-text">
+                          {(4.0 + Math.random()).toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+                  
+                    <p className="text-sm text-telegram-hint mt-1 line-clamp-2 cursor-pointer">
+                      {shop.description}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs bg-telegram-button text-telegram-button-text px-2 py-1 rounded-full">
+                          {shop.stats?.totalProducts || 0} Products
+                        </span>
+                        {isOwner && (
+                          <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
+                            Owner
+                          </span>
+                        )}
+                      </div>
+
+                      <span className="text-xs text-telegram-hint">
+                        {shop.isActive ? 'Open' : 'Closed'}
                       </span>
                     </div>
                   </div>
-                  
-                  <p className="text-sm text-telegram-hint mt-1 line-clamp-2">
-                    {shop.description}
-                  </p>
-                  
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs bg-telegram-button text-telegram-button-text px-2 py-1 rounded-full">
-                        {shop.stats?.totalProducts || 0} Products
-                      </span>
-                    </div>
-                    
-                    <span className="text-xs text-telegram-hint">
-                      {shop.isActive ? 'Open' : 'Closed'}
-                    </span>
+
+                  <div className="flex items-center">
+                    <button
+                      onClick={(e) => handleDeleteClick(e, shop)}
+                      disabled={isDeleting}
+                      className={`p-2 rounded-lg transition-all ${
+                        isOwner
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-red-600 hover:bg-red-50 active:scale-95'
+                      }`}
+                      title={isOwner ? 'Cannot delete your own shop' : 'Remove shop from list'}
+                    >
+                      {isDeleting ? (
+                        <div className="w-5 h-5 border-2 border-gray-300 border-t-red-600 rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-5 h-5" />
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     )
