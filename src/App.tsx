@@ -278,6 +278,7 @@ function App() {
             <Navigation
               currentView={currentView}
               onViewChange={setCurrentView}
+              userData={userData}
             />
           </div>
         </div>

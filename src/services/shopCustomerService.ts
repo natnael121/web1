@@ -119,6 +119,7 @@ export const shopCustomerService = {
         telegramId,
         telegram_id: telegramId,
         role: 'customer',
+        profileCompleted: false,
         createdAt: new Date(),
         updatedAt: new Date()
       }

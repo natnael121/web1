@@ -79,6 +79,7 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, o
           displayName: formData.displayName,
           telegramId: user.telegramId || parseInt(user.id),
           role: 'admin',
+          profileCompleted: false,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         }
