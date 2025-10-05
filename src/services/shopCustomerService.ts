@@ -229,10 +229,13 @@ export const shopCustomerService = {
     telegramId: number
   ): Promise<{ success: boolean; error?: string; deletedRecord?: any }> {
     try {
+      console.log('[removeCustomerFromShop] Starting removal:', { shopId, telegramId })
+
       const shopRef = doc(db, 'shops', shopId)
       const shopDoc = await getDoc(shopRef)
 
       if (!shopDoc.exists()) {
+        console.log('[removeCustomerFromShop] Shop not found')
         return {
           success: false,
           error: 'Shop not found'
@@ -240,6 +243,7 @@ export const shopCustomerService = {
       }
 
       const shopData = shopDoc.data()
+      console.log('[removeCustomerFromShop] Shop data:', { ownerId: shopData.ownerId })
       if (shopData.ownerId) {
         const ownerUsersRef = collection(db, 'users')
 
@@ -250,8 +254,18 @@ export const shopCustomerService = {
         )
         const ownerSnapshot = await getDocs(ownerQuery)
 
+        console.log('[removeCustomerFromShop] Owner query results:', {
+          found: !ownerSnapshot.empty,
+          count: ownerSnapshot.docs.length
+        })
+
         if (!ownerSnapshot.empty) {
           const ownerDoc = ownerSnapshot.docs[0]
+          console.log('[removeCustomerFromShop] Found owner by telegramId:', {
+            ownerDocId: ownerDoc.id,
+            shopOwnerId: shopData.ownerId,
+            isOwner: ownerDoc.id === shopData.ownerId
+          })
           if (ownerDoc.id === shopData.ownerId) {
             return {
               success: false,
@@ -266,8 +280,18 @@ export const shopCustomerService = {
           )
           const altOwnerSnapshot = await getDocs(altOwnerQuery)
 
+          console.log('[removeCustomerFromShop] Alt owner query results:', {
+            found: !altOwnerSnapshot.empty,
+            count: altOwnerSnapshot.docs.length
+          })
+
           if (!altOwnerSnapshot.empty) {
             const ownerDoc = altOwnerSnapshot.docs[0]
+            console.log('[removeCustomerFromShop] Found owner by telegram_id:', {
+              ownerDocId: ownerDoc.id,
+              shopOwnerId: shopData.ownerId,
+              isOwner: ownerDoc.id === shopData.ownerId
+            })
             if (ownerDoc.id === shopData.ownerId) {
               return {
                 success: false,
@@ -278,6 +302,7 @@ export const shopCustomerService = {
         }
       }
 
+      console.log('[removeCustomerFromShop] Querying shop_customers collection')
       const shopCustomersRef = collection(db, 'shop_customers')
       const customerQuery = query(
         shopCustomersRef,
@@ -286,7 +311,13 @@ export const shopCustomerService = {
       )
       const snapshot = await getDocs(customerQuery)
 
+      console.log('[removeCustomerFromShop] Customer query results:', {
+        found: !snapshot.empty,
+        count: snapshot.docs.length
+      })
+
       if (snapshot.empty) {
+        console.log('[removeCustomerFromShop] Customer access not found')
         return {
           success: false,
           error: 'Customer access not found'
@@ -299,17 +330,19 @@ export const shopCustomerService = {
         ...docToDelete.data()
       }
 
+      console.log('[removeCustomerFromShop] Deleting document:', docToDelete.id)
       await docToDelete.ref.delete()
 
+      console.log('[removeCustomerFromShop] Successfully removed customer from shop')
       return {
         success: true,
         deletedRecord: deletedData
       }
     } catch (error) {
-      console.error('Error removing customer from shop:', error)
+      console.error('[removeCustomerFromShop] Error removing customer from shop:', error)
       return {
         success: false,
-        error: 'Failed to remove shop access'
+        error: error instanceof Error ? error.message : 'Failed to remove shop access'
       }
     }
   },

@@ -442,11 +442,20 @@ const ShopList: React.FC = () => {
       setDeletingShopId(shopToDelete.id)
       setShowDeleteConfirm(false)
 
+      console.log('Attempting to remove shop:', {
+        shopId: shopToDelete.id,
+        shopName: shopToDelete.name,
+        telegramId: parseInt(user.id),
+        userId: user.id
+      })
+
       const result = await shopCustomerService.removeCustomerFromShop(
         db,
         shopToDelete.id,
         parseInt(user.id)
       )
+
+      console.log('Remove shop result:', result)
 
       if (result.success) {
         setDeletedShopData({
