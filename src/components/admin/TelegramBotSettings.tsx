@@ -105,12 +105,13 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
 
       const result = await response.json()
 
+      // Check if the edge function returned successfully and if Telegram API returned ok
       if (result.ok) {
         setTestResult('success')
         setError(null)
       } else {
         setTestResult('error')
-        setError(result.description || 'Bot token test failed')
+        setError(result.description || 'Invalid bot token')
       }
     } catch (error: any) {
       console.error('Error testing bot token:', error)
