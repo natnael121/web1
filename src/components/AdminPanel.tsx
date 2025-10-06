@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
+import { useNotification } from '../contexts/NotificationContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft, MessageCircle } from 'lucide-react'
@@ -39,6 +40,7 @@ import { shopCustomerService } from '../services/shopCustomerService'
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
   const { user, startParam } = useTelegram()
+  const { success, error: showError, warning } = useNotification()
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
@@ -740,7 +742,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       if (successCount === 0) {
         throw new Error(`Failed to send to all departments. ${results.map(r => `${r.department}: ${r.error}`).join('; ')}`)
       } else if (failCount > 0) {
-        setError(`Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`)
+        const warningMsg = `Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`
+        setError(warningMsg)
+        warning(warningMsg, 6000)
+      } else {
+        success(isScheduled ? 'Promotion scheduled successfully!' : 'Promotion sent successfully!')
       }
 
       setShowPromotionModal(false)
@@ -749,6 +755,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       console.error('Error promoting product:', error)
       const errorMessage = error.message || 'Failed to promote product. Please check your Telegram bot configuration.'
       setError(errorMessage)
+      showError(errorMessage)
       throw error
     }
   }

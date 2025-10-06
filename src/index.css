@@ -140,3 +140,19 @@ body {
 .animate-slide-in-down {
   animation: slide-in-down 0.3s ease-out;
 }
+
+/* Animation for notifications */
+@keyframes slide-in {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
