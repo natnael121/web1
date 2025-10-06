@@ -83,10 +83,22 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     setError(null)
 
     try {
-      const telegramApi = new TelegramApiService(botToken.trim())
-      
-      // Test by getting bot info
-      const response = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getMe`)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const proxyUrl = `${supabaseUrl}/functions/v1/telegram-proxy`
+
+      // Test by getting bot info through proxy
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          method: 'getMe',
+          params: {}
+        })
+      })
+
       const result = await response.json()
 
       if (result.ok) {
