@@ -376,23 +376,23 @@ const AdminPanel: React.FC = () => {
 }
 
 
-  const fetchShopStats = async (shopId: string) => {
+  const updateShopStats = async (shopId: string) => {
     try {
       // Get product count
       const productsRef = collection(db, 'products')
       const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
       const productsSnapshot = await getDocs(productsQuery)
       const totalProducts = productsSnapshot.size
-      
+
       // Get order stats
       const ordersRef = collection(db, 'orders')
       const ordersQuery = query(ordersRef, where('shopId', '==', shopId))
       const ordersSnapshot = await getDocs(ordersQuery)
-      
+
       let totalOrders = 0
       let totalRevenue = 0
       const customerIds = new Set<string>()
-      
+
       ordersSnapshot.forEach((doc) => {
         const data = doc.data()
         totalOrders++
@@ -401,18 +401,42 @@ const AdminPanel: React.FC = () => {
           customerIds.add(data.customerId)
         }
       })
-      
-      const totalCustomers = customerIds.size
 
-      setStats({
+      // Get unique customers count from shop_customers
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const customersQuery = query(shopCustomersRef, where('shopId', '==', shopId))
+      const customersSnapshot = await getDocs(customersQuery)
+      const totalCustomers = customersSnapshot.size
+
+      const shopStats = {
         totalProducts,
         totalOrders,
         totalRevenue,
         totalCustomers
+      }
+
+      // Update shop document with new stats
+      const shopRef = doc(db, 'shops', shopId)
+      await updateDoc(shopRef, {
+        stats: shopStats,
+        updatedAt: new Date()
       })
+
+      setStats(shopStats)
+
+      // Update the shop in the ownedShops array
+      setOwnedShops(prevShops =>
+        prevShops.map(shop =>
+          shop.id === shopId ? { ...shop, stats: shopStats } : shop
+        )
+      )
     } catch (error) {
-      console.error('Error fetching stats:', error)
+      console.error('Error updating shop stats:', error)
     }
+  }
+
+  const fetchShopStats = async (shopId: string) => {
+    await updateShopStats(shopId)
   }
 
   const handleShopSelect = async (shop: Shop) => {
@@ -425,7 +449,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveProduct = async (productData: any) => {
     try {
       setError(null)
-      
+
       if (editingProduct) {
         // Update existing product
         const productRef = doc(db, 'products', editingProduct.id)
@@ -442,11 +466,12 @@ const AdminPanel: React.FC = () => {
           updatedAt: new Date()
         })
       }
-      
+
       setEditingProduct(null)
       setShowAddProduct(false)
       if (selectedShop) {
         await fetchShopProducts(selectedShop.id)
+        await updateShopStats(selectedShop.id)
       }
     } catch (error) {
       console.error('Error saving product:', error)
@@ -459,9 +484,10 @@ const AdminPanel: React.FC = () => {
       setError(null)
       const productRef = doc(db, 'products', productId)
       await deleteDoc(productRef)
-      
+
       if (selectedShop) {
         await fetchShopProducts(selectedShop.id)
+        await updateShopStats(selectedShop.id)
       }
     } catch (error) {
       console.error('Error deleting product:', error)
