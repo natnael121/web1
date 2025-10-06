@@ -34,6 +34,14 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
   })
   const [botToken, setBotToken] = useState('')
 
+  // Load bot token from props or environment variable
+  React.useEffect(() => {
+    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
+    if (token) {
+      setBotToken(token)
+    }
+  }, [propBotToken])
+
   const roles = [
     { value: 'admin', label: 'Admin', description: 'Receives all notifications and manages operations' },
     { value: 'shop', label: 'Shop', description: 'Receives shop and order notifications' },
@@ -74,29 +82,6 @@ const DepartmentEditModal: React.FC<DepartmentEditModalProps> = ({
     setFormData({ ...formData, notificationTypes: newTypes })
   }
 
-  // Get bot token from environment or user settings
-  React.useEffect(() => {
-    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || ''
-    if (token) {
-      setBotToken(token)
-    }
-    
-    // Try to get bot token from user settings
-    const loadBotToken = async () => {
-      try {
-        const { db } = await import('../../contexts/FirebaseContext')
-        const { doc, getDoc } = await import('firebase/firestore')
-        // This would need to be passed as a prop in a real implementation
-        // For now, we'll use the environment variable
-      } catch (error) {
-        console.log('Could not load bot token from user settings')
-      }
-    }
-    
-    if (!token) {
-      loadBotToken()
-    }
-  }, [propBotToken])
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

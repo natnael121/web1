@@ -682,14 +682,15 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       }
 
       // Send to selected departments or all active departments if none selected
-      const targetDepartments = selectedDepartments.length > 0 
+      const targetDepartments = selectedDepartments.length > 0
         ? departments.filter(d => selectedDepartments.includes(d.id))
         : departments.filter(d => d.isActive)
 
-      const botToken = process.env.TELEGRAM_BOT_TOKEN || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
-      
-      if (!botToken) {
-        throw new Error('Telegram bot token not configured')
+      // Use bot token from state (loaded from user data) or fallback to environment variable
+      const effectiveBotToken = botToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
+
+      if (!effectiveBotToken) {
+        throw new Error('Telegram bot token not configured. Please set your bot token in Settings.')
       }
 
       // Validate target departments
@@ -710,7 +711,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       for (const department of targetDepartments) {
         try {
           const config = {
-            botToken,
+            botToken: effectiveBotToken,
             chatId: department.telegramChatId
           }
 

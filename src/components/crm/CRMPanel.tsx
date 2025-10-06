@@ -20,10 +20,14 @@ interface CRMPanelProps {
   botToken: string
 }
 
-const CRMPanel: React.FC<CRMPanelProps> = ({ shopId, shop, botToken }) => {
+const CRMPanel: React.FC<CRMPanelProps> = ({ shopId, shop, botToken: propBotToken }) => {
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'contacts' | 'templates' | 'autoTag'
   >('dashboard')
+
+  // Use bot token from props or fallback to environment variable
+  const botToken = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
+
   const [selectedContact, setSelectedContact] = useState<CRMContact | null>(null)
   const [messageMode, setMessageMode] = useState<'single' | 'multiple'>('single')
   const [selectedContacts, setSelectedContacts] = useState<CRMContact[]>([])
