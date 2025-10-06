@@ -209,7 +209,7 @@ export const telegramService = {
       }
     } catch (error) {
       console.error('Error sending Telegram message:', error)
-      return false
+      throw error
     }
   },
 
