@@ -83,22 +83,39 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     setError(null)
 
     try {
-      const telegramApi = new TelegramApiService(botToken.trim())
-      
-      // Test by getting bot info
-      const response = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getMe`)
+      const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-proxy`
+
+      // Test by getting bot info through proxy
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          method: 'getMe',
+          params: {}
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       const result = await response.json()
 
       if (result.ok) {
         setTestResult('success')
+        setError(null)
       } else {
         setTestResult('error')
         setError(result.description || 'Bot token test failed')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error testing bot token:', error)
       setTestResult('error')
-      setError('Failed to test bot token. Please check your internet connection.')
+      setError(error.message || 'Failed to test bot token. Please try again.')
     } finally {
       setTesting(false)
     }
