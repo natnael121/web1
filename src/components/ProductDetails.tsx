@@ -99,23 +99,32 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
     if (window.Telegram?.WebApp) {
-      if (window.Telegram.WebApp.openTelegramLink) {
-        const messageToShare = productImage
-          ? `${productImage}\n\n${shareMessage}`
-          : shareMessage
+      try {
+        if (productImage) {
+          const fullShareText = `${productImage}\n\n${shareMessage}`
 
-        window.Telegram.WebApp.openTelegramLink(
-          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(messageToShare)}`
-        )
-      } else {
-        const fullMessage = productImage
-          ? `${productImage}\n\n${shareMessage}`
-          : shareMessage
+          await navigator.clipboard.writeText(fullShareText)
 
-        await navigator.clipboard.writeText(fullMessage)
+          if (window.Telegram.WebApp.showPopup) {
+            window.Telegram.WebApp.showPopup({
+              title: 'Ready to Share',
+              message: 'Product image URL and details copied! Paste in any chat to share the product with photo.',
+              buttons: [{type: 'ok'}]
+            })
+          } else if (window.Telegram.WebApp.showAlert) {
+            window.Telegram.WebApp.showAlert('Product image URL and details copied! Paste in any chat to share.')
+          }
+        } else {
+          await navigator.clipboard.writeText(shareMessage)
 
+          if (window.Telegram.WebApp.showAlert) {
+            window.Telegram.WebApp.showAlert('Product details copied! Paste in any chat to share.')
+          }
+        }
+      } catch (err) {
+        console.error('Share error:', err)
         if (window.Telegram.WebApp.showAlert) {
-          window.Telegram.WebApp.showAlert('Product info copied! Paste in any chat to share.')
+          window.Telegram.WebApp.showAlert('Could not copy to clipboard')
         }
       }
     } else if (navigator.share) {
@@ -146,7 +155,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
         : shareMessage
 
       await navigator.clipboard.writeText(fullMessage)
-      alert('Product info copied to clipboard!')
+      alert('Product details copied to clipboard!')
     }
   }
 
