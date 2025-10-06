@@ -14,7 +14,7 @@ export const telegramService = {
   async sendPromotionMessage(
     config: TelegramBotConfig,
     message: PromotionMessage
-  ): Promise<boolean> {
+  ): Promise<void> {
     try {
       const { botToken, chatId } = config
 
@@ -95,12 +95,12 @@ export const telegramService = {
 
               console.log(`Successfully sent to migrated chat: ${newChatId}`)
               console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
-              return true
+              return
             }
 
             throw new Error(result.description || 'Failed to send media group')
           }
-          return true
+          return
         } else {
           // Send single photo with caption
           const response = await fetch(`${baseUrl}/sendPhoto`, {
@@ -148,12 +148,12 @@ export const telegramService = {
 
               console.log(`Successfully sent to migrated chat: ${newChatId}`)
               console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
-              return true
+              return
             }
 
             throw new Error(result.description || 'Failed to send photo')
           }
-          return true
+          return
         }
       } else {
         // Send text message only
@@ -200,16 +200,16 @@ export const telegramService = {
 
             console.log(`Successfully sent to migrated chat: ${newChatId}`)
             console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
-            return true
+            return
           }
 
           throw new Error(result.description || 'Failed to send message')
         }
-        return true
+        return
       }
     } catch (error) {
       console.error('Error sending Telegram message:', error)
-      return false
+      throw error
     }
   },
 
@@ -217,7 +217,7 @@ export const telegramService = {
     config: TelegramBotConfig,
     message: PromotionMessage,
     scheduledDate: Date
-  ): Promise<boolean> {
+  ): Promise<void> {
     // For now, we'll store scheduled messages in localStorage
     // In a real app, you'd want to use a proper scheduling service
     const scheduledMessages = JSON.parse(
@@ -239,8 +239,8 @@ export const telegramService = {
     const timeUntilSend = scheduledDate.getTime() - Date.now()
     if (timeUntilSend > 0 && timeUntilSend < 24 * 60 * 60 * 1000) { // Within 24 hours
       setTimeout(async () => {
-        const success = await this.sendPromotionMessage(config, message)
-        if (success) {
+        try {
+          await this.sendPromotionMessage(config, message)
           // Update status in localStorage
           const updatedMessages = JSON.parse(
             localStorage.getItem('scheduledPromotions') || '[]'
@@ -252,10 +252,22 @@ export const telegramService = {
             updatedMessages[messageIndex].status = 'sent'
             localStorage.setItem('scheduledPromotions', JSON.stringify(updatedMessages))
           }
+        } catch (error) {
+          console.error('Error sending scheduled message:', error)
+          // Update status to failed
+          const updatedMessages = JSON.parse(
+            localStorage.getItem('scheduledPromotions') || '[]'
+          )
+          const messageIndex = updatedMessages.findIndex(
+            (m: any) => m.id === scheduledPromotion.id
+          )
+          if (messageIndex !== -1) {
+            updatedMessages[messageIndex].status = 'failed'
+            updatedMessages[messageIndex].error = (error as Error).message
+            localStorage.setItem('scheduledPromotions', JSON.stringify(updatedMessages))
+          }
         }
       }, timeUntilSend)
     }
-
-    return true
   }
 }

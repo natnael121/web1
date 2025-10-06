@@ -686,11 +686,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
         ? departments.filter(d => selectedDepartments.includes(d.id))
         : departments.filter(d => d.isActive)
 
-      // Use bot token from state (loaded from user data) or fallback to environment variable
-      const effectiveBotToken = botToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
+      // Use bot token from environment variable as primary source
+      const effectiveBotToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || botToken
 
       if (!effectiveBotToken) {
-        throw new Error('Telegram bot token not configured. Please set your bot token in Settings.')
+        throw new Error('Telegram bot token not configured. Please set VITE_TELEGRAM_BOT_TOKEN in your environment variables.')
       }
 
       // Validate target departments
@@ -716,6 +716,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
           }
 
           console.log(`Sending to ${department.name} (${department.telegramChatId})...`)
+          console.log('Using bot token:', effectiveBotToken ? 'Token present' : 'No token')
 
           if (isScheduled && scheduledDate) {
             await telegramService.scheduleMessage(config, promotionMessage, scheduledDate)
