@@ -187,7 +187,7 @@ export const shopLinkUtils = {
       message += `\n${customMessage}\n`
     }
 
-    message += `\n👉 View Product 👈`
+    message += `\n${link}`
 
     return message
   }

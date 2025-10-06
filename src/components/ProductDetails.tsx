@@ -98,25 +98,18 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, { id: shopId, name: shopName }, {})
     const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
-    // For Telegram Web App - open share dialog with text and let user add photo manually
     if (window.Telegram?.WebApp) {
-      // Use switchInlineQuery to let user share with a preview
-      const inlineQuery = `${product.name} - $${product.price.toFixed(2)} - ${productLink}`
-
-      // Try to use openTelegramLink with share url
       if (window.Telegram.WebApp.openTelegramLink) {
-        // Include image URL hint in message for manual sharing
-        const messageWithImage = productImage
-          ? `${shareMessage}\n\n📸 Product Image: ${productImage}`
+        const messageToShare = productImage
+          ? `${productImage}\n\n${shareMessage}`
           : shareMessage
 
         window.Telegram.WebApp.openTelegramLink(
-          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
+          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(messageToShare)}`
         )
       } else {
-        // Fallback to clipboard
         const fullMessage = productImage
-          ? `${shareMessage}\n\n📸 ${productImage}`
+          ? `${productImage}\n\n${shareMessage}`
           : shareMessage
 
         await navigator.clipboard.writeText(fullMessage)
@@ -126,14 +119,12 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
         }
       }
     } else if (navigator.share) {
-      // For browsers with native share API
       try {
         const shareData: any = {
           title: product.name,
           text: shareMessage
         }
 
-        // Try to include image if available
         if (productImage) {
           try {
             const response = await fetch(productImage)
@@ -150,9 +141,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
         console.log('Share cancelled or failed:', err)
       }
     } else {
-      // Fallback to clipboard
       const fullMessage = productImage
-        ? `${shareMessage}\n\n📸 Image: ${productImage}`
+        ? `${productImage}\n\n${shareMessage}`
         : shareMessage
 
       await navigator.clipboard.writeText(fullMessage)
