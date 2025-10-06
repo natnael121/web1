@@ -20,28 +20,8 @@ export class TelegramApiService {
     this.botToken = botToken
   }
 
-  private async callTelegramApi(method: string, params: any): Promise<any> {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const proxyUrl = `${supabaseUrl}/functions/v1/telegram-proxy`
-
-    const response = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        botToken: this.botToken,
-        method,
-        params
-      })
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Proxy request failed: ${response.status} ${errorText}`)
-    }
-
-    return await response.json()
+  private get baseUrl() {
+    return `https://api.telegram.org/bot${this.botToken}`
   }
 
   /**
@@ -53,16 +33,24 @@ export class TelegramApiService {
     try {
       // Remove @ symbol if present
       const cleanUsername = username.replace('@', '')
-
+      
       // Try to get chat info by username
-      const result = await this.callTelegramApi('getChat', {
-        chat_id: `@${cleanUsername}`
+      const response = await fetch(`${this.baseUrl}/getChat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: `@${cleanUsername}`
+        })
       })
 
+      const result = await response.json()
+      
       if (result.ok && result.result) {
         return result.result.id
       }
-
+      
       return null
     } catch (error) {
       console.error('Error getting user ID by username:', error)
@@ -77,14 +65,22 @@ export class TelegramApiService {
    */
   async getChatById(chatId: number): Promise<TelegramChat | null> {
     try {
-      const result = await this.callTelegramApi('getChat', {
-        chat_id: chatId
+      const response = await fetch(`${this.baseUrl}/getChat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId
+        })
       })
 
+      const result = await response.json()
+      
       if (result.ok && result.result) {
         return result.result
       }
-
+      
       return null
     } catch (error) {
       console.error('Error getting chat by ID:', error)
@@ -109,12 +105,19 @@ export class TelegramApiService {
    */
   async testChatAccess(chatId: number): Promise<boolean> {
     try {
-      const result = await this.callTelegramApi('sendMessage', {
-        chat_id: chatId,
-        text: '🤖 Bot connection test - This message confirms the bot can send messages to this chat.',
-        disable_notification: true
+      const response = await fetch(`${this.baseUrl}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: '🤖 Bot connection test - This message confirms the bot can send messages to this chat.',
+          disable_notification: true
+        })
       })
 
+      const result = await response.json()
       return result.ok
     } catch (error) {
       console.error('Error testing chat access:', error)

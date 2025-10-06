@@ -93,12 +93,9 @@ vercel
 
 1. Create a new bot with [@BotFather](https://t.me/botfather)
 2. Get your bot token
-3. Add the bot token to your `.env` file as `VITE_TELEGRAM_BOT_TOKEN` and `VITE_TELEGRAM_BOT_USERNAME`
-   - The bot token is used to send promotions to Telegram groups/channels
-   - When deployed on Vercel, add these as environment variables in your Vercel dashboard
-   - The application will automatically use the environment variables without requiring manual configuration
+3. Add the bot token to your `.env` file as `VITE_TELEGRAM_BOT_TOKEN`
 4. For groups/channels, add the bot as an administrator
-5. Set up the Mini App:
+3. Set up the Mini App:
    ```
    /newapp
    @your_bot_username
@@ -127,8 +124,7 @@ In your Vercel dashboard, add these environment variables:
 | `VITE_FIREBASE_STORAGE_BUCKET` | your-project.appspot.com |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Your sender ID |
 | `VITE_FIREBASE_APP_ID` | Your app ID |
-| `VITE_TELEGRAM_BOT_TOKEN` | Your Telegram bot token (used for sending promotions) |
-| `VITE_TELEGRAM_BOT_USERNAME` | Your bot username (without @) |
+| `VITE_TELEGRAM_BOT_TOKEN` | Your Telegram bot token |
 
 ## 📖 Usage Instructions
 

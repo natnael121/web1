@@ -53,9 +53,9 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
   const [customChatId, setCustomChatId] = useState('')
   const [botToken, setBotToken] = useState('')
 
-  // Get bot token from environment variable as primary source
+  // Get bot token from props or environment variable
   React.useEffect(() => {
-    const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || propBotToken
+    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
     if (token) {
       setBotToken(token)
     }
