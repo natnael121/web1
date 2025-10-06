@@ -34,11 +34,7 @@ async function callTelegramApi(botToken: string, method: string, params: any) {
 
   const result = await response.json()
 
-  // The edge function always returns 200, check the Telegram API result
-  if (!result.ok) {
-    throw new Error(result.description || 'Telegram API error')
-  }
-
+  // Return the result without throwing - let callers handle migration
   return result
 }
 
