@@ -10,6 +10,34 @@ export interface PromotionMessage {
   replyMarkup?: any
 }
 
+const TELEGRAM_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-proxy`
+
+async function callTelegramApi(botToken: string, method: string, params: any) {
+  const response = await fetch(TELEGRAM_PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({
+      botToken,
+      method,
+      params
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Edge function error:', errorText)
+    throw new Error(`Edge function error! status: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  // Return the result without throwing - let callers handle migration
+  return result
+}
+
 export const telegramService = {
   async sendPromotionMessage(
     config: TelegramBotConfig,
@@ -27,7 +55,10 @@ export const telegramService = {
       }
 
       console.log('Sending promotion message to:', chatId)
+<<<<<<< HEAD
       const baseUrl = `https://api.telegram.org/bot${botToken}`
+=======
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
 
       // Convert username to chat ID if needed
       let finalChatId = chatId
@@ -56,27 +87,27 @@ export const telegramService = {
             parse_mode: message.parseMode || 'HTML'
           }))
 
-          const response = await fetch(`${baseUrl}/sendMediaGroup`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chat_id: finalChatId,
-              media: media
-            })
+          const result = await callTelegramApi(botToken, 'sendMediaGroup', {
+            chat_id: finalChatId,
+            media: media
           })
+          if (!result.ok) {
+            console.error('Telegram API error:', result)
 
+<<<<<<< HEAD
           const result = await response.json()
           if (!response.ok || !result.ok) {
             console.error('Telegram API error:', result)
 
+=======
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
             // Handle chat migration (group upgraded to supergroup)
             if (result.error_code === 400 && result.parameters?.migrate_to_chat_id) {
               const newChatId = result.parameters.migrate_to_chat_id
               console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
 
               // Retry with new chat ID
+<<<<<<< HEAD
               const retryResponse = await fetch(`${baseUrl}/sendMediaGroup`, {
                 method: 'POST',
                 headers: {
@@ -90,6 +121,14 @@ export const telegramService = {
 
               const retryResult = await retryResponse.json()
               if (!retryResponse.ok || !retryResult.ok) {
+=======
+              const retryResult = await callTelegramApi(botToken, 'sendMediaGroup', {
+                chat_id: newChatId,
+                media: media
+              })
+
+              if (!retryResult.ok) {
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
                 throw new Error(retryResult.description || 'Failed to send media group after migration')
               }
 
@@ -103,6 +142,7 @@ export const telegramService = {
           return true
         } else {
           // Send single photo with caption
+<<<<<<< HEAD
           const response = await fetch(`${baseUrl}/sendPhoto`, {
             method: 'POST',
             headers: {
@@ -163,15 +203,59 @@ export const telegramService = {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+=======
+          const result = await callTelegramApi(botToken, 'sendPhoto', {
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
             chat_id: finalChatId,
-            text: message.text,
+            photo: message.images[0],
+            caption: message.text,
             parse_mode: message.parseMode || 'HTML',
             reply_markup: message.replyMarkup
           })
-        })
+          if (!result.ok) {
+            console.error('Telegram API error:', result)
 
+<<<<<<< HEAD
         const result = await response.json()
         if (!response.ok || !result.ok) {
+=======
+            // Handle chat migration (group upgraded to supergroup)
+            if (result.error_code === 400 && result.parameters?.migrate_to_chat_id) {
+              const newChatId = result.parameters.migrate_to_chat_id
+              console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
+
+              // Retry with new chat ID
+              const retryResult = await callTelegramApi(botToken, 'sendPhoto', {
+                chat_id: newChatId,
+                photo: message.images[0],
+                caption: message.text,
+                parse_mode: message.parseMode || 'HTML',
+                reply_markup: message.replyMarkup
+              })
+
+              if (!retryResult.ok) {
+                throw new Error(retryResult.description || 'Failed to send photo after migration')
+              }
+
+              console.log(`Successfully sent to migrated chat: ${newChatId}`)
+              console.warn(`IMPORTANT: Update your department chat ID from ${finalChatId} to ${newChatId}`)
+              return true
+            }
+
+            throw new Error(result.description || 'Failed to send photo')
+          }
+          return true
+        }
+      } else {
+        // Send text message only
+        const result = await callTelegramApi(botToken, 'sendMessage', {
+          chat_id: finalChatId,
+          text: message.text,
+          parse_mode: message.parseMode || 'HTML',
+          reply_markup: message.replyMarkup
+        })
+        if (!result.ok) {
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
           console.error('Telegram API error:', result)
 
           // Handle chat migration (group upgraded to supergroup)
@@ -180,6 +264,7 @@ export const telegramService = {
             console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
 
             // Retry with new chat ID
+<<<<<<< HEAD
             const retryResponse = await fetch(`${baseUrl}/sendMessage`, {
               method: 'POST',
               headers: {
@@ -195,6 +280,16 @@ export const telegramService = {
 
             const retryResult = await retryResponse.json()
             if (!retryResponse.ok || !retryResult.ok) {
+=======
+            const retryResult = await callTelegramApi(botToken, 'sendMessage', {
+              chat_id: newChatId,
+              text: message.text,
+              parse_mode: message.parseMode || 'HTML',
+              reply_markup: message.replyMarkup
+            })
+
+            if (!retryResult.ok) {
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
               throw new Error(retryResult.description || 'Failed to send message after migration')
             }
 
@@ -209,7 +304,7 @@ export const telegramService = {
       }
     } catch (error) {
       console.error('Error sending Telegram message:', error)
-      return false
+      throw error
     }
   },
 

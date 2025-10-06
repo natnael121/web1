@@ -4,6 +4,7 @@ import { Product, Department } from '../../types'
 import { imgbbService } from '../../services/imgbb'
 import { telegramService } from '../../services/telegram'
 import { useTelegram } from '../../contexts/TelegramContext'
+import { useNotification } from '../../contexts/NotificationContext'
 import TelegramChatInput from '../common/TelegramChatInput'
 
 interface PromotionModalProps {
@@ -33,6 +34,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
   onPromote,
 }) => {
   const { webApp } = useTelegram()
+  const { success, error: showError } = useNotification()
   const [customMessage, setCustomMessage] = useState('')
   const [promotionTitle, setPromotionTitle] = useState(`🔥 Special Offer: ${product.name}`)
   const [discountPercentage, setDiscountPercentage] = useState<number>(0)
@@ -53,9 +55,9 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
   const [customChatId, setCustomChatId] = useState('')
   const [botToken, setBotToken] = useState('')
 
-  // Get bot token from environment
+  // Get bot token from props or environment variable
   React.useEffect(() => {
-    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN
+    const token = propBotToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
     if (token) {
       setBotToken(token)
     }
@@ -75,16 +77,12 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
       
       const uploadedUrls = await Promise.all(uploadPromises)
       setPromotionImages(prev => [...prev, ...uploadedUrls])
-      
-      if (webApp?.showAlert) {
-        webApp.showAlert('Images uploaded successfully!')
-      }
+
+      success('Images uploaded successfully!')
     } catch (error) {
       console.error('Error uploading images:', error)
       setError('Failed to upload images. Please try again.')
-      if (webApp?.showAlert) {
-        webApp.showAlert('Failed to upload images. Please try again.')
-      }
+      showError('Failed to upload images. Please try again.')
     } finally {
       setUploadingImages(false)
     }
@@ -136,6 +134,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
       await onPromote(promotionData)
 
+<<<<<<< HEAD
       if (webApp?.showAlert) {
         webApp.showAlert(
           isScheduled
@@ -143,15 +142,26 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
             : 'Promotion sent successfully!'
         )
       }
+=======
+      success(
+        isScheduled
+          ? 'Promotion scheduled successfully!'
+          : 'Promotion sent successfully!'
+      )
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
 
       onClose()
     } catch (error: any) {
       console.error('Error promoting product:', error)
       const errorMessage = error.message || 'Failed to promote product. Please try again.'
       setError(errorMessage)
+<<<<<<< HEAD
       if (webApp?.showAlert) {
         webApp.showAlert(errorMessage)
       }
+=======
+      showError(errorMessage)
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
     } finally {
       setIsSubmitting(false)
     }

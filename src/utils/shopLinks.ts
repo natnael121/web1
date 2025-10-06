@@ -164,7 +164,7 @@ export const shopLinkUtils = {
     const link = this.generateShopLink(shop.id, { ...options, productId: product.id })
     const customMessage = options.customMessage || ''
 
-    let message = `🛍️ **${product.name}**\n\n`
+    let message = `🛍️ ${product.name}\n\n`
 
     if (product.description) {
       const shortDesc = product.description.length > 100
@@ -187,7 +187,7 @@ export const shopLinkUtils = {
       message += `\n${customMessage}\n`
     }
 
-    message += `\n🔗 View product: ${link}`
+    message += `\n${link}`
 
     return message
   }

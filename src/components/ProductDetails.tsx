@@ -91,29 +91,62 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     return null
   }
 
-  const handleShareProduct = () => {
+  const handleShareProduct = async () => {
     if (!shopId || !shopName) return
 
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
     const productLink = shopLinkUtils.generateShopLink(shopId, { productId: product.id })
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, { id: shopId, name: shopName }, {})
+    const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`)
-    } else if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: shareMessage,
-        url: productLink
-      })
-    } else {
-      navigator.clipboard.writeText(`${shareMessage}\n\n${productLink}`).then(() => {
-        if (window.Telegram?.WebApp?.showAlert) {
-          window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
-        } else {
-          alert('Product link copied to clipboard!')
+    if (window.Telegram?.WebApp) {
+      if (window.Telegram.WebApp.openTelegramLink) {
+        const messageToShare = productImage
+          ? `${productImage}\n\n${shareMessage}`
+          : shareMessage
+
+        window.Telegram.WebApp.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(messageToShare)}`
+        )
+      } else {
+        const fullMessage = productImage
+          ? `${productImage}\n\n${shareMessage}`
+          : shareMessage
+
+        await navigator.clipboard.writeText(fullMessage)
+
+        if (window.Telegram.WebApp.showAlert) {
+          window.Telegram.WebApp.showAlert('Product info copied! Paste in any chat to share.')
         }
-      })
+      }
+    } else if (navigator.share) {
+      try {
+        const shareData: any = {
+          title: product.name,
+          text: shareMessage
+        }
+
+        if (productImage) {
+          try {
+            const response = await fetch(productImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'product.jpg', { type: blob.type })
+            shareData.files = [file]
+          } catch (err) {
+            console.log('Could not fetch image for sharing:', err)
+          }
+        }
+
+        await navigator.share(shareData)
+      } catch (err) {
+        console.log('Share cancelled or failed:', err)
+      }
+    } else {
+      const fullMessage = productImage
+        ? `${productImage}\n\n${shareMessage}`
+        : shareMessage
+
+      await navigator.clipboard.writeText(fullMessage)
+      alert('Product info copied to clipboard!')
     }
   }
 

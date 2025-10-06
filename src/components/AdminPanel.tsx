@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { useTelegram } from '../contexts/TelegramContext'
+import { useNotification } from '../contexts/NotificationContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
 import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft, MessageCircle } from 'lucide-react'
@@ -39,6 +40,7 @@ import { shopCustomerService } from '../services/shopCustomerService'
 const AdminPanel: React.FC = () => {
   const { db } = useFirebase()
   const { user, startParam } = useTelegram()
+  const { success, error: showError, warning } = useNotification()
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [ownedShops, setOwnedShops] = useState<Shop[]>([])
@@ -374,23 +376,23 @@ const AdminPanel: React.FC = () => {
 }
 
 
-  const fetchShopStats = async (shopId: string) => {
+  const updateShopStats = async (shopId: string) => {
     try {
       // Get product count
       const productsRef = collection(db, 'products')
       const productsQuery = query(productsRef, where('shopId', '==', shopId), where('isActive', '==', true))
       const productsSnapshot = await getDocs(productsQuery)
       const totalProducts = productsSnapshot.size
-      
+
       // Get order stats
       const ordersRef = collection(db, 'orders')
       const ordersQuery = query(ordersRef, where('shopId', '==', shopId))
       const ordersSnapshot = await getDocs(ordersQuery)
-      
+
       let totalOrders = 0
       let totalRevenue = 0
       const customerIds = new Set<string>()
-      
+
       ordersSnapshot.forEach((doc) => {
         const data = doc.data()
         totalOrders++
@@ -399,18 +401,42 @@ const AdminPanel: React.FC = () => {
           customerIds.add(data.customerId)
         }
       })
-      
-      const totalCustomers = customerIds.size
 
-      setStats({
+      // Get unique customers count from shop_customers
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const customersQuery = query(shopCustomersRef, where('shopId', '==', shopId))
+      const customersSnapshot = await getDocs(customersQuery)
+      const totalCustomers = customersSnapshot.size
+
+      const shopStats = {
         totalProducts,
         totalOrders,
         totalRevenue,
         totalCustomers
+      }
+
+      // Update shop document with new stats
+      const shopRef = doc(db, 'shops', shopId)
+      await updateDoc(shopRef, {
+        stats: shopStats,
+        updatedAt: new Date()
       })
+
+      setStats(shopStats)
+
+      // Update the shop in the ownedShops array
+      setOwnedShops(prevShops =>
+        prevShops.map(shop =>
+          shop.id === shopId ? { ...shop, stats: shopStats } : shop
+        )
+      )
     } catch (error) {
-      console.error('Error fetching stats:', error)
+      console.error('Error updating shop stats:', error)
     }
+  }
+
+  const fetchShopStats = async (shopId: string) => {
+    await updateShopStats(shopId)
   }
 
   const handleShopSelect = async (shop: Shop) => {
@@ -423,7 +449,7 @@ const AdminPanel: React.FC = () => {
   const handleSaveProduct = async (productData: any) => {
     try {
       setError(null)
-      
+
       if (editingProduct) {
         // Update existing product
         const productRef = doc(db, 'products', editingProduct.id)
@@ -440,11 +466,12 @@ const AdminPanel: React.FC = () => {
           updatedAt: new Date()
         })
       }
-      
+
       setEditingProduct(null)
       setShowAddProduct(false)
       if (selectedShop) {
         await fetchShopProducts(selectedShop.id)
+        await updateShopStats(selectedShop.id)
       }
     } catch (error) {
       console.error('Error saving product:', error)
@@ -457,9 +484,10 @@ const AdminPanel: React.FC = () => {
       setError(null)
       const productRef = doc(db, 'products', productId)
       await deleteDoc(productRef)
-      
+
       if (selectedShop) {
         await fetchShopProducts(selectedShop.id)
+        await updateShopStats(selectedShop.id)
       }
     } catch (error) {
       console.error('Error deleting product:', error)
@@ -589,27 +617,49 @@ const AdminPanel: React.FC = () => {
     setShowPromotionModal(true)
   }
 
-  const handleShareProduct = (product: Product) => {
+  const handleShareProduct = async (product: Product) => {
     if (!selectedShop) return
 
     const productLink = shopLinkUtils.generateShopLink(product.shopId, { productId: product.id })
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
+    const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(
         `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
       )
     } else if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: shareMessage,
-        url: productLink
-      }).catch((error) => {
+      try {
+        const shareData: any = {
+          title: product.name,
+          text: shareMessage
+        }
+
+        // Try to include image if available
+        if (productImage) {
+          try {
+            const response = await fetch(productImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'product.jpg', { type: blob.type })
+            shareData.files = [file]
+          } catch (err) {
+            console.log('Could not fetch image for sharing:', err)
+          }
+        }
+
+        await navigator.share(shareData)
+      } catch (error) {
         console.error('Error sharing:', error)
-        copyToClipboard(shareMessage)
-      })
+        const fullMessage = productImage
+          ? `${shareMessage}\n\n📸 Image: ${productImage}`
+          : shareMessage
+        copyToClipboard(fullMessage)
+      }
     } else {
-      copyToClipboard(shareMessage)
+      const fullMessage = productImage
+        ? `${shareMessage}\n\n📸 Image: ${productImage}`
+        : shareMessage
+      copyToClipboard(fullMessage)
     }
   }
 
@@ -682,14 +732,15 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       }
 
       // Send to selected departments or all active departments if none selected
-      const targetDepartments = selectedDepartments.length > 0 
+      const targetDepartments = selectedDepartments.length > 0
         ? departments.filter(d => selectedDepartments.includes(d.id))
         : departments.filter(d => d.isActive)
 
-      const botToken = process.env.TELEGRAM_BOT_TOKEN || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
-      
-      if (!botToken) {
-        throw new Error('Telegram bot token not configured')
+      // Use bot token from state (loaded from user data) or fallback to environment variable
+      const effectiveBotToken = botToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN
+
+      if (!effectiveBotToken) {
+        throw new Error('Telegram bot token not configured. Please set your bot token in Settings.')
       }
 
       // Validate target departments
@@ -710,7 +761,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       for (const department of targetDepartments) {
         try {
           const config = {
+<<<<<<< HEAD
             botToken,
+=======
+            botToken: effectiveBotToken,
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
             chatId: department.telegramChatId
           }
 
@@ -739,7 +794,15 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       if (successCount === 0) {
         throw new Error(`Failed to send to all departments. ${results.map(r => `${r.department}: ${r.error}`).join('; ')}`)
       } else if (failCount > 0) {
+<<<<<<< HEAD
         setError(`Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`)
+=======
+        const warningMsg = `Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`
+        setError(warningMsg)
+        warning(warningMsg, 6000)
+      } else {
+        success(isScheduled ? 'Promotion scheduled successfully!' : 'Promotion sent successfully!')
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
       }
 
       setShowPromotionModal(false)
@@ -748,6 +811,10 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       console.error('Error promoting product:', error)
       const errorMessage = error.message || 'Failed to promote product. Please check your Telegram bot configuration.'
       setError(errorMessage)
+<<<<<<< HEAD
+=======
+      showError(errorMessage)
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
       throw error
     }
   }

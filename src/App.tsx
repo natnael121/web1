@@ -6,6 +6,7 @@ import { collection, query, where, getDocs, doc, getDoc, addDoc } from 'firebase
 import { shopCustomerService } from './services/shopCustomerService'
 import { TelegramProvider } from './contexts/TelegramContext'
 import { FirebaseProvider } from './contexts/FirebaseContext'
+import { NotificationProvider } from './contexts/NotificationContext'
 import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
@@ -226,12 +227,30 @@ function App() {
     return (
       <TelegramProvider>
         <FirebaseProvider db={db} auth={auth}>
-          <div className="min-h-screen bg-telegram-bg text-telegram-text flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-telegram-hint">Loading...</p>
+          <NotificationProvider>
+            <div className="min-h-screen bg-telegram-bg text-telegram-text flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-telegram-hint">Loading...</p>
+              </div>
             </div>
-          </div>
+          </NotificationProvider>
+        </FirebaseProvider>
+      </TelegramProvider>
+    )
+  }
+
+  // Show registration for new users who came via Start button
+  if (needsRegistration && user) {
+    return (
+      <TelegramProvider>
+        <FirebaseProvider db={db} auth={auth}>
+          <NotificationProvider>
+            <UserRegistration
+              user={user}
+              onComplete={handleRegistrationComplete}
+            />
+          </NotificationProvider>
         </FirebaseProvider>
       </TelegramProvider>
     )
@@ -254,6 +273,7 @@ function App() {
   return (
     <TelegramProvider>
       <FirebaseProvider db={db} auth={auth}>
+<<<<<<< HEAD
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
           <SyncStatus />
           <div className="max-w-md mx-auto">
@@ -280,8 +300,38 @@ function App() {
               onViewChange={setCurrentView}
               userData={userData}
             />
+=======
+        <NotificationProvider>
+          <div className="min-h-screen bg-telegram-bg text-telegram-text">
+            <SyncStatus />
+            <div className="max-w-md mx-auto">
+              {/* Header */}
+              <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
+                <h1 className="text-xl font-bold text-center">Shop Directory</h1>
+                {user && (
+                  <p className="text-sm text-center opacity-80 mt-1">
+                    Welcome, {user.firstName}!
+                  </p>
+                )}
+              </header>
+
+              {/* Main Content */}
+              <main className="pb-20">
+                {currentView === 'shops' && <ShopList />}
+                {currentView === 'profile' && <UserProfile user={user} userData={userData} />}
+                {currentView === 'admin' && <AdminPanel />}
+              </main>
+
+              {/* Bottom Navigation */}
+              <Navigation
+                currentView={currentView}
+                onViewChange={setCurrentView}
+                userData={userData}
+              />
+            </div>
+>>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
           </div>
-        </div>
+        </NotificationProvider>
       </FirebaseProvider>
     </TelegramProvider>
   )
