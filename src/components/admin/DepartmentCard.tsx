@@ -1,6 +1,6 @@
 import React from 'react'
 import { Department } from '../../types'
-import { Edit, Trash2, MessageCircle } from 'lucide-react'
+import { FileEdit as Edit, Trash2, MessageCircle } from 'lucide-react'
 
 interface DepartmentCardProps {
   department: Department
@@ -21,42 +21,43 @@ const DepartmentCard: React.FC<DepartmentCardProps> = ({ department, onEdit, onD
   }
 
   return (
-    <div className="bg-telegram-secondary-bg rounded-lg p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3 flex-1">
-          <div className="text-2xl">{department.icon}</div>
-          <div className="flex-1">
-            <h4 className="font-medium text-telegram-text">{department.name}</h4>
-            <div className="flex items-center space-x-3 mt-1">
-              <span className={`text-xs px-2 py-1 rounded-full capitalize ${getRoleColor(department.role)}`}>
-                {department.role}
-              </span>
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                department.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {department.isActive ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1 mt-2 text-xs text-telegram-hint">
+    <div className="bg-telegram-secondary-bg rounded-2xl p-4 active:scale-[0.99] transition-transform">
+      <div className="flex items-center gap-3">
+        <div className="w-14 h-14 bg-telegram-button/10 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+          {department.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-bold text-telegram-text truncate">{department.name}</h4>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ml-2 ${
+              department.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {department.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${getRoleColor(department.role)}`}>
+              {department.role}
+            </span>
+            <div className="flex items-center gap-1 text-xs text-telegram-hint">
               <MessageCircle className="w-3 h-3" />
-              <span>Chat ID: {department.telegramChatId}</span>
+              <span className="truncate">{department.telegramChatId}</span>
             </div>
           </div>
-        </div>
-        
-        <div className="flex space-x-2">
-          <button
-            onClick={() => onEdit(department)}
-            className="p-2 text-telegram-button hover:bg-telegram-button hover:text-telegram-button-text rounded"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(department.id)}
-            className="p-2 text-red-500 hover:bg-red-500 hover:text-white rounded"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <div className="flex justify-end gap-1">
+            <button
+              onClick={() => onEdit(department)}
+              className="p-2 text-telegram-hint hover:text-telegram-button hover:bg-telegram-button/10 rounded-lg transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onDelete(department.id)}
+              className="p-2 text-telegram-hint hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

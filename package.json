@@ -8,10 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
-    "populate-db": "node scripts/populate-database.js"
+    "populate-db": "node scripts/populate-database.js",
+    "migrate-crm": "node scripts/migrate-crm-data.js"
   },
   "dependencies": {
     "@telegram-apps/sdk": "^1.1.3",
+    "date-fns": "^4.1.0",
     "firebase": "^10.14.1",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",

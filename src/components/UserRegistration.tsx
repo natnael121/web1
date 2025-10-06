@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useFirebase } from '../contexts/FirebaseContext'
 import { User, UserData } from '../types'
@@ -8,9 +8,11 @@ import { Store, User as UserIcon, Mail, Save, Loader2, Lock, Eye, EyeOff } from 
 interface UserRegistrationProps {
   user: User
   onComplete: (userData: UserData) => void
+  onCancel?: () => void
+  existingUserData?: UserData
 }
 
-const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete }) => {
+const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete, onCancel, existingUserData }) => {
   const { db, auth } = useFirebase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,26 +30,65 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ user, onComplete })
     setError(null)
 
     try {
-      // Create user with Firebase Authentication
-      const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+      if (existingUserData) {
+        // Update existing customer document to admin
+        const usersRef = collection(db, 'users')
+        const userQuery = query(usersRef, where('telegramId', '==', parseInt(user.id)))
+        const userSnapshot = await getDocs(userQuery)
 
-      // Update display name in Firebase Auth profile
-      await updateProfile(cred.user, { displayName: formData.displayName })
+        if (!userSnapshot.empty) {
+          const existingDocId = userSnapshot.docs[0].id
 
-      // Create Firestore user profile
-      const userData: UserData = {
-        uid: cred.user.uid,
-        email: formData.email,
-        displayName: formData.displayName,
-        telegramId: user.telegramId || parseInt(user.id),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+          // Create Firebase Auth user
+          const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+          await updateProfile(cred.user, { displayName: formData.displayName })
+
+          // Update the existing document with uid, role, email, and displayName
+          const userDocRef = doc(db, 'users', existingDocId)
+          await updateDoc(userDocRef, {
+            uid: cred.user.uid,
+            email: formData.email,
+            displayName: formData.displayName,
+            role: 'admin',
+            updatedAt: new Date()
+          })
+
+          const updatedUserData: UserData = {
+            ...existingUserData,
+            uid: cred.user.uid,
+            email: formData.email,
+            displayName: formData.displayName,
+            role: 'admin'
+          }
+
+          onComplete(updatedUserData)
+        } else {
+          throw new Error('Existing user document not found')
+        }
+      } else {
+        // Create new user with Firebase Authentication
+        const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+
+        // Update display name in Firebase Auth profile
+        await updateProfile(cred.user, { displayName: formData.displayName })
+
+        // Create Firestore user profile with admin role
+        const userData: UserData = {
+          uid: cred.user.uid,
+          email: formData.email,
+          displayName: formData.displayName,
+          telegramId: user.telegramId || parseInt(user.id),
+          role: 'admin',
+          profileCompleted: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }
+
+        await setDoc(doc(db, 'users', cred.user.uid), userData)
+
+        // Return completed user data
+        onComplete(userData)
       }
-
-      await setDoc(doc(db, 'users', cred.user.uid), userData)
-
-      // Return completed user data
-      onComplete(userData)
     } catch (error: any) {
       console.error('Error creating user:', error)
       setError(error.message || 'Failed to create account. Please try again.')

@@ -19,6 +19,7 @@ export interface UserData {
   telegram_id?: number // Add for compatibility with different field names
   telegramBotToken?: string
   telegramBotToken?: string
+  profileCompleted?: boolean
   settings: {
     notifications: {
       email: boolean
@@ -242,6 +243,8 @@ export interface Order {
   deliveredAt?: Date
 }
 
+export type CustomerTag = 'VIP' | 'Wholesale' | 'Regular' | 'New'
+
 export interface Customer {
   id: string
   shopId: string
@@ -251,7 +254,7 @@ export interface Customer {
   telegramId?: string
   telegramUsername?: string
   source: 'web' | 'telegram'
-  tags: ('VIP' | 'Wholesale' | 'Regular' | 'New')[]
+  tags: CustomerTag[]
   totalOrders: number
   totalSpent: number
   averageOrderValue: number
@@ -273,6 +276,68 @@ export interface ShopCustomer {
   role: 'admin' | 'customer'
   createdAt: Date
   updatedAt: Date
+}
+
+export interface CRMContact {
+  id: string
+  shopId: string
+  telegramId: number
+  name: string
+  username?: string
+  phone?: string
+  email?: string
+  tags: string[]
+  notes: string
+  customFields: Record<string, any>
+  lastContactedDate?: Date
+  lastOrderDate?: Date
+  activityStatus: 'active' | 'inactive'
+  sourceLink?: string
+  totalOrders: number
+  totalSpent: number
+  averageOrderValue: number
+  createdAt: Date
+  updatedAt: Date
+  lastNoteUpdate?: Date
+}
+
+export interface CRMTag {
+  id: string
+  shopId: string
+  name: string
+  color: string
+  description?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CRMMessageTemplate {
+  id: string
+  shopId: string
+  name: string
+  category?: string
+  content: string
+  variables: string[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CRMAutoTagRule {
+  id: string
+  shopId: string
+  pattern: string
+  tags: string[]
+  description?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CRMStats {
+  totalCustomers: number
+  activeThisWeek: number
+  inactive30Plus: number
+  topTags: Array<{ tag: string; count: number }>
 }
 
 declare global {

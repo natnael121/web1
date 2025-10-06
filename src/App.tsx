@@ -10,10 +10,10 @@ import { cacheSyncService } from './services/cacheSync'
 import ShopList from './components/ShopList'
 import UserProfile from './components/UserProfile'
 import AdminPanel from './components/AdminPanel'
-import ShopCatalog from './components/ShopCatalog'
 import Navigation from './components/Navigation'
 import SyncStatus from './components/common/SyncStatus'
-import { User, UserData, Shop } from './types'
+import UserRegistration from './components/UserRegistration'
+import { User, UserData } from './types'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -31,13 +31,12 @@ const db = getFirestore(app)
 const auth = getAuth(app)
 
 function App() {
-  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin' | 'catalog'>('shops')
+  const [currentView, setCurrentView] = useState<'shops' | 'profile' | 'admin'>('shops')
   const [user, setUser] = useState<User | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
-  const [selectedShopForCatalog, setSelectedShopForCatalog] = useState<Shop | null>(null)
   const [startParam, setStartParam] = useState<string | null>(null)
-  const [deepLinkedProductId, setDeepLinkedProductId] = useState<string | null>(null)
+  const [needsRegistration, setNeedsRegistration] = useState(false)
 
   useEffect(() => {
     // Initialize cache sync service
@@ -88,8 +87,8 @@ function App() {
         }
         setUser(userInfo)
 
-        // Check if user exists in database
-        checkUserInDatabase(telegramUser.id, userInfo)
+        // Check if user exists in database, pass startParameter to determine flow
+        checkUserInDatabase(telegramUser.id, userInfo, startParameter)
       } else {
         // For development/testing - check for start param even without user
         if (startParameter) {
@@ -119,12 +118,6 @@ function App() {
         return
       }
 
-      const parts = param.split('_')
-      const shopId = parts[0]
-      const productId = parts[1] || null
-
-      console.log('Parsed IDs:', { shopId, productId })
-
       // First, add user to shop_customers if not already there
       const displayName = `${currentUser.firstName} ${currentUser.lastName}`.trim() || 'Customer'
       const result = await shopCustomerService.handleShopLinkAccess(
@@ -139,8 +132,13 @@ function App() {
         return
       }
 
-      // If user was newly created, update userData state
-      if (result.isNewCustomer && !userData) {
+      const shopId = result.shopId
+      const productId = result.productId
+
+      console.log('Shop access result:', { shopId, productId, isNewCustomer: result.isNewCustomer })
+
+      // If user was newly created, update userData state and reload
+      if (result.isNewCustomer) {
         const usersRef = collection(db, 'users')
         const userQuery = query(usersRef, where('telegramId', '==', currentUser.telegramId || parseInt(currentUser.id)))
         const userSnapshot = await getDocs(userQuery)
@@ -148,80 +146,27 @@ function App() {
         if (!userSnapshot.empty) {
           const userDoc = userSnapshot.docs[0]
           const newUserData = userDoc.data() as UserData
-          setUserData({
+          const updatedUserData = {
             ...newUserData,
             uid: userDoc.id,
             createdAt: newUserData.createdAt?.toDate?.() || new Date(),
             updatedAt: newUserData.updatedAt?.toDate?.() || new Date()
-          })
+          }
+          setUserData(updatedUserData)
+
+          // Small delay to ensure state is updated before proceeding
+          await new Promise(resolve => setTimeout(resolve, 100))
         }
       }
 
-      if (productId) {
-        setDeepLinkedProductId(productId)
-      }
-
-      let shopDoc = await getDoc(doc(db, 'shops', shopId))
-
-      if (shopDoc.exists()) {
-        const shopData = shopDoc.data()
-        const shop: Shop = {
-          id: shopDoc.id,
-          ownerId: shopData.ownerId,
-          name: shopData.name,
-          slug: shopData.slug,
-          description: shopData.description,
-          logo: shopData.logo,
-          isActive: shopData.isActive,
-          businessInfo: shopData.businessInfo,
-          settings: shopData.settings,
-          stats: shopData.stats,
-          createdAt: shopData.createdAt?.toDate() || new Date(),
-          updatedAt: shopData.updatedAt?.toDate() || new Date()
-        }
-
-        console.log('Found shop:', shop)
-        setSelectedShopForCatalog(shop)
-        setCurrentView('catalog')
-        return
-      }
-
-      // If not found by ID, try to find by slug
-      const shopsRef = collection(db, 'shops')
-      const slugQuery = query(shopsRef, where('slug', '==', param), where('isActive', '==', true))
-      const slugSnapshot = await getDocs(slugQuery)
-
-      if (!slugSnapshot.empty) {
-        const shopDoc = slugSnapshot.docs[0]
-        const shopData = shopDoc.data()
-        const shop: Shop = {
-          id: shopDoc.id,
-          ownerId: shopData.ownerId,
-          name: shopData.name,
-          slug: shopData.slug,
-          description: shopData.description,
-          logo: shopData.logo,
-          isActive: shopData.isActive,
-          businessInfo: shopData.businessInfo,
-          settings: shopData.settings,
-          stats: shopData.stats,
-          createdAt: shopData.createdAt?.toDate() || new Date(),
-          updatedAt: shopData.updatedAt?.toDate() || new Date()
-        }
-
-        console.log('Found shop by slug:', shop)
-        setSelectedShopForCatalog(shop)
-        setCurrentView('catalog')
-        return
-      }
-
-      console.log('Shop not found for parameter:', param)
+      console.log('User registered to shop, switching to shops view')
+      setCurrentView('shops')
     } catch (error) {
       console.error('Error handling start parameter:', error)
     }
   }
 
-  const checkUserInDatabase = async (telegramId: number, userInfo?: User) => {
+  const checkUserInDatabase = async (telegramId: number, userInfo?: User, startParameter?: string | null) => {
     try {
       setUserLoading(true)
       const usersRef = collection(db, 'users')
@@ -242,18 +187,38 @@ function App() {
           createdAt: userData.createdAt?.toDate?.() || new Date(),
           updatedAt: userData.updatedAt?.toDate?.() || new Date()
         })
+
+        // User exists, no registration needed
+        setNeedsRegistration(false)
+      } else {
+        // User does not exist in database
+        // Only require registration if they came via Start button (no startParameter)
+        if (!startParameter) {
+          console.log('New user without shop link - needs registration')
+          setNeedsRegistration(true)
+        } else {
+          // User came via shop link - no registration needed, will auto-create
+          console.log('New user with shop link - will auto-create customer account')
+          setNeedsRegistration(false)
+        }
       }
 
       // After user check, handle start param if present
-      // This will create the user if they don't exist
-      if (startParam) {
-        await handleStartParam(startParam, userInfo)
+      // This will create the user if they don't exist (for link-based users)
+      if (startParameter) {
+        await handleStartParam(startParameter, userInfo)
       }
     } catch (error) {
       console.error('Error checking user in database:', error)
     } finally {
       setUserLoading(false)
     }
+  }
+
+  const handleRegistrationComplete = (userData: UserData) => {
+    console.log('Registration completed:', userData)
+    setUserData(userData)
+    setNeedsRegistration(false)
   }
 
   // Show loading while checking user
@@ -272,14 +237,27 @@ function App() {
     )
   }
 
+  // Show registration for new users who came via Start button
+  if (needsRegistration && user) {
+    return (
+      <TelegramProvider>
+        <FirebaseProvider db={db} auth={auth}>
+          <UserRegistration
+            user={user}
+            onComplete={handleRegistrationComplete}
+          />
+        </FirebaseProvider>
+      </TelegramProvider>
+    )
+  }
+
   return (
     <TelegramProvider>
       <FirebaseProvider db={db} auth={auth}>
         <div className="min-h-screen bg-telegram-bg text-telegram-text">
           <SyncStatus />
-          <div className={currentView === 'catalog' ? 'w-full max-w-7xl mx-auto' : 'max-w-md mx-auto'}>
+          <div className="max-w-md mx-auto">
             {/* Header */}
-            {currentView !== 'catalog' && (
             <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
               <h1 className="text-xl font-bold text-center">Shop Directory</h1>
               {user && (
@@ -288,38 +266,20 @@ function App() {
                 </p>
               )}
             </header>
-            )}
 
             {/* Main Content */}
-            <main className={currentView === 'catalog' ? 'pb-4' : 'pb-20'}>
-              {currentView === 'catalog' && selectedShopForCatalog && (
-                <ShopCatalog
-                  shop={selectedShopForCatalog}
-                  deepLinkedProductId={deepLinkedProductId}
-                  onBack={() => {
-                    setCurrentView('shops')
-                    setSelectedShopForCatalog(null)
-                    setDeepLinkedProductId(null)
-                  }}
-                />
-              )}
+            <main className="pb-20">
               {currentView === 'shops' && <ShopList />}
               {currentView === 'profile' && <UserProfile user={user} userData={userData} />}
               {currentView === 'admin' && <AdminPanel />}
             </main>
 
-            {/* Bottom Navigation - Show always when not in catalog view */}
-            {currentView !== 'catalog' && (
-              <Navigation 
-                currentView={currentView} 
-                onViewChange={(view) => {
-                  if (view !== 'catalog') {
-                    setSelectedShopForCatalog(null)
-                  }
-                  setCurrentView(view)
-                }}
-              />
-            )}
+            {/* Bottom Navigation */}
+            <Navigation
+              currentView={currentView}
+              onViewChange={setCurrentView}
+              userData={userData}
+            />
           </div>
         </div>
       </FirebaseProvider>

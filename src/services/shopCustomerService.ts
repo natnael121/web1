@@ -1,5 +1,7 @@
-import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, doc, getDoc, deleteDoc } from 'firebase/firestore'
 import { Firestore } from 'firebase/firestore'
+import { syncContact } from './crmSyncService'
+import { applyAutoTagRules } from './crmService'
 
 export interface ShopAccessResult {
   success: boolean
@@ -117,6 +119,7 @@ export const shopCustomerService = {
         telegramId,
         telegram_id: telegramId,
         role: 'customer',
+        profileCompleted: false,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -181,6 +184,19 @@ export const shopCustomerService = {
           }
         }
 
+        try {
+          await syncContact(shopId, telegramId)
+
+          if (startParam) {
+            const tags = await applyAutoTagRules(shopId, startParam)
+            if (tags.length > 0) {
+              console.log(`Applied auto-tags for ${telegramId}:`, tags)
+            }
+          }
+        } catch (error) {
+          console.error('Error syncing CRM contact:', error)
+        }
+
         return {
           success: true,
           shopId,
@@ -203,6 +219,159 @@ export const shopCustomerService = {
         productId: null,
         isNewCustomer: false,
         error: 'Failed to process shop link'
+      }
+    }
+  },
+
+  async removeCustomerFromShop(
+    db: Firestore,
+    shopId: string,
+    telegramId: number
+  ): Promise<{ success: boolean; error?: string; deletedRecord?: any }> {
+    try {
+      console.log('[removeCustomerFromShop] Starting removal:', { shopId, telegramId })
+
+      const shopRef = doc(db, 'shops', shopId)
+      const shopDoc = await getDoc(shopRef)
+
+      if (!shopDoc.exists()) {
+        console.log('[removeCustomerFromShop] Shop not found')
+        return {
+          success: false,
+          error: 'Shop not found'
+        }
+      }
+
+      const shopData = shopDoc.data()
+      console.log('[removeCustomerFromShop] Shop data:', { ownerId: shopData.ownerId })
+      if (shopData.ownerId) {
+        const ownerUsersRef = collection(db, 'users')
+
+        // Check with telegramId field
+        const ownerQuery = query(
+          ownerUsersRef,
+          where('telegramId', '==', telegramId)
+        )
+        const ownerSnapshot = await getDocs(ownerQuery)
+
+        console.log('[removeCustomerFromShop] Owner query results:', {
+          found: !ownerSnapshot.empty,
+          count: ownerSnapshot.docs.length
+        })
+
+        if (!ownerSnapshot.empty) {
+          const ownerDoc = ownerSnapshot.docs[0]
+          console.log('[removeCustomerFromShop] Found owner by telegramId:', {
+            ownerDocId: ownerDoc.id,
+            shopOwnerId: shopData.ownerId,
+            isOwner: ownerDoc.id === shopData.ownerId
+          })
+          if (ownerDoc.id === shopData.ownerId) {
+            return {
+              success: false,
+              error: 'Cannot remove shop owner from their own shop'
+            }
+          }
+        } else {
+          // Try with telegram_id field as fallback
+          const altOwnerQuery = query(
+            ownerUsersRef,
+            where('telegram_id', '==', telegramId)
+          )
+          const altOwnerSnapshot = await getDocs(altOwnerQuery)
+
+          console.log('[removeCustomerFromShop] Alt owner query results:', {
+            found: !altOwnerSnapshot.empty,
+            count: altOwnerSnapshot.docs.length
+          })
+
+          if (!altOwnerSnapshot.empty) {
+            const ownerDoc = altOwnerSnapshot.docs[0]
+            console.log('[removeCustomerFromShop] Found owner by telegram_id:', {
+              ownerDocId: ownerDoc.id,
+              shopOwnerId: shopData.ownerId,
+              isOwner: ownerDoc.id === shopData.ownerId
+            })
+            if (ownerDoc.id === shopData.ownerId) {
+              return {
+                success: false,
+                error: 'Cannot remove shop owner from their own shop'
+              }
+            }
+          }
+        }
+      }
+
+      console.log('[removeCustomerFromShop] Querying shop_customers collection')
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const customerQuery = query(
+        shopCustomersRef,
+        where('shopId', '==', shopId),
+        where('telegramId', '==', telegramId)
+      )
+      const snapshot = await getDocs(customerQuery)
+
+      console.log('[removeCustomerFromShop] Customer query results:', {
+        found: !snapshot.empty,
+        count: snapshot.docs.length
+      })
+
+      if (snapshot.empty) {
+        console.log('[removeCustomerFromShop] Customer access not found')
+        return {
+          success: false,
+          error: 'Customer access not found'
+        }
+      }
+
+      const docToDelete = snapshot.docs[0]
+      const deletedData = {
+        id: docToDelete.id,
+        ...docToDelete.data()
+      }
+
+      console.log('[removeCustomerFromShop] Deleting document:', docToDelete.id)
+      await deleteDoc(docToDelete.ref)
+
+      console.log('[removeCustomerFromShop] Successfully removed customer from shop')
+      return {
+        success: true,
+        deletedRecord: deletedData
+      }
+    } catch (error) {
+      console.error('[removeCustomerFromShop] Error removing customer from shop:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to remove shop access'
+      }
+    }
+  },
+
+  async restoreCustomerToShop(
+    db: Firestore,
+    deletedRecord: any
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!deletedRecord || !deletedRecord.shopId || !deletedRecord.telegramId) {
+        return {
+          success: false,
+          error: 'Invalid record data'
+        }
+      }
+
+      const shopCustomersRef = collection(db, 'shop_customers')
+      const { id, ...recordData } = deletedRecord
+
+      await addDoc(shopCustomersRef, recordData)
+
+      return {
+        success: true
+      }
+    } catch (error) {
+      console.error('Error restoring customer to shop:', error)
+      return {
+        success: false,
+        error: 'Failed to restore shop access'
       }
     }
   }
