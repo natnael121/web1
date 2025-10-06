@@ -591,27 +591,49 @@ const AdminPanel: React.FC = () => {
     setShowPromotionModal(true)
   }
 
-  const handleShareProduct = (product: Product) => {
+  const handleShareProduct = async (product: Product) => {
     if (!selectedShop) return
 
     const productLink = shopLinkUtils.generateShopLink(product.shopId, { productId: product.id })
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
+    const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(
         `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
       )
     } else if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: shareMessage,
-        url: productLink
-      }).catch((error) => {
+      try {
+        const shareData: any = {
+          title: product.name,
+          text: shareMessage
+        }
+
+        // Try to include image if available
+        if (productImage) {
+          try {
+            const response = await fetch(productImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'product.jpg', { type: blob.type })
+            shareData.files = [file]
+          } catch (err) {
+            console.log('Could not fetch image for sharing:', err)
+          }
+        }
+
+        await navigator.share(shareData)
+      } catch (error) {
         console.error('Error sharing:', error)
-        copyToClipboard(shareMessage)
-      })
+        const fullMessage = productImage
+          ? `${shareMessage}\n\n📸 Image: ${productImage}`
+          : shareMessage
+        copyToClipboard(fullMessage)
+      }
     } else {
-      copyToClipboard(shareMessage)
+      const fullMessage = productImage
+        ? `${shareMessage}\n\n📸 Image: ${productImage}`
+        : shareMessage
+      copyToClipboard(fullMessage)
     }
   }
 

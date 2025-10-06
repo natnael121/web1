@@ -91,29 +91,72 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     return null
   }
 
-  const handleShareProduct = () => {
+  const handleShareProduct = async () => {
     if (!shopId || !shopName) return
 
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
     const productLink = shopLinkUtils.generateShopLink(shopId, { productId: product.id })
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, { id: shopId, name: shopName }, {})
+    const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`)
-    } else if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: shareMessage,
-        url: productLink
-      })
-    } else {
-      navigator.clipboard.writeText(`${shareMessage}\n\n${productLink}`).then(() => {
-        if (window.Telegram?.WebApp?.showAlert) {
-          window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
-        } else {
-          alert('Product link copied to clipboard!')
+    // For Telegram Web App - open share dialog with text and let user add photo manually
+    if (window.Telegram?.WebApp) {
+      // Use switchInlineQuery to let user share with a preview
+      const inlineQuery = `${product.name} - $${product.price.toFixed(2)} - ${productLink}`
+
+      // Try to use openTelegramLink with share url
+      if (window.Telegram.WebApp.openTelegramLink) {
+        // Include image URL hint in message for manual sharing
+        const messageWithImage = productImage
+          ? `${shareMessage}\n\n📸 Product Image: ${productImage}`
+          : shareMessage
+
+        window.Telegram.WebApp.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
+        )
+      } else {
+        // Fallback to clipboard
+        const fullMessage = productImage
+          ? `${shareMessage}\n\n📸 ${productImage}`
+          : shareMessage
+
+        await navigator.clipboard.writeText(fullMessage)
+
+        if (window.Telegram.WebApp.showAlert) {
+          window.Telegram.WebApp.showAlert('Product info copied! Paste in any chat to share.')
         }
-      })
+      }
+    } else if (navigator.share) {
+      // For browsers with native share API
+      try {
+        const shareData: any = {
+          title: product.name,
+          text: shareMessage
+        }
+
+        // Try to include image if available
+        if (productImage) {
+          try {
+            const response = await fetch(productImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'product.jpg', { type: blob.type })
+            shareData.files = [file]
+          } catch (err) {
+            console.log('Could not fetch image for sharing:', err)
+          }
+        }
+
+        await navigator.share(shareData)
+      } catch (err) {
+        console.log('Share cancelled or failed:', err)
+      }
+    } else {
+      // Fallback to clipboard
+      const fullMessage = productImage
+        ? `${shareMessage}\n\n📸 Image: ${productImage}`
+        : shareMessage
+
+      await navigator.clipboard.writeText(fullMessage)
+      alert('Product info copied to clipboard!')
     }
   }
 
