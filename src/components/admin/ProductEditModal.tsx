@@ -24,7 +24,6 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({
     price: product?.price || 0,
     stock: product?.stock || 0,
     category: product?.category || '',
-    subcategory: product?.subcategory || '',
     images: product?.images || [''],
     sku: product?.sku || '',
     isActive: product?.isActive ?? true,
@@ -32,8 +31,6 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({
     tags: product?.tags || [],
     featured: product?.featured || false,
     costPrice: product?.costPrice || 0,
-    weight: product?.weight || 0,
-    dimensions: product?.dimensions || { length: 0, width: 0, height: 0 },
     shopId: shopId
   })
 
@@ -217,32 +214,19 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({
           {/* Categories */}
           <div className="space-y-4">
             <h4 className="font-medium text-telegram-text border-b pb-2">Categories</h4>
-            
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">Subcategory</label>
-                <input
-                  type="text"
-                  value={formData.subcategory}
-                  onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                  placeholder="Optional subcategory"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-telegram-text mb-1">Category</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
+              >
+                <option value="">Select Category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -301,78 +285,6 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({
               >
                 Add
               </button>
-            </div>
-          </div>
-
-          {/* Physical Properties */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-telegram-text border-b pb-2">Physical Properties</h4>
-            
-            <div className="grid md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">
-                  Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.weight}
-                  onChange={(e) => setFormData({...formData, weight: parseFloat(e.target.value) || 0})}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">
-                  Length (cm)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.dimensions.length}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    dimensions: { ...formData.dimensions, length: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">
-                  Width (cm)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.dimensions.width}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    dimensions: { ...formData.dimensions, width: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-telegram-text mb-1">
-                  Height (cm)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.dimensions.height}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    dimensions: { ...formData.dimensions, height: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="w-full p-3 border rounded-lg bg-telegram-secondary-bg text-telegram-text"
-                />
-              </div>
             </div>
           </div>
 
