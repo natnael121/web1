@@ -13,12 +13,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, onEdit, onDelete 
     <div className="bg-telegram-secondary-bg rounded-2xl p-4 active:scale-[0.99] transition-transform">
       <div className="flex items-center gap-3">
         <div
-<<<<<<< HEAD
-          className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-          style={{ backgroundColor: category.color + '20', color: category.color }}
-=======
           className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 bg-telegram-button/10"
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
         >
           {category.icon}
         </div>

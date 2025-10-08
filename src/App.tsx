@@ -273,34 +273,6 @@ function App() {
   return (
     <TelegramProvider>
       <FirebaseProvider db={db} auth={auth}>
-<<<<<<< HEAD
-        <div className="min-h-screen bg-telegram-bg text-telegram-text">
-          <SyncStatus />
-          <div className="max-w-md mx-auto">
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-telegram-button text-telegram-button-text p-4 shadow-lg">
-              <h1 className="text-xl font-bold text-center">Shop Directory</h1>
-              {user && (
-                <p className="text-sm text-center opacity-80 mt-1">
-                  Welcome, {user.firstName}!
-                </p>
-              )}
-            </header>
-
-            {/* Main Content */}
-            <main className="pb-20">
-              {currentView === 'shops' && <ShopList />}
-              {currentView === 'profile' && <UserProfile user={user} userData={userData} />}
-              {currentView === 'admin' && <AdminPanel />}
-            </main>
-
-            {/* Bottom Navigation */}
-            <Navigation
-              currentView={currentView}
-              onViewChange={setCurrentView}
-              userData={userData}
-            />
-=======
         <NotificationProvider>
           <div className="min-h-screen bg-telegram-bg text-telegram-text">
             <SyncStatus />
@@ -329,7 +301,6 @@ function App() {
                 userData={userData}
               />
             </div>
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
           </div>
         </NotificationProvider>
       </FirebaseProvider>

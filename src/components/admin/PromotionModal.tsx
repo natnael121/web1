@@ -134,34 +134,18 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
       await onPromote(promotionData)
 
-<<<<<<< HEAD
-      if (webApp?.showAlert) {
-        webApp.showAlert(
-          isScheduled
-            ? 'Promotion scheduled successfully!'
-            : 'Promotion sent successfully!'
-        )
-      }
-=======
       success(
         isScheduled
           ? 'Promotion scheduled successfully!'
           : 'Promotion sent successfully!'
       )
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
 
       onClose()
     } catch (error: any) {
       console.error('Error promoting product:', error)
       const errorMessage = error.message || 'Failed to promote product. Please try again.'
       setError(errorMessage)
-<<<<<<< HEAD
-      if (webApp?.showAlert) {
-        webApp.showAlert(errorMessage)
-      }
-=======
       showError(errorMessage)
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
     } finally {
       setIsSubmitting(false)
     }

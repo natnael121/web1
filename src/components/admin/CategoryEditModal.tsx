@@ -21,6 +21,8 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({
     name: category?.name || '',
     description: category?.description || '',
     icon: category?.icon || '📦',
+    color: category?.color || '#3b82f6',
+    order: category?.order ?? 0,
     isActive: category?.isActive ?? true,
     userId: userId,
     shopId: shopId

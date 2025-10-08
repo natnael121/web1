@@ -139,8 +139,6 @@ body {
 
 .animate-slide-in-down {
   animation: slide-in-down 0.3s ease-out;
-<<<<<<< HEAD
-=======
 }
 
 /* Animation for notifications */
@@ -157,5 +155,4 @@ body {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
 }

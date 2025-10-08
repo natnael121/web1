@@ -298,9 +298,8 @@ const AdminPanel: React.FC = () => {
       setLoading(true)
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
-        categoriesRef, 
+        categoriesRef,
         where('shopId', '==', shopId),
-        
         orderBy('order', 'asc')
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
@@ -498,24 +497,40 @@ const AdminPanel: React.FC = () => {
   const handleSaveCategory = async (categoryData: any) => {
     try {
       setError(null)
-      
+
       if (editingCategory) {
         // Update existing category
         const categoryRef = doc(db, 'categories', editingCategory.id)
         await updateDoc(categoryRef, {
-          ...categoryData,
+          name: categoryData.name,
+          description: categoryData.description || '',
+          icon: categoryData.icon,
+          color: categoryData.color || '#3b82f6',
+          order: categoryData.order ?? 0,
+          isActive: categoryData.isActive !== false,
+          productCount: editingCategory.productCount || 0,
           updatedAt: new Date()
         })
+        success('Category updated successfully!')
       } else {
         // Add new category
         const categoriesRef = collection(db, 'categories')
         await addDoc(categoriesRef, {
-          ...categoryData,
+          userId: categoryData.userId,
+          shopId: categoryData.shopId,
+          name: categoryData.name,
+          description: categoryData.description || '',
+          icon: categoryData.icon,
+          color: categoryData.color || '#3b82f6',
+          order: categoryData.order ?? 0,
+          isActive: categoryData.isActive !== false,
+          productCount: 0,
           createdAt: new Date(),
           updatedAt: new Date()
         })
+        success('Category created successfully!')
       }
-      
+
       setEditingCategory(null)
       setShowAddCategory(false)
       if (selectedShop) {
@@ -523,7 +538,9 @@ const AdminPanel: React.FC = () => {
       }
     } catch (error) {
       console.error('Error saving category:', error)
-      setError('Failed to save category. Please try again.')
+      const errorMsg = 'Failed to save category. Please try again.'
+      setError(errorMsg)
+      showError(errorMsg)
     }
   }
 
@@ -761,11 +778,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       for (const department of targetDepartments) {
         try {
           const config = {
-<<<<<<< HEAD
-            botToken,
-=======
             botToken: effectiveBotToken,
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
             chatId: department.telegramChatId
           }
 
@@ -794,15 +807,11 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       if (successCount === 0) {
         throw new Error(`Failed to send to all departments. ${results.map(r => `${r.department}: ${r.error}`).join('; ')}`)
       } else if (failCount > 0) {
-<<<<<<< HEAD
-        setError(`Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`)
-=======
         const warningMsg = `Sent to ${successCount} department(s), but failed for ${failCount}: ${results.filter(r => !r.success).map(r => r.department).join(', ')}`
         setError(warningMsg)
         warning(warningMsg, 6000)
       } else {
         success(isScheduled ? 'Promotion scheduled successfully!' : 'Promotion sent successfully!')
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
       }
 
       setShowPromotionModal(false)
@@ -811,10 +820,7 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       console.error('Error promoting product:', error)
       const errorMessage = error.message || 'Failed to promote product. Please check your Telegram bot configuration.'
       setError(errorMessage)
-<<<<<<< HEAD
-=======
       showError(errorMessage)
->>>>>>> f96c0bbe1ed154a8b4f011c96e6fd9994837d0be
       throw error
     }
   }
