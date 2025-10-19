@@ -5,25 +5,13 @@ This folder contains the Firebase security rules for the multi-shop Telegram min
 ## Files
 
 - `firestore.rules` - Firestore database security rules
-- `storage.rules` - Firebase Storage security rules
 
 ## Deployment
 
 To deploy these rules to your Firebase project, use the Firebase CLI:
 
-### Deploy Firestore Rules
 ```bash
 firebase deploy --only firestore:rules
-```
-
-### Deploy Storage Rules
-```bash
-firebase deploy --only storage:rules
-```
-
-### Deploy All Rules
-```bash
-firebase deploy --only firestore:rules,storage:rules
 ```
 
 ## Security Overview
@@ -59,27 +47,9 @@ The Firestore rules implement role-based access control with the following roles
 - Prevents unauthorized access to other users' data
 - Prevents unauthorized modification of shop ownership
 
-### Storage Rules
+## Image Storage
 
-The Storage rules protect uploaded files with the following controls:
-
-#### Protected Paths:
-- **users/{userId}**: User profile images (owner or admin only)
-- **shops/{shopId}**: Shop logos and images (shop owner only)
-- **products/{productId}**: Product images (shop owner only)
-- **categories/{categoryId}**: Category images (shop owner only)
-- **orders/{orderId}/payment**: Payment proof images (authenticated users)
-- **promotions/{promotionId}**: Promotion images (shop owner only)
-- **departments/{departmentId}**: Department icons (shop owner only)
-- **temp/{userId}**: Temporary uploads (owner only, auto-delete after 24h)
-- **public**: Public assets (read-only for users, write for admins)
-
-#### Key Security Features:
-- All images must be valid image MIME types
-- Maximum file size: 10MB
-- Public read access for product and shop images
-- Write access restricted to owners or admins
-- Temporary uploads isolated by user ID
+This app uses ImgBB for image hosting instead of Firebase Storage. All image URLs are stored in Firestore documents.
 
 ## Testing
 
@@ -93,7 +63,6 @@ firebase emulators:start
 
 Monitor rule usage and potential security issues in the Firebase Console:
 - Go to Firebase Console > Firestore Database > Rules tab
-- Go to Firebase Console > Storage > Rules tab
 - Check the "Rules Playground" to test specific scenarios
 
 ## Best Practices
