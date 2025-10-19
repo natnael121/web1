@@ -12,9 +12,13 @@ service cloud.firestore {
     }
 
     // Users collection - Allow authenticated users to read and manage their own profile
+    // Allow public creation for customer accounts (Telegram users accessing via shop links)
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if (isAuthenticated() && request.auth.uid == userId) ||
+                      (request.resource.data.role == 'customer' &&
+                       request.resource.data.telegramId is number &&
+                       request.resource.data.displayName is string);
       allow update: if isAuthenticated() && request.auth.uid == userId;
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
@@ -73,10 +77,13 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Shop Customers collection - Authenticated users can manage
+    // Shop Customers collection - Allow unauthenticated creation for customer registration via shop links
     match /shop_customers/{shopCustomerId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() ||
+                      (request.resource.data.role == 'customer' &&
+                       request.resource.data.telegramId is number &&
+                       request.resource.data.shopId is string);
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
