@@ -1,0 +1,272 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isShopOwner() {
+      return isAuthenticated() &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'shop_owner' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function isShopOwnerOrAdmin(shopId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/shops/$(shopId)).data.ownerId == request.auth.uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    function validateUserData() {
+      return request.resource.data.keys().hasAll(['email', 'role']) &&
+             request.resource.data.role in ['shop_owner', 'admin'];
+    }
+
+    function validateShopData() {
+      return request.resource.data.keys().hasAll(['name', 'slug', 'ownerId', 'isActive']) &&
+             request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function validateProductData() {
+      return request.resource.data.keys().hasAll(['name', 'price', 'shopId', 'category', 'stock']) &&
+             request.resource.data.price >= 0 &&
+             request.resource.data.stock >= 0;
+    }
+
+    function validateCategoryData() {
+      return request.resource.data.keys().hasAll(['name', 'userId', 'shopId']) &&
+             request.resource.data.userId == request.auth.uid;
+    }
+
+    function validateOrderData() {
+      return request.resource.data.keys().hasAll(['shopId', 'customerId', 'items', 'total', 'status']) &&
+             request.resource.data.status in ['pending', 'confirmed', 'shipped', 'delivered'] &&
+             request.resource.data.paymentStatus in ['pending', 'paid', 'refunded', 'confirmation_required', 'cancelled'];
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                      request.auth.uid == userId &&
+                      validateUserData();
+      allow update: if isOwner(userId) && validateUserData();
+      allow delete: if isAdmin();
+    }
+
+    // Shops collection
+    match /shops/{shopId} {
+      allow read: if true;
+      allow create: if isShopOwner() && validateShopData();
+      allow update: if isShopOwnerOrAdmin(shopId) &&
+                      request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isAdmin();
+
+      // Shop statistics subcollection
+      match /stats/{statId} {
+        allow read: if isShopOwnerOrAdmin(shopId);
+        allow write: if isShopOwnerOrAdmin(shopId);
+      }
+    }
+
+    // Categories collection
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if isShopOwner() && validateCategoryData();
+      allow update: if isAuthenticated() &&
+                      (resource.data.userId == request.auth.uid || isAdmin()) &&
+                      request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() &&
+                      (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Departments collection
+    match /departments/{departmentId} {
+      allow read: if isAuthenticated() &&
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isShopOwner() &&
+                      request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() &&
+                      (resource.data.userId == request.auth.uid || isAdmin()) &&
+                      request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() &&
+                      (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isShopOwner() &&
+                      validateProductData() &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      validateProductData() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        isShopOwnerOrAdmin(resource.data.shopId) ||
+        resource.data.customerId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && validateOrderData();
+      allow update: if isAuthenticated() && (
+        isShopOwnerOrAdmin(resource.data.shopId) ||
+        (resource.data.customerId == request.auth.uid &&
+         request.resource.data.status == 'pending')
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && (
+        isShopOwnerOrAdmin(resource.data.shopId) ||
+        customerId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isShopOwnerOrAdmin(resource.data.shopId) ||
+        customerId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Shop Customers collection (junction table)
+    match /shop_customers/{shopCustomerId} {
+      allow read: if isAuthenticated() && (
+        isShopOwnerOrAdmin(resource.data.shopId) ||
+        resource.data.customerId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+      allow delete: if isAdmin();
+    }
+
+    // Shop Owners collection
+    match /shop_owners/{ownerId} {
+      allow read: if isAuthenticated() && (
+        ownerId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && request.auth.uid == ownerId;
+      allow update: if isAuthenticated() && request.auth.uid == ownerId;
+      allow delete: if isAdmin();
+    }
+
+    // CRM Contacts collection
+    match /crm_contacts/{contactId} {
+      allow read: if isAuthenticated() &&
+                    isShopOwnerOrAdmin(resource.data.shopId);
+      allow create: if isShopOwner() &&
+                      request.resource.data.shopId is string &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // CRM Tags collection
+    match /crm_tags/{tagId} {
+      allow read: if isAuthenticated() &&
+                    isShopOwnerOrAdmin(resource.data.shopId);
+      allow create: if isShopOwner() &&
+                      request.resource.data.shopId is string &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // CRM Message Templates collection
+    match /crm_message_templates/{templateId} {
+      allow read: if isAuthenticated() &&
+                    isShopOwnerOrAdmin(resource.data.shopId);
+      allow create: if isShopOwner() &&
+                      request.resource.data.shopId is string &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // CRM Auto Tag Rules collection
+    match /crm_auto_tag_rules/{ruleId} {
+      allow read: if isAuthenticated() &&
+                    isShopOwnerOrAdmin(resource.data.shopId);
+      allow create: if isShopOwner() &&
+                      request.resource.data.shopId is string &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // Shop Links collection
+    match /shop_links/{linkId} {
+      allow read: if true;
+      allow create: if isShopOwner() &&
+                      request.resource.data.shopId is string &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // Promotions collection
+    match /promotions/{promotionId} {
+      allow read: if true;
+      allow create: if isShopOwner() &&
+                      request.resource.data.shopId is string &&
+                      isShopOwnerOrAdmin(request.resource.data.shopId);
+      allow update: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId) &&
+                      request.resource.data.shopId == resource.data.shopId;
+      allow delete: if isAuthenticated() &&
+                      isShopOwnerOrAdmin(resource.data.shopId);
+    }
+
+    // Analytics collection
+    match /analytics/{analyticsId} {
+      allow read: if isAuthenticated() && isShopOwner();
+      allow write: if isAuthenticated() && isShopOwner();
+    }
+
+    // System configuration (admin only)
+    match /system/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

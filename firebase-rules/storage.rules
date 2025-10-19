@@ -1,0 +1,131 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isShopOwner() {
+      return isAuthenticated() &&
+             (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'shop_owner' ||
+              firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function isValidImageFile() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isValidImageSize() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB max
+    }
+
+    function isOwnerOfShop(shopId) {
+      return isAuthenticated() && (
+        firestore.get(/databases/(default)/documents/shops/$(shopId)).data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // User profile images
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() &&
+                     request.auth.uid == userId &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isAuthenticated() &&
+                      (request.auth.uid == userId || isAdmin());
+    }
+
+    // Shop logos and images
+    match /shops/{shopId}/logo/{fileName} {
+      allow read: if true;
+      allow write: if isOwnerOfShop(shopId) &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isOwnerOfShop(shopId);
+    }
+
+    match /shops/{shopId}/images/{fileName} {
+      allow read: if true;
+      allow write: if isOwnerOfShop(shopId) &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isOwnerOfShop(shopId);
+    }
+
+    // Product images
+    match /products/{productId}/{fileName} {
+      allow read: if true;
+      allow write: if isShopOwner() &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isShopOwner();
+    }
+
+    // Category images
+    match /categories/{categoryId}/{fileName} {
+      allow read: if true;
+      allow write: if isShopOwner() &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isShopOwner();
+    }
+
+    // Order payment proof images
+    match /orders/{orderId}/payment/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isAdmin();
+    }
+
+    // Promotion images
+    match /promotions/{promotionId}/{fileName} {
+      allow read: if true;
+      allow write: if isShopOwner() &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isShopOwner();
+    }
+
+    // Department icons/images
+    match /departments/{departmentId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isShopOwner() &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isShopOwner();
+    }
+
+    // Temporary uploads (auto-delete after 24 hours)
+    match /temp/{userId}/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() &&
+                     request.auth.uid == userId &&
+                     isValidImageFile() &&
+                     isValidImageSize();
+      allow delete: if isAuthenticated() &&
+                      (request.auth.uid == userId || isAdmin());
+    }
+
+    // Public assets (read-only for users, write for admins)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Default deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
