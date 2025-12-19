@@ -12,40 +12,100 @@ interface ShopCardProps {
 const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
   const [showLinkManager, setShowLinkManager] = useState(false)
 
+  // Helper function to get currency
+  const getCurrency = () => {
+    return shop.settings?.currency || 'USD'
+  }
+
   const formatCurrency = (amount: number) => {
-    const currency = shop.settings?.currency || 'USD'
+    const currency = getCurrency()
     const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'ETB' ? 'Br' : '$'
     return `${symbol}${amount.toFixed(0)}`
   }
 
+  // Helper to get business hours from either structure
+  const getBusinessHours = () => {
+    if (shop.settings?.businessHours) {
+      return shop.settings.businessHours
+    }
+    // Return default business hours if none exist
+    return {
+      open: "09:00",
+      close: "18:00",
+      days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    }
+  }
+
   const getOperatingStatus = () => {
-    if (!shop.settings?.businessHours) return 'Unknown'
+    const businessHours = getBusinessHours()
     
     const now = new Date()
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'lowercase' })
     const currentTime = now.toTimeString().slice(0, 5)
     
-    const { open, close, days } = shop.settings.businessHours
+    const { open, close, days } = businessHours
     
-    if (!days.includes(currentDay)) return 'Closed'
+    if (!days?.includes(currentDay)) return 'Closed'
     if (currentTime >= open && currentTime <= close) return 'Open'
     return 'Closed'
   }
 
+  // Helper to get description
+  const getDescription = () => {
+    return shop.description || shop.businessInfo?.description || "No description"
+  }
+
+  // Helper to get name
+  const getName = () => {
+    return shop.name || "Untitled Shop"
+  }
+
+  // Helper to get logo
+  const getLogo = () => {
+    return shop.logo || ""
+  }
+
+  // Helper to get business info
+  const getBusinessInfo = () => {
+    return shop.businessInfo || {}
+  }
+
+  // Helper to get stats
+  const getStats = () => {
+    return shop.stats || {
+      totalCustomers: 0,
+      totalOrders: 0,
+      totalProducts: 0,
+      totalRevenue: 0
+    }
+  }
+
+  // Helper to get settings
+  const getSettings = () => {
+    return shop.settings || {}
+  }
+
   const operatingStatus = getOperatingStatus()
+  const businessHours = getBusinessHours()
+  const description = getDescription()
+  const name = getName()
+  const logo = getLogo()
+  const businessInfo = getBusinessInfo()
+  const stats = getStats()
+  const settings = getSettings()
 
   const shareShop = (e: React.MouseEvent) => {
     e.stopPropagation()
     const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
     const shareUrl = `https://t.me/${botUsername}?start=${shop.id}`
-    const shareText = `Check out ${shop.name}! 🛍️\n\n${shop.description}\n\n${shareUrl}`
+    const shareText = `Check out ${name}! 🛍️\n\n${description}\n\n${shareUrl}`
     
     // Try Telegram WebApp share first
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)
     } else if (navigator.share) {
       navigator.share({
-        title: shop.name,
+        title: name,
         text: shareText,
         url: shareUrl
       }).catch(() => {
@@ -114,11 +174,11 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
       {/* Header Section */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center space-x-3 flex-1">
-          {shop.logo ? (
+          {logo ? (
             <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-telegram-hint/20">
               <img 
-                src={shop.logo} 
-                alt={shop.name} 
+                src={logo} 
+                alt={name} 
                 className="w-full h-full object-cover"
               />
             </div>
@@ -131,7 +191,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
               <h3 className="font-bold text-telegram-text text-base truncate">
-                {shop.name}
+                {name}
               </h3>
               {shop.isActive && (
                 <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
@@ -148,22 +208,22 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
             </div>
             
             <p className="text-sm text-telegram-hint line-clamp-2 mb-2">
-              {shop.description}
+              {description}
             </p>
             
             {/* Business Info */}
-            {shop.businessInfo && (
+            {businessInfo && (businessInfo.address || businessInfo.phone) && (
               <div className="flex items-center space-x-3 text-xs text-telegram-hint">
-                {shop.businessInfo.address && (
+                {businessInfo.address && (
                   <div className="flex items-center space-x-1">
                     <MapPin className="w-3 h-3" />
-                    <span className="truncate max-w-24">{shop.businessInfo.address}</span>
+                    <span className="truncate max-w-24">{businessInfo.address}</span>
                   </div>
                 )}
-                {shop.businessInfo.phone && (
+                {businessInfo.phone && (
                   <div className="flex items-center space-x-1">
                     <Phone className="w-3 h-3" />
-                    <span>{shop.businessInfo.phone}</span>
+                    <span>{businessInfo.phone}</span>
                   </div>
                 )}
               </div>
@@ -220,7 +280,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
             <Package className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-sm font-bold text-telegram-text">
-            {shop.stats?.totalProducts || 0}
+            {stats.totalProducts || 0}
           </div>
           <div className="text-xs text-telegram-hint">Products</div>
         </div>
@@ -230,7 +290,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
             <ShoppingCart className="w-4 h-4 text-green-600" />
           </div>
           <div className="text-sm font-bold text-telegram-text">
-            {shop.stats?.totalOrders || 0}
+            {stats.totalOrders || 0}
           </div>
           <div className="text-xs text-telegram-hint">Orders</div>
         </div>
@@ -240,7 +300,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
             <DollarSign className="w-4 h-4 text-yellow-600" />
           </div>
           <div className="text-sm font-bold text-telegram-text">
-            {formatCurrency(shop.stats?.totalRevenue || 0)}
+            {formatCurrency(stats.totalRevenue || 0)}
           </div>
           <div className="text-xs text-telegram-hint">Revenue</div>
         </div>
@@ -250,7 +310,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
             <Users className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-sm font-bold text-telegram-text">
-            {shop.stats?.totalCustomers || 0}
+            {stats.totalCustomers || 0}
           </div>
           <div className="text-xs text-telegram-hint">Customers</div>
         </div>
@@ -267,11 +327,11 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, onEdit, onSelect }) => {
             {shop.isActive ? 'Active' : 'Inactive'}
           </span>
           
-          {shop.settings?.businessHours && (
+          {businessHours && (
             <div className="flex items-center space-x-1 text-xs text-telegram-hint">
               <Clock className="w-3 h-3" />
               <span>
-                {shop.settings.businessHours.open} - {shop.settings.businessHours.close}
+                {businessHours.open} - {businessHours.close}
               </span>
             </div>
           )}
