@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Shop } from '../../types'
 import { Store, Package, ShoppingCart, DollarSign, Users, FileEdit as Edit, BarChart3, Star, Clock, MapPin, Phone, Share2, Copy, ExternalLink, Link } from 'lucide-react'
 import ShopLinkManager from './ShopLinkManager'
-
+ 
 interface ShopCardProps {
   shop: Shop
   onEdit: (shop: Shop) => void
