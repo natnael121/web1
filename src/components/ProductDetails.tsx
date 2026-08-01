@@ -100,19 +100,11 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
 
     if (window.Telegram?.WebApp) {
       if (window.Telegram.WebApp.openTelegramLink) {
-        const messageToShare = productImage
-          ? `${productImage}\n\n${shareMessage}`
-          : shareMessage
-
         window.Telegram.WebApp.openTelegramLink(
-          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(messageToShare)}`
+          `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
         )
       } else {
-        const fullMessage = productImage
-          ? `${productImage}\n\n${shareMessage}`
-          : shareMessage
-
-        await navigator.clipboard.writeText(fullMessage)
+        await navigator.clipboard.writeText(`${shareMessage}\n\n👉 View Product: ${productLink}`)
 
         if (window.Telegram.WebApp.showAlert) {
           window.Telegram.WebApp.showAlert('Product info copied! Paste in any chat to share.')
