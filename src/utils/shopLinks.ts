@@ -187,8 +187,6 @@ export const shopLinkUtils = {
       message += `\n${customMessage}\n`
     }
 
-    message += `\n${link}`
-
     return message
   }
 }

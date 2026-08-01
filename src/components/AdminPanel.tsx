@@ -638,18 +638,21 @@ const AdminPanel: React.FC = () => {
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
     const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
+    const textToShare = productImage
+      ? `${productImage}\n\n${shareMessage}`
+      : shareMessage
+
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
+        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(textToShare)}`
       )
     } else if (navigator.share) {
       try {
         const shareData: any = {
           title: product.name,
-          text: shareMessage
+          text: `${textToShare}\n\n👉 ${productLink}`
         }
 
-        // Try to include image if available
         if (productImage) {
           try {
             const response = await fetch(productImage)
@@ -657,23 +660,17 @@ const AdminPanel: React.FC = () => {
             const file = new File([blob], 'product.jpg', { type: blob.type })
             shareData.files = [file]
           } catch (err) {
-            console.log('Could not fetch image for sharing:', err)
+            console.log('Could not fetch image for native share:', err)
           }
         }
 
         await navigator.share(shareData)
       } catch (error) {
         console.error('Error sharing:', error)
-        const fullMessage = productImage
-          ? `${shareMessage}\n\n📸 Image: ${productImage}`
-          : shareMessage
-        copyToClipboard(fullMessage)
+        copyToClipboard(`${textToShare}\n\n👉 ${productLink}`)
       }
     } else {
-      const fullMessage = productImage
-        ? `${shareMessage}\n\n📸 Image: ${productImage}`
-        : shareMessage
-      copyToClipboard(fullMessage)
+      copyToClipboard(`${textToShare}\n\n👉 ${productLink}`)
     }
   }
 
