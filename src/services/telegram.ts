@@ -10,32 +10,57 @@ export interface PromotionMessage {
   replyMarkup?: any
 }
 
-const TELEGRAM_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-proxy`
-
+/**
+ * Calls the Telegram Bot API via the Firebase Cloud Function proxy.
+ * The proxy is needed because browsers cannot call api.telegram.org directly (CORS).
+ *
+ * Proxy URL is read from VITE_FIREBASE_FUNCTION_URL environment variable.
+ * If not configured, falls back to a direct API call (works inside Telegram WebApp).
+ */
 async function callTelegramApi(botToken: string, method: string, params: any) {
-  const response = await fetch(TELEGRAM_PROXY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-    },
-    body: JSON.stringify({
-      botToken,
-      method,
-      params
+  const functionBaseUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL
+
+  if (functionBaseUrl) {
+    // If it's a Vercel serverless function or similar custom route
+    const isVercelApi = functionBaseUrl === '/api';
+    const proxyUrl = isVercelApi 
+      ? `/api/telegram-proxy`
+      : `${functionBaseUrl}/telegramProxy`
+
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ botToken, method, params })
     })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Proxy function error:', errorText)
+      throw new Error(`Proxy function error! status: ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  // Fallback: call Telegram API directly.
+  // Works inside Telegram WebApp (Telegram relaxes CORS for mini apps).
+  console.warn('[telegram.ts] VITE_FIREBASE_FUNCTION_URL not set — calling Telegram API directly.')
+  const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`
+  const response = await fetch(telegramUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params || {})
   })
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('Edge function error:', errorText)
-    throw new Error(`Edge function error! status: ${response.status}`)
+    console.error('Telegram API error:', errorText)
+    throw new Error(`Telegram API error! status: ${response.status}`)
   }
 
-  const result = await response.json()
-
-  // Return the result without throwing - let callers handle migration
-  return result
+  return response.json()
 }
 
 export const telegramService = {
@@ -60,7 +85,6 @@ export const telegramService = {
       let finalChatId = chatId
       if (chatId.startsWith('@') || !/^-?\d+$/.test(chatId)) {
         console.log('Converting username to chat ID:', chatId)
-        // This is a username, try to convert it
         const telegramApi = new (await import('./telegramApi')).TelegramApiService(botToken)
         const convertedId = await telegramApi.getUserIdByUsername(chatId)
         if (convertedId) {
@@ -95,7 +119,6 @@ export const telegramService = {
               const newChatId = result.parameters.migrate_to_chat_id
               console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
 
-              // Retry with new chat ID
               const retryResult = await callTelegramApi(botToken, 'sendMediaGroup', {
                 chat_id: newChatId,
                 media: media
@@ -130,7 +153,6 @@ export const telegramService = {
               const newChatId = result.parameters.migrate_to_chat_id
               console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
 
-              // Retry with new chat ID
               const retryResult = await callTelegramApi(botToken, 'sendPhoto', {
                 chat_id: newChatId,
                 photo: message.images[0],
@@ -168,7 +190,6 @@ export const telegramService = {
             const newChatId = result.parameters.migrate_to_chat_id
             console.log(`Chat migrated from ${finalChatId} to ${newChatId}, retrying...`)
 
-            // Retry with new chat ID
             const retryResult = await callTelegramApi(botToken, 'sendMessage', {
               chat_id: newChatId,
               text: message.text,

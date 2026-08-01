@@ -3,7 +3,6 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { useFirebase } from '../../contexts/FirebaseContext'
 import { useTelegram } from '../../contexts/TelegramContext'
 import { MessageCircle, Save, Eye, EyeOff, TestTube, CheckCircle, XCircle, Loader2 } from 'lucide-react'
-import { TelegramApiService } from '../../services/telegramApi'
 
 
 interface TelegramBotSettingsProps {
@@ -44,7 +43,7 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     }
 
     // Validate token format
-    if (!botToken.match(/^\d+:[A-Za-z0-9_-]{35}$/)) {
+    if (!botToken.match(/^\d+:[A-Za-z0-9_-]{35,}$/)) {
       setError('Invalid bot token format. Should be like: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz')
       return
     }
@@ -83,29 +82,45 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     setError(null)
 
     try {
-      const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-proxy`
+      const firebaseFunctionUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL
 
-      // Test by getting bot info through proxy
-      const response = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          botToken: botToken.trim(),
-          method: 'getMe',
-          params: {}
+      let result: any
+
+      if (firebaseFunctionUrl) {
+        // Use proxy (avoids CORS)
+        const isVercelApi = firebaseFunctionUrl === '/api'
+        const proxyUrl = isVercelApi 
+          ? `/api/telegram-proxy`
+          : `${firebaseFunctionUrl}/telegramProxy`
+
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            botToken: botToken.trim(),
+            method: 'getMe',
+            params: {}
+          })
         })
-      })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        if (!response.ok) {
+          throw new Error(`Proxy error! status: ${response.status}`)
+        }
+
+        result = await response.json()
+      } else {
+        // Fallback: call Telegram API directly
+        // Works inside Telegram WebApp (Telegram relaxes CORS for mini apps)
+        console.warn('VITE_FIREBASE_FUNCTION_URL not set — testing bot token directly via Telegram API')
+        const telegramUrl = `https://api.telegram.org/bot${botToken.trim()}/getMe`
+        const response = await fetch(telegramUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        })
+        result = await response.json()
       }
 
-      const result = await response.json()
-
-      // Check if the edge function returned successfully and if Telegram API returned ok
       if (result.ok) {
         setTestResult('success')
         setError(null)
@@ -116,7 +131,13 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     } catch (error: any) {
       console.error('Error testing bot token:', error)
       setTestResult('error')
-      setError(error.message || 'Failed to test bot token. Please try again.')
+      if (!import.meta.env.VITE_FIREBASE_FUNCTION_URL) {
+        setError(
+          'Bot test failed. If you are outside Telegram WebApp, configure VITE_FIREBASE_FUNCTION_URL in your Vercel settings.'
+        )
+      } else {
+        setError(error.message || 'Failed to test bot token. Please try again.')
+      }
     } finally {
       setTesting(false)
     }
@@ -179,8 +200,8 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
               <XCircle className="w-4 h-4" />
             )}
             <span>
-              {testResult === 'success' 
-                ? 'Bot token is valid and working!' 
+              {testResult === 'success'
+                ? 'Bot token is valid and working!'
                 : 'Bot token test failed'
               }
             </span>

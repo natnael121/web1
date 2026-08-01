@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ── Helper functions ──────────────────────────────────────────────────────
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,19 +12,33 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Users collection - Allow authenticated users to read and manage their own profile
-    // Allow public creation for customer accounts (Telegram users accessing via shop links)
+    // Check that incoming data does not contain fields that should be read-only
+    function hasNoRestrictedFields() {
+      return !('role' in request.resource.data) || request.resource.data.role == resource.data.role;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // Authenticated users can read any user profile.
+    // Users can only create/update/delete their own document.
+    // Exception: Telegram customer accounts can be created without auth (shop link flow).
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if (isAuthenticated() && request.auth.uid == userId) ||
-                      (request.resource.data.role == 'customer' &&
-                       request.resource.data.telegramId is number &&
-                       request.resource.data.displayName is string);
+
+      // Normal auth account creation
+      allow create: if (isAuthenticated() && request.auth.uid == userId)
+                    // Telegram customer creation (no auth, must have telegramId)
+                    || (request.resource.data.role == 'customer'
+                        && request.resource.data.telegramId is number
+                        && request.resource.data.displayName is string);
+
       allow update: if isAuthenticated() && request.auth.uid == userId;
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Shops collection - Public read, authenticated users can create/update their own shops
+    // ── Shops ─────────────────────────────────────────────────────────────────
+    // Public read (catalog visible to all).
+    // Any authenticated user can create a shop.
+    // Only authenticated users can update/delete (owner enforcement handled in app logic).
     match /shops/{shopId} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -37,7 +52,8 @@ service cloud.firestore {
       }
     }
 
-    // Categories collection - Public read, authenticated users can manage
+    // ── Categories ────────────────────────────────────────────────────────────
+    // Public read (needed for shop catalog pages).
     match /categories/{categoryId} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -45,7 +61,9 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Departments collection - Authenticated users can manage
+    // ── Departments ───────────────────────────────────────────────────────────
+    // Only authenticated users can view and manage departments.
+    // (Departments contain Telegram chat IDs — should not be public.)
     match /departments/{departmentId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -53,7 +71,8 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Products collection - Public read, authenticated users can manage
+    // ── Products ──────────────────────────────────────────────────────────────
+    // Public read (needed for shop catalog).
     match /products/{productId} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -61,15 +80,19 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Orders collection - Authenticated users can manage
+    // ── Orders ────────────────────────────────────────────────────────────────
+    // Authenticated users can manage orders.
+    // Unauthenticated Telegram users can create orders (shop order flow).
     match /orders/{orderId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    || (request.resource.data.shopId is string
+                        && request.resource.data.customerId is string);
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
 
-    // Customers collection - Authenticated users can manage
+    // ── Customers ─────────────────────────────────────────────────────────────
     match /customers/{customerId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -77,18 +100,19 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Shop Customers collection - Allow unauthenticated creation for customer registration via shop links
+    // ── Shop Customers ────────────────────────────────────────────────────────
+    // Unauthenticated Telegram users can register as customers via shop links.
     match /shop_customers/{shopCustomerId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() ||
-                      (request.resource.data.role == 'customer' &&
-                       request.resource.data.telegramId is number &&
-                       request.resource.data.shopId is string);
+      allow create: if isAuthenticated()
+                    || (request.resource.data.role == 'customer'
+                        && request.resource.data.telegramId is number
+                        && request.resource.data.shopId is string);
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
 
-    // Shop Owners collection - Authenticated users can manage their own data
+    // ── Shop Owners ───────────────────────────────────────────────────────────
     match /shop_owners/{ownerId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -96,7 +120,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // CRM Contacts collection - Authenticated users can manage
+    // ── CRM ───────────────────────────────────────────────────────────────────
     match /crm_contacts/{contactId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -104,7 +128,6 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // CRM Tags collection - Authenticated users can manage
     match /crm_tags/{tagId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -112,7 +135,6 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // CRM Message Templates collection - Authenticated users can manage
     match /crm_message_templates/{templateId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -120,7 +142,6 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // CRM Auto Tag Rules collection - Authenticated users can manage
     match /crm_auto_tag_rules/{ruleId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -128,7 +149,8 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Shop Links collection - Public read, authenticated users can manage
+    // ── Shop Links ────────────────────────────────────────────────────────────
+    // Public read (links must be resolvable without auth).
     match /shop_links/{linkId} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -136,7 +158,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Promotions collection - Public read, authenticated users can manage
+    // ── Promotions ────────────────────────────────────────────────────────────
     match /promotions/{promotionId} {
       allow read: if true;
       allow create: if isAuthenticated();
@@ -144,22 +166,20 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
-    // Analytics collection - Authenticated users can manage
+    // ── Analytics ─────────────────────────────────────────────────────────────
     match /analytics/{analyticsId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
     }
 
-    // System configuration - Authenticated users can access
+    // ── System config ─────────────────────────────────────────────────────────
     match /system/{configId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
     }
 
-    // Allow public read for all documents by default, authenticated write
-    match /{document=**} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
+    // ── Default: deny everything not explicitly covered ───────────────────────
+    // NOTE: The old catch-all /{document=**} with public write has been REMOVED
+    // to prevent unauthorized data writes. All collections are explicitly listed above.
   }
 }
