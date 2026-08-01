@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore'
 import { useFirebase } from '../contexts/FirebaseContext'
-import { User, UserData, Order, Shop } from '../types'
-import { useTelegram } from '../contexts/TelegramContext'
-import { User as UserIcon, ShoppingCart, Package, Clock, CheckCircle, XCircle, Truck, DollarSign, Calendar, ArrowRight, RefreshCw, X, Eye, Globe, MessageCircle, FileEdit as Edit, Save, Mail, Phone as PhoneIcon, FileText } from 'lucide-react'
+import { User, UserData, Order } from '../types'
+import { User as UserIcon, ShoppingCart, Package, Clock, CheckCircle, XCircle, Truck, DollarSign, Calendar, ArrowRight, RefreshCw, X, Globe, MessageCircle, FileEdit as Edit, Save, Mail, Phone as PhoneIcon, FileText } from 'lucide-react'
 
 interface UserProfileProps {
   user: User | null
@@ -188,36 +187,50 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   )
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
-  const { webApp } = useTelegram()
+const UserProfile: React.FC<UserProfileProps> = ({ user, userData: propUserData }) => {
   const { db } = useFirebase()
+  const [userData, setUserData] = useState<UserData | null>(propUserData)
+  const [dataLoading, setDataLoading] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [shops, setShops] = useState<Shop[]>([])
-  const [showOrders, setShowOrders] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState({
-    displayName: userData?.displayName || '',
-    email: userData?.email || '',
-    phone: userData?.phone || '',
-    bio: userData?.bio || ''
-  })
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [settings, setSettings] = useState({
-    notifications: {
-      orderUpdates: true,
-      promotions: false,
-      newsletter: false
-    }
-  })
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalSpent: 0,
     pendingOrders: 0,
     completedOrders: 0
   })
+  const [error, setError] = useState<string | null>(null)
+  const [showOrders, setShowOrders] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [editForm, setEditForm] = useState({
+    displayName: userData?.displayName || '',
+    email: userData?.email || '',
+    phone: userData?.phone || '',
+    bio: userData?.bio || ''
+  })
+
+  useEffect(() => {
+    setUserData(propUserData)
+  }, [propUserData])
+
+  useEffect(() => {
+    if (!propUserData && user?.id) {
+      setDataLoading(true)
+      const telegramId = parseInt(user.id)
+      const usersRef = collection(db, 'users')
+      getDocs(query(usersRef, where('telegramId', '==', telegramId)))
+        .then(snapshot => {
+          if (!snapshot.empty) {
+            const d = snapshot.docs[0].data() as UserData
+            setUserData({ ...d, uid: snapshot.docs[0].id })
+          }
+        })
+        .catch(err => console.error('UserProfile self-fetch error:', err))
+        .finally(() => setDataLoading(false))
+    }
+  }, [user, propUserData, db])
 
   useEffect(() => {
     if (user?.id && userData) {
@@ -414,14 +427,44 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData }) => {
   }
 
   if (!user || !userData) {
+    if (dataLoading) {
+      return (
+        <div className="p-4">
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-2 border-telegram-button border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-telegram-hint">Loading your profile...</p>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="p-4">
         <div className="text-center py-12">
           <UserIcon className="w-16 h-16 mx-auto text-telegram-hint mb-4" />
           <h3 className="text-lg font-medium text-telegram-text mb-2">No user data</h3>
           <p className="text-telegram-hint">
-            Please open this app from Telegram to see your profile.
+            {user ? 'Could not load your profile from the database.' : 'Please open this app from Telegram to see your profile.'}
           </p>
+          {user && (
+            <button
+              onClick={() => {
+                setDataLoading(true)
+                const usersRef = collection(db, 'users')
+                getDocs(query(usersRef, where('telegramId', '==', parseInt(user.id))))
+                  .then(snapshot => {
+                    if (!snapshot.empty) {
+                      const d = snapshot.docs[0].data() as UserData
+                      setUserData({ ...d, uid: snapshot.docs[0].id })
+                    }
+                  })
+                  .catch(err => console.error('Retry fetch error:', err))
+                  .finally(() => setDataLoading(false))
+              }}
+              className="mt-4 bg-telegram-button text-telegram-button-text px-4 py-2 rounded-lg text-sm"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     )

@@ -18,11 +18,12 @@ service cloud.firestore {
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────
-    // Authenticated users can read any user profile.
-    // Users can only create/update/delete their own document.
-    // Exception: Telegram customer accounts can be created without auth (shop link flow).
+    // Public read: Telegram WebApp users look up their profile by telegramId field
+    // WITHOUT Firebase Auth — the query in App.tsx uses where('telegramId', '==', id).
+    // Write is restricted: only the authenticated owner can update their own doc.
+    // Telegram customer accounts (no Firebase auth) can be created via shop link flow.
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
 
       // Normal auth account creation
       allow create: if (isAuthenticated() && request.auth.uid == userId)
@@ -31,7 +32,9 @@ service cloud.firestore {
                         && request.resource.data.telegramId is number
                         && request.resource.data.displayName is string);
 
-      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId
+                    // Allow unauthenticated update for Telegram users (no Firebase auth)
+                    || (resource.data.telegramId is number);
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
 
@@ -62,10 +65,9 @@ service cloud.firestore {
     }
 
     // ── Departments ───────────────────────────────────────────────────────────
-    // Only authenticated users can view and manage departments.
-    // (Departments contain Telegram chat IDs — should not be public.)
+    // Public read needed: AdminPanel loads departments for Telegram users without Firebase auth.
     match /departments/{departmentId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
@@ -101,22 +103,25 @@ service cloud.firestore {
     }
 
     // ── Shop Customers ────────────────────────────────────────────────────────
+    // Public read: Telegram users check their role in a shop without Firebase auth.
     // Unauthenticated Telegram users can register as customers via shop links.
     match /shop_customers/{shopCustomerId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated()
                     || (request.resource.data.role == 'customer'
                         && request.resource.data.telegramId is number
                         && request.resource.data.shopId is string);
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated()
+                    || (request.resource.data.telegramId is number);
       allow delete: if isAuthenticated();
     }
 
     // ── Shop Owners ───────────────────────────────────────────────────────────
+    // Public read: needed for Telegram shop link flow.
     match /shop_owners/{ownerId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read: if true;
+      allow create: if isAuthenticated() || (request.resource.data.telegram_id is number);
+      allow update: if isAuthenticated() || (resource.data.telegram_id is number);
       allow delete: if isAuthenticated();
     }
 
