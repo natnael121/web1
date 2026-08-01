@@ -180,16 +180,12 @@ export const shopLinkUtils = {
     const priceFormatted = product.price ? Number(product.price).toFixed(2) : '0.00'
     message += `💰 Price: $${priceFormatted}\n`
 
-    const stockCount = product.stock !== undefined ? product.stock : 0
-    message += `📦 Available: ${stockCount} in stock\n`
-
     if (product.sku) {
       message += `🏷️ SKU: ${product.sku}\n`
     }
 
     message += `\n🛒 Order Now! Don't miss this amazing deal!\n\n`
-    message += `#special #offer\n\n`
-    message += `🚀 Limited time offer - Order today!`
+    message += `#special #offer`
 
     return message
   }

@@ -170,7 +170,6 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 ${customMessage || product.description}
 
 💰 <b>Price:</b> ${originalPrice}${discountedPrice}
-📦 <b>Available:</b> ${product.stock} in stock
 ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
 
 🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}

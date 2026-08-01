@@ -95,41 +95,45 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     if (!shopId || !shopName) return
 
     const productLink = shopLinkUtils.generateShopLink(shopId, { productId: product.id })
-    const shareMessage = shopLinkUtils.generateProductShareMessage(product, { id: shopId, name: shopName }, {})
+    const shareBody = shopLinkUtils.generateProductShareMessage(product, { id: shopId, name: shopName }, {})
+    const fullMessage = `${shareBody}\n\n👉 View Product: ${productLink}\n\n🚀 Limited time offer - Order today!`
     const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
-      )
-    } else if (navigator.share) {
+    // 1. Try native web share with photo file attachment
+    if (navigator.share) {
       try {
         const shareData: any = {
           title: product.name,
-          text: `${shareMessage}\n\n👉 View Product: ${productLink}`
+          text: fullMessage
         }
 
         if (productImage) {
           try {
             const response = await fetch(productImage)
             const blob = await response.blob()
-            const file = new File([blob], `${product.name.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`, { type: blob.type })
-            shareData.files = [file]
+            const file = new File([blob], `${product.name.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`, { type: blob.type || 'image/jpeg' })
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              shareData.files = [file]
+            }
           } catch (err) {
             console.log('Could not fetch image for sharing:', err)
           }
         }
 
         await navigator.share(shareData)
+        return
       } catch (err) {
-        console.log('Share cancelled or failed:', err)
-        await navigator.clipboard.writeText(`${shareMessage}\n\n👉 View Product: ${productLink}`)
-        if (window.Telegram?.WebApp?.showAlert) {
-          window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
-        }
+        console.log('Native share skipped or cancelled:', err)
       }
+    }
+
+    // 2. Telegram Share dialog without raw URL prepended at top
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?text=${encodeURIComponent(fullMessage)}`
+      )
     } else {
-      await navigator.clipboard.writeText(`${shareMessage}\n\n👉 View Product: ${productLink}`)
+      await navigator.clipboard.writeText(fullMessage)
       if (window.Telegram?.WebApp?.showAlert) {
         window.Telegram.WebApp.showAlert('Product link copied to clipboard!')
       } else {

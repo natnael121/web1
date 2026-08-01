@@ -636,39 +636,43 @@ const AdminPanel: React.FC = () => {
     if (!selectedShop) return
 
     const productLink = shopLinkUtils.generateShopLink(product.shopId, { productId: product.id })
-    const shareMessage = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
+    const shareBody = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
+    const fullMessage = `${shareBody}\n\n👉 View Product: ${productLink}\n\n🚀 Limited time offer - Order today!`
     const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      // In Telegram WebApp, passing url + text attaches the product link properly without raw image URL text
-      window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
-      )
-    } else if (navigator.share) {
+    if (navigator.share) {
       try {
         const shareData: any = {
           title: product.name,
-          text: `${shareMessage}\n\n👉 View Product: ${productLink}`
+          text: fullMessage
         }
 
         if (productImage) {
           try {
             const response = await fetch(productImage)
             const blob = await response.blob()
-            const file = new File([blob], 'product.jpg', { type: blob.type })
-            shareData.files = [file]
+            const file = new File([blob], `${product.name.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`, { type: blob.type || 'image/jpeg' })
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              shareData.files = [file]
+            }
           } catch (err) {
             console.log('Could not fetch image file for native share:', err)
           }
         }
 
         await navigator.share(shareData)
+        return
       } catch (error) {
         console.error('Error sharing:', error)
-        copyToClipboard(`${shareMessage}\n\n👉 View Product: ${productLink}`)
       }
+    }
+
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?text=${encodeURIComponent(fullMessage)}`
+      )
     } else {
-      copyToClipboard(`${shareMessage}\n\n👉 View Product: ${productLink}`)
+      copyToClipboard(fullMessage)
     }
   }
 
@@ -724,7 +728,6 @@ const AdminPanel: React.FC = () => {
 ${customMessage || product.description}
 
 💰 <b>Price:</b> ${originalPrice}${discountedPrice}
-📦 <b>Available:</b> ${product.stock !== undefined ? product.stock : 0} in stock
 ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
 
 🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}
