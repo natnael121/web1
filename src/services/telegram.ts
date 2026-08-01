@@ -32,13 +32,19 @@ async function callTelegramApi(botToken: string, method: string, params: any) {
     body: JSON.stringify({ botToken, method, params })
   })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('Proxy function error:', errorText)
-    throw new Error(`Proxy function error! status: ${response.status}`)
+  const text = await response.text()
+  let result: any = {}
+  try {
+    result = JSON.parse(text)
+  } catch (e) {
+    throw new Error(`Proxy error (${response.status}): ${text.slice(0, 100)}`)
   }
 
-  return response.json()
+  if (!response.ok) {
+    throw new Error(result.description || `Proxy error status: ${response.status}`)
+  }
+
+  return result
 }
 
 export const telegramService = {
