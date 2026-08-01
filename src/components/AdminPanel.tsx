@@ -254,8 +254,7 @@ const AdminPanel: React.FC = () => {
       const productsRef = collection(db, 'products')
       const productsQuery = query(
         productsRef, 
-        where('shopId', '==', shopId),
-        orderBy('createdAt', 'desc')
+        where('shopId', '==', shopId)
       )
       const productsSnapshot = await getDocs(productsQuery)
       
@@ -299,8 +298,7 @@ const AdminPanel: React.FC = () => {
       const categoriesRef = collection(db, 'categories')
       const categoriesQuery = query(
         categoriesRef,
-        where('shopId', '==', shopId),
-        orderBy('order', 'asc')
+        where('shopId', '==', shopId)
       )
       const categoriesSnapshot = await getDocs(categoriesQuery)
       
@@ -338,8 +336,7 @@ const AdminPanel: React.FC = () => {
     const departmentsRef = collection(db, "departments")
     const departmentsQuery = query(
       departmentsRef,
-      where("shopId", "==", shopId),
-      orderBy("order", "asc") // requires composite index!
+      where("shopId", "==", shopId)
     )
     const departmentsSnapshot = await getDocs(departmentsQuery)
 

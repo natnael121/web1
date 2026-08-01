@@ -252,8 +252,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, userData: propUserData 
       setError(null)
 
       const ordersRef = collection(db, 'orders')
-      const allOrdersQuery = query(ordersRef, orderBy('createdAt', 'desc'))
-      const allOrdersSnapshot = await getDocs(allOrdersQuery)
+      const allOrdersSnapshot = await getDocs(ordersRef)
 
       const userOrders: Order[] = []
       const telegramIdNum = parseInt(user.id)

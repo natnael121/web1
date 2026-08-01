@@ -34,14 +34,20 @@ export class TelegramApiService {
       // Remove @ symbol if present
       const cleanUsername = username.replace('@', '')
       
-      // Try to get chat info by username
-      const response = await fetch(`${this.baseUrl}/getChat`, {
+      const functionBaseUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL || '/api'
+      const proxyUrl = functionBaseUrl.startsWith('http')
+        ? `${functionBaseUrl}/telegramProxy`
+        : `/api/telegram-proxy`
+
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_id: `@${cleanUsername}`
+          botToken: this.botToken,
+          method: 'getChat',
+          params: { chat_id: `@${cleanUsername}` }
         })
       })
 
@@ -65,13 +71,20 @@ export class TelegramApiService {
    */
   async getChatById(chatId: number): Promise<TelegramChat | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/getChat`, {
+      const functionBaseUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL || '/api'
+      const proxyUrl = functionBaseUrl.startsWith('http')
+        ? `${functionBaseUrl}/telegramProxy`
+        : `/api/telegram-proxy`
+
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_id: chatId
+          botToken: this.botToken,
+          method: 'getChat',
+          params: { chat_id: chatId }
         })
       })
 
@@ -105,15 +118,24 @@ export class TelegramApiService {
    */
   async testChatAccess(chatId: number): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/sendMessage`, {
+      const functionBaseUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL || '/api'
+      const proxyUrl = functionBaseUrl.startsWith('http')
+        ? `${functionBaseUrl}/telegramProxy`
+        : `/api/telegram-proxy`
+
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_id: chatId,
-          text: '🤖 Bot connection test - This message confirms the bot can send messages to this chat.',
-          disable_notification: true
+          botToken: this.botToken,
+          method: 'sendMessage',
+          params: {
+            chat_id: chatId,
+            text: '🤖 Bot connection test - This message confirms the bot can send messages to this chat.',
+            disable_notification: true
+          }
         })
       })
 
