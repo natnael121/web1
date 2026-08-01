@@ -638,19 +638,16 @@ const AdminPanel: React.FC = () => {
     const shareMessage = shopLinkUtils.generateProductShareMessage(product, selectedShop, {})
     const productImage = product.images && product.images.length > 0 ? product.images[0] : null
 
-    const textToShare = productImage
-      ? `${productImage}\n\n${shareMessage}`
-      : shareMessage
-
     if (window.Telegram?.WebApp?.openTelegramLink) {
+      // In Telegram WebApp, passing url + text attaches the product link properly without raw image URL text
       window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(textToShare)}`
+        `https://t.me/share/url?url=${encodeURIComponent(productLink)}&text=${encodeURIComponent(shareMessage)}`
       )
     } else if (navigator.share) {
       try {
         const shareData: any = {
           title: product.name,
-          text: `${textToShare}\n\n👉 ${productLink}`
+          text: `${shareMessage}\n\n👉 View Product: ${productLink}`
         }
 
         if (productImage) {
@@ -660,17 +657,17 @@ const AdminPanel: React.FC = () => {
             const file = new File([blob], 'product.jpg', { type: blob.type })
             shareData.files = [file]
           } catch (err) {
-            console.log('Could not fetch image for native share:', err)
+            console.log('Could not fetch image file for native share:', err)
           }
         }
 
         await navigator.share(shareData)
       } catch (error) {
         console.error('Error sharing:', error)
-        copyToClipboard(`${textToShare}\n\n👉 ${productLink}`)
+        copyToClipboard(`${shareMessage}\n\n👉 View Product: ${productLink}`)
       }
     } else {
-      copyToClipboard(`${textToShare}\n\n👉 ${productLink}`)
+      copyToClipboard(`${shareMessage}\n\n👉 View Product: ${productLink}`)
     }
   }
 

@@ -17,9 +17,12 @@ export const shopLinkUtils = {
    * @returns The complete Telegram Mini App link
    */
   generateShopLink(shopId: string, options: ShopLinkOptions = {}): string {
-    const botUsername = options.botUsername || import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
+    const botUsername = options.botUsername || import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'shop_test3_bot'
+    const cleanBotUsername = botUsername.replace('@', '')
     const startParam = options.productId ? `${shopId}_${options.productId}` : shopId
-    return `https://t.me/${botUsername}?startapp=${startParam}`
+    
+    // Direct Mini App URL syntax: https://t.me/bot_username/shop?startapp=PARAM or https://t.me/bot_username?startapp=PARAM
+    return `https://t.me/${cleanBotUsername}?startapp=${startParam}`
   },
 
   /**
