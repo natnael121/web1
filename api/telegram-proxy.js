@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
-  // Set CORS headers so your app can call it
-  res.setHeader('Access-Control-Allow-Credentials', true);
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
@@ -19,7 +19,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { botToken, method, params } = req.body;
+    // Safely parse body if stringified
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const { botToken, method, params } = body;
 
     if (!botToken) {
       return res.status(400).json({ ok: false, description: 'botToken is required' });
@@ -29,12 +31,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, description: 'method is required' });
     }
 
-    // Basic bot token format validation
-    if (!/^\d+:[A-Za-z0-9_-]{35,}$/.test(botToken)) {
+    // Bot token validation (digits:secret format)
+    const cleanToken = String(botToken).trim();
+    if (!/^\d+:[A-Za-z0-9_-]+$/.test(cleanToken)) {
       return res.status(400).json({ ok: false, description: 'Invalid bot token format' });
     }
 
-    const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`;
+    const telegramUrl = `https://api.telegram.org/bot${cleanToken}/${method}`;
 
     const telegramRes = await fetch(telegramUrl, {
       method: 'POST',
