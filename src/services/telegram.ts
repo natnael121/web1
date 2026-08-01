@@ -18,46 +18,24 @@ export interface PromotionMessage {
  * If not configured, falls back to a direct API call (works inside Telegram WebApp).
  */
 async function callTelegramApi(botToken: string, method: string, params: any) {
-  const functionBaseUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL
+  const functionBaseUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL || '/api'
 
-  if (functionBaseUrl) {
-    // If it's a Vercel serverless function or similar custom route
-    const isVercelApi = functionBaseUrl === '/api';
-    const proxyUrl = isVercelApi 
-      ? `/api/telegram-proxy`
-      : `${functionBaseUrl}/telegramProxy`
+  const proxyUrl = functionBaseUrl.startsWith('http')
+    ? `${functionBaseUrl}/telegramProxy`
+    : `/api/telegram-proxy`
 
-    const response = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ botToken, method, params })
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Proxy function error:', errorText)
-      throw new Error(`Proxy function error! status: ${response.status}`)
-    }
-
-    return response.json()
-  }
-
-  // Fallback: call Telegram API directly.
-  // Works inside Telegram WebApp (Telegram relaxes CORS for mini apps).
-  console.warn('[telegram.ts] VITE_FIREBASE_FUNCTION_URL not set — calling Telegram API directly.')
-  const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`
-  const response = await fetch(telegramUrl, {
+  const response = await fetch(proxyUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params || {})
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ botToken, method, params })
   })
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('Telegram API error:', errorText)
-    throw new Error(`Telegram API error! status: ${response.status}`)
+    console.error('Proxy function error:', errorText)
+    throw new Error(`Proxy function error! status: ${response.status}`)
   }
 
   return response.json()

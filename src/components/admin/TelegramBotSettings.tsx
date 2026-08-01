@@ -82,44 +82,30 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     setError(null)
 
     try {
-      const firebaseFunctionUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL
+      const firebaseFunctionUrl = import.meta.env.VITE_FIREBASE_FUNCTION_URL || '/api'
 
       let result: any
 
-      if (firebaseFunctionUrl) {
-        // Use proxy (avoids CORS)
-        const isVercelApi = firebaseFunctionUrl === '/api'
-        const proxyUrl = isVercelApi 
-          ? `/api/telegram-proxy`
-          : `${firebaseFunctionUrl}/telegramProxy`
+      // Always try the Vercel/proxy endpoint first
+      const proxyUrl = firebaseFunctionUrl.startsWith('http')
+        ? `${firebaseFunctionUrl}/telegramProxy`
+        : `/api/telegram-proxy`
 
-        const response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            botToken: botToken.trim(),
-            method: 'getMe',
-            params: {}
-          })
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          method: 'getMe',
+          params: {}
         })
+      })
 
-        if (!response.ok) {
-          throw new Error(`Proxy error! status: ${response.status}`)
-        }
-
-        result = await response.json()
-      } else {
-        // Fallback: call Telegram API directly
-        // Works inside Telegram WebApp (Telegram relaxes CORS for mini apps)
-        console.warn('VITE_FIREBASE_FUNCTION_URL not set — testing bot token directly via Telegram API')
-        const telegramUrl = `https://api.telegram.org/bot${botToken.trim()}/getMe`
-        const response = await fetch(telegramUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        })
-        result = await response.json()
+      if (!response.ok) {
+        throw new Error(`Proxy error! status: ${response.status}`)
       }
+
+      result = await response.json()
 
       if (result.ok) {
         setTestResult('success')
