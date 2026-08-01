@@ -86,10 +86,11 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
 
       let result: any
 
-      // Always try the Vercel/proxy endpoint first
       const proxyUrl = firebaseFunctionUrl.startsWith('http')
         ? `${firebaseFunctionUrl}/telegramProxy`
         : `/api/telegram-proxy`
+
+      console.log('Testing bot token against proxy:', proxyUrl)
 
       const response = await fetch(proxyUrl, {
         method: 'POST',
@@ -101,11 +102,16 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
         })
       })
 
-      if (!response.ok) {
-        throw new Error(`Proxy error! status: ${response.status}`)
+      const text = await response.text()
+      try {
+        result = JSON.parse(text)
+      } catch (e) {
+        throw new Error(`Server returned non-JSON response (status ${response.status}): ${text.slice(0, 100)}`)
       }
 
-      result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.description || `Proxy error (status ${response.status})`)
+      }
 
       if (result.ok) {
         setTestResult('success')
@@ -117,13 +123,7 @@ const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({ userId, onTok
     } catch (error: any) {
       console.error('Error testing bot token:', error)
       setTestResult('error')
-      if (!import.meta.env.VITE_FIREBASE_FUNCTION_URL) {
-        setError(
-          'Bot test failed. If you are outside Telegram WebApp, configure VITE_FIREBASE_FUNCTION_URL in your Vercel settings.'
-        )
-      } else {
-        setError(error.message || 'Failed to test bot token. Please try again.')
-      }
+      setError(error.message || 'Failed to test bot token. Please try again.')
     } finally {
       setTesting(false)
     }
