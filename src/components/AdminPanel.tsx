@@ -16,7 +16,7 @@ import { useTelegram } from '../contexts/TelegramContext'
 import { useNotification } from '../contexts/NotificationContext'
 import { Shop, Product, Category, Department, UserData } from '../types'
 import { telegramService } from '../services/telegram'
-import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft, MessageCircle } from 'lucide-react'
+import { Store, Plus, FileEdit as Edit, Trash2, Save, X, Package, DollarSign, Image, FileText, Star, MapPin, Phone, Clock, Users, BarChart3, Bell, ShoppingCart, Tag, User, ArrowLeft, MessageCircle, QrCode } from 'lucide-react'
 import { Settings } from 'lucide-react'
 import OrderManagement from './admin/OrderManagement'
 import ShopCreateModal from './admin/ShopCreateModal'
@@ -34,6 +34,7 @@ import TelegramBotSettings from './admin/TelegramBotSettings'
 import UserRegistration from './UserRegistration'
 import CRMPanel from './crm/CRMPanel'
 import CustomerManagement from './admin/CustomerManagement'
+import { InventoryManager } from './admin/InventoryManager'
 import { shopLinkUtils } from '../utils/shopLinks'
 import { shopCustomerService } from '../services/shopCustomerService'
 
@@ -48,7 +49,7 @@ const AdminPanel: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders' | 'crm' | 'customers' | 'settings'>('profile')
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'departments' | 'analytics' | 'profile' | 'orders' | 'crm' | 'customers' | 'inventory' | 'settings'>('profile')
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -1196,6 +1197,16 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
             <OrderManagement selectedShopId={selectedShop.id} />
           )}
 
+          {/* Inventory Tab */}
+          {activeTab === 'inventory' && (
+            <InventoryManager
+              shop={selectedShop}
+              products={products}
+              onRefreshProducts={() => fetchShopProducts(selectedShop.id)}
+              performedBy={userData?.displayName || user?.first_name || 'Admin'}
+            />
+          )}
+
             {/* Settings Tab */}
             {activeTab === 'settings' && (
               <div className="space-y-4">
@@ -1372,9 +1383,10 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       {/* Bottom Navigation - Mobile First */}
       {selectedShop && (
         <div className="fixed bottom-0 left-0 right-0 bg-telegram-bg border-t border-telegram-hint/10 safe-area-inset-bottom z-20">
-          <div className="grid grid-cols-4 gap-1 p-2">
+          <div className="grid grid-cols-5 gap-1 p-2">
             {[
               { id: 'products', label: 'Products', icon: Package },
+              { id: 'inventory', label: 'Inventory', icon: QrCode },
               { id: 'orders', label: 'Orders', icon: ShoppingCart },
               { id: 'customers', label: 'Customers', icon: User },
               { id: 'crm', label: 'CRM', icon: MessageCircle },

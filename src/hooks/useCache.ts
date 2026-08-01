@@ -1,19 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { cacheSyncService } from '../services/cacheSync'
+import { Shop, Product, Category, Department, Order } from '../types'
  
 export interface UseCacheOptions {
   enableRealtime?: boolean
   fallbackToCache?: boolean
   syncOnMount?: boolean
-}
-// Filter by telegramId
-  const ordersData = result.data && Array.isArray(result.data) ? result.data : []
-  const userOrders = ordersData.filter((order: Order) => order.telegramId === telegramId)
-  
-  return {
-    ...result,
-    data: userOrders
-  }
 }
 
 export function useActiveShops() {
@@ -21,8 +13,13 @@ export function useActiveShops() {
     enableRealtime: true, 
     syncOnMount: true 
   })
-  
-  })
+  const shopsData = result.data && Array.isArray(result.data) ? result.data : []
+  return {
+    ...result,
+    data: shopsData.filter((shop: Shop) => shop.isActive)
+  }
+}
+
 export function useCache<T>(
   collectionName: string,
   id?: string,

@@ -339,15 +339,34 @@ export interface CRMStats {
   topTags: Array<{ tag: string; count: number }>
 }
 
+export interface InventoryLog {
+  id: string
+  shopId: string
+  productId: string
+  productName: string
+  sku?: string
+  previousStock: number
+  newStock: number
+  changeQuantity: number
+  type: 'stock_in' | 'stock_out' | 'adjustment' | 'order_fulfillment' | 'damage'
+  notes?: string
+  performedBy: string
+  createdAt: Date
+}
+
 declare global {
   interface Window {
     Telegram?: {
-      WebApp: {
+      WebApp?: {
         ready: () => void
         expand: () => void
-        close: () => void
+        openTelegramLink: (url: string) => void
+        showAlert: (message: string) => void
+        showConfirm: (message: string, callback: (confirmed: boolean) => void) => void
         setHeaderColor: (color: string) => void
         setBackgroundColor: (color: string) => void
+        showScanQrPopup?: (params: { text?: string }, callback?: (data: string) => boolean | void) => void
+        closeScanQrPopup?: () => void
         MainButton: {
           text: string
           color: string
