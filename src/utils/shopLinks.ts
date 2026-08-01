@@ -164,31 +164,32 @@ export const shopLinkUtils = {
    * @returns The formatted share message
    */
   generateProductShareMessage(product: any, shop: any, options: ShopLinkOptions = {}): string {
-    const link = this.generateShopLink(shop.id, { ...options, productId: product.id })
     const customMessage = options.customMessage || ''
+    const title = customMessage || `🔥 🔥 Special Offer: ${product.name}`
 
-    let message = `🛍️ ${product.name}\n\n`
+    let message = `${title}\n\n`
+    message += `🛍️ ${product.name}\n\n`
 
     if (product.description) {
-      const shortDesc = product.description.length > 100
-        ? `${product.description.substring(0, 100)}...`
+      const shortDesc = product.description.length > 150
+        ? `${product.description.substring(0, 150)}...`
         : product.description
       message += `${shortDesc}\n\n`
     }
 
-    message += `💰 Price: $${product.price.toFixed(2)}\n`
+    const priceFormatted = product.price ? Number(product.price).toFixed(2) : '0.00'
+    message += `💰 Price: $${priceFormatted}\n`
 
-    if (product.stock > 0) {
-      message += `📦 In Stock\n`
-    } else {
-      message += `❌ Out of Stock\n`
+    const stockCount = product.stock !== undefined ? product.stock : 0
+    message += `📦 Available: ${stockCount} in stock\n`
+
+    if (product.sku) {
+      message += `🏷️ SKU: ${product.sku}\n`
     }
 
-    message += `\n🏪 From: ${shop.name}\n`
-
-    if (customMessage) {
-      message += `\n${customMessage}\n`
-    }
+    message += `\n🛒 Order Now! Don't miss this amazing deal!\n\n`
+    message += `#special #offer\n\n`
+    message += `🚀 Limited time offer - Order today!`
 
     return message
   }

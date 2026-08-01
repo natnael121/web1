@@ -6,6 +6,7 @@ import { telegramService } from '../../services/telegram'
 import { useTelegram } from '../../contexts/TelegramContext'
 import { useNotification } from '../../contexts/NotificationContext'
 import TelegramChatInput from '../common/TelegramChatInput'
+import { shopLinkUtils } from '../../utils/shopLinks'
 
 interface PromotionModalProps {
   product: Product
@@ -158,8 +159,8 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
     const validUntilText = validUntil ? `\n⏰ <b>Valid until:</b> ${new Date(validUntil).toLocaleDateString()}` : ''
     const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
 
-    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-    const productLink = `https://t.me/${botUsername}?startapp=${product.shopId}_product_${product.id}`
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'shop_test3_bot'
+    const productLink = shopLinkUtils.generateShopLink(product.shopId, { productId: product.id, botUsername })
 
     return `
 🔥 <b>${promotionTitle}</b>${discountText}

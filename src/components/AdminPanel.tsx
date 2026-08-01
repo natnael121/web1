@@ -713,8 +713,8 @@ const AdminPanel: React.FC = () => {
       const validUntilText = validUntil ? `\n⏰ <b>Valid until:</b> ${validUntil.toLocaleDateString()}` : ''
       const tagsText = tags.length > 0 ? `\n\n${tags.join(' ')}` : ''
 
-      const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'YourBot'
-      const productLink = `https://t.me/${botUsername}?startapp=${product.shopId}_product_${product.id}`
+      const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'shop_test3_bot'
+      const productLink = shopLinkUtils.generateShopLink(product.shopId, { productId: product.id, botUsername })
 
       const message = `
 🔥 <b>${promotionTitle}</b>${discountText}
@@ -724,7 +724,7 @@ const AdminPanel: React.FC = () => {
 ${customMessage || product.description}
 
 💰 <b>Price:</b> ${originalPrice}${discountedPrice}
-📦 <b>Available:</b> ${product.stock} in stock
+📦 <b>Available:</b> ${product.stock !== undefined ? product.stock : 0} in stock
 ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
 
 🛒 <b>Order Now!</b> Don't miss this amazing deal!${tagsText}
@@ -737,7 +737,17 @@ ${product.sku ? `🏷️ <b>SKU:</b> ${product.sku}` : ''}${validUntilText}
       const promotionMessage = {
         text: message,
         images: promotionImages.length > 0 ? promotionImages : (product.images.length > 0 ? [product.images[0]] : undefined),
-        parseMode: 'HTML' as const
+        parseMode: 'HTML' as const,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '👉 View Product',
+                url: productLink
+              }
+            ]
+          ]
+        }
       }
 
       // Send to selected departments or all active departments if none selected
